@@ -21,7 +21,7 @@ interface TicketUser { id: number; name: string; email: string }
 
 interface IctTicket {
     id: number; ticket_number: string; title: string; description?: string;
-    status: string; priority: string; category: string;
+    status: string; priority: string; issue_type?: string; category: string;
     subsidiary?: string; department?: string; location?: string;
     reported_by: number; assigned_to?: number;
     reportedBy?: TicketUser; assignedTo?: TicketUser;
@@ -36,11 +36,13 @@ interface PaginatedTickets {
 
 interface Props {
     tickets: PaginatedTickets;
-    stats: { open: number; in_progress: number; pending: number; resolved: number; total: number };
+    stats: { open: number; in_progress: number; pending: number; resolved: number; total: number; overdue?: number };
     members: TicketUser[];
     subsidiaries: string[];
     departments: string[];
+    issue_types: Record<string, string>;
     categories: Record<string, string>;
+    categories_by_type: Record<string, Record<string, string>>;
     statuses: Record<string, { label: string; color: string }>;
     priorities: Record<string, { label: string; color: string }>;
     filters: Record<string, string>;
@@ -86,28 +88,33 @@ function slaLabel(dueDate?: string, status?: string): { text: string; overdue: b
 
 // ── Create Ticket Modal ───────────────────────────────────────────────────────
 
-function CreateTicketModal({ open, onClose, subsidiaries, departments, categories, csrf }: {
+function CreateTicketModal({ open, onClose, subsidiaries, departments, issue_types, categories_by_type, csrf }: {
     open: boolean; onClose: () => void;
     subsidiaries: string[]; departments: string[];
-    categories: Record<string, string>;
+    issue_types: Record<string, string>;
+    categories_by_type: Record<string, Record<string, string>>;
     csrf: string;
 }) {
     const { t } = useTranslation();
-    const [form, setForm] = useState({
-        title: '', description: '', steps_to_reproduce: '',
-        priority: 'medium', category: 'other',
-        subsidiary: '', department: '', location: '',
-    });
+    const emptyForm = { title: '', description: '', steps_to_reproduce: '', priority: 'medium', issue_type: 'it_systems', category: 'other', subsidiary: '', department: '', location: '' };
+    const [form, setForm] = useState(emptyForm);
     const [saving, setSaving] = useState(false);
 
-    const set = (k: string, v: string) => setForm(prev => ({ ...prev, [k]: v }));
+    const set = (k: string, v: string) => setForm(prev => {
+        const updated = { ...prev, [k]: v };
+        // Reset category when issue_type changes
+        if (k === 'issue_type') updated.category = 'other';
+        return updated;
+    });
+
+    const availableCategories = categories_by_type[form.issue_type] ?? { other: 'Other' };
 
     const submit = () => {
         if (!form.title.trim()) { toast.error('Title is required'); return; }
         setSaving(true);
         router.post(route('ict-tickets.store'), form as any, {
-            onSuccess: () => { onClose(); setForm({ title: '', description: '', steps_to_reproduce: '', priority: 'medium', category: 'other', subsidiary: '', department: '', location: '' }); },
-            onError: () => toast.error('Failed to create ticket'),
+            onSuccess: () => { onClose(); setForm(emptyForm); },
+            onError: () => toast.error('Failed to submit issue report'),
             onFinish: () => setSaving(false),
         });
     };
@@ -118,14 +125,39 @@ function CreateTicketModal({ open, onClose, subsidiaries, departments, categorie
                 <DialogHeader>
                     <DialogTitle className="flex items-center gap-2">
                         <Ticket className="w-4 h-4" style={{ color: '#E3B448' }} />
-                        {t('Report ICT Issue')}
+                        {t('Report an Issue — Trukumb Holdings Group')}
                     </DialogTitle>
                 </DialogHeader>
 
                 <div className="grid grid-cols-1 gap-4">
                     <div className="space-y-1">
-                        <Label>{t('Title')} *</Label>
+                        <Label>{t('Issue Title')} *</Label>
                         <Input value={form.title} onChange={e => set('title', e.target.value)} placeholder={t('Brief description of the issue')} />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-1">
+                            <Label>{t('Issue Type')}</Label>
+                            <Select value={form.issue_type} onValueChange={v => set('issue_type', v)}>
+                                <SelectTrigger><SelectValue /></SelectTrigger>
+                                <SelectContent className="z-[110000]">
+                                    {Object.entries(issue_types).map(([k, label]) => (
+                                        <SelectItem key={k} value={k}>{label}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div className="space-y-1">
+                            <Label>{t('Specific Category')}</Label>
+                            <Select value={form.category} onValueChange={v => set('category', v)}>
+                                <SelectTrigger><SelectValue /></SelectTrigger>
+                                <SelectContent className="z-[110000]">
+                                    {Object.entries(availableCategories).map(([k, label]) => (
+                                        <SelectItem key={k} value={k}>{label}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
                     </div>
 
                     <div className="grid grid-cols-2 gap-3">
@@ -141,21 +173,7 @@ function CreateTicketModal({ open, onClose, subsidiaries, departments, categorie
                             </Select>
                         </div>
                         <div className="space-y-1">
-                            <Label>{t('Category')}</Label>
-                            <Select value={form.category} onValueChange={v => set('category', v)}>
-                                <SelectTrigger><SelectValue /></SelectTrigger>
-                                <SelectContent className="z-[110000]">
-                                    {Object.entries(categories).map(([k, label]) => (
-                                        <SelectItem key={k} value={k}>{label}</SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-3">
-                        <div className="space-y-1">
-                            <Label>{t('Subsidiary')}</Label>
+                            <Label>{t('Subsidiary / Business Unit')}</Label>
                             <Select value={form.subsidiary} onValueChange={v => set('subsidiary', v)}>
                                 <SelectTrigger><SelectValue placeholder={t('Select subsidiary')} /></SelectTrigger>
                                 <SelectContent className="z-[110000]">
@@ -163,6 +181,9 @@ function CreateTicketModal({ open, onClose, subsidiaries, departments, categorie
                                 </SelectContent>
                             </Select>
                         </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
                         <div className="space-y-1">
                             <Label>{t('Department')}</Label>
                             <Select value={form.department} onValueChange={v => set('department', v)}>
@@ -172,28 +193,27 @@ function CreateTicketModal({ open, onClose, subsidiaries, departments, categorie
                                 </SelectContent>
                             </Select>
                         </div>
-                    </div>
-
-                    <div className="space-y-1">
-                        <Label>{t('Location / Office')}</Label>
-                        <Input value={form.location} onChange={e => set('location', e.target.value)} placeholder={t('e.g. Head Office, Floor 2, Room 204')} />
+                        <div className="space-y-1">
+                            <Label>{t('Location / Office')}</Label>
+                            <Input value={form.location} onChange={e => set('location', e.target.value)} placeholder={t('e.g. Filabusi Head Office, Room 204')} />
+                        </div>
                     </div>
 
                     <div className="space-y-1">
                         <Label>{t('Description')}</Label>
-                        <Textarea value={form.description} onChange={e => set('description', e.target.value)} placeholder={t('Describe the issue in detail')} rows={3} />
+                        <Textarea value={form.description} onChange={e => set('description', e.target.value)} placeholder={t('Describe the issue in detail — what happened, when, and the impact')} rows={3} />
                     </div>
 
                     <div className="space-y-1">
-                        <Label>{t('Steps to Reproduce (optional)')}</Label>
-                        <Textarea value={form.steps_to_reproduce} onChange={e => set('steps_to_reproduce', e.target.value)} placeholder={t('1. Open the application\n2. Click on...\n3. Error appears')} rows={3} />
+                        <Label>{t('Steps to Reproduce (if applicable)')}</Label>
+                        <Textarea value={form.steps_to_reproduce} onChange={e => set('steps_to_reproduce', e.target.value)} placeholder={t('1. ...\n2. ...\n3. Error / issue appears')} rows={2} />
                     </div>
                 </div>
 
                 <DialogFooter>
                     <Button variant="outline" onClick={onClose}>{t('Cancel')}</Button>
                     <Button onClick={submit} disabled={saving} style={{ background: '#E3B448', color: '#001a4d' }}>
-                        {saving ? <><Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" />{t('Submitting...')}</> : <>{t('Submit Ticket')}</>}
+                        {saving ? <><Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" />{t('Submitting...')}</> : <>{t('Submit Issue Report')}</>}
                     </Button>
                 </DialogFooter>
             </DialogContent>
@@ -203,7 +223,7 @@ function CreateTicketModal({ open, onClose, subsidiaries, departments, categorie
 
 // ── Main page ─────────────────────────────────────────────────────────────────
 
-export default function IctTicketsIndex({ tickets, stats, members, subsidiaries, departments, categories, statuses, priorities, filters, can }: Props) {
+export default function IctTicketsIndex({ tickets, stats, members, subsidiaries, departments, issue_types, categories, categories_by_type, statuses, priorities, filters, can }: Props) {
     const { t } = useTranslation();
     const { csrf_token } = usePage().props as any;
     const [createOpen, setCreateOpen] = useState(false);
@@ -229,8 +249,8 @@ export default function IctTicketsIndex({ tickets, stats, members, subsidiaries,
 
     return (
         <PageTemplate
-            title={t('ICT Tickets')}
-            description={t('Trukumb Holdings — IT support ticketing system')}
+            title={t('Group Issue Reporting')}
+            description={t('Trukumb Holdings — Group-wide issue reporting across all subsidiaries')}
             actions={can.create ? [{ label: t('New Ticket'), icon: <Plus className="w-3.5 h-3.5 mr-1" />, variant: 'default', onClick: () => setCreateOpen(true) }] : []}
         >
             {/* Stats row */}
@@ -384,7 +404,8 @@ export default function IctTicketsIndex({ tickets, stats, members, subsidiaries,
             <CreateTicketModal
                 open={createOpen} onClose={() => setCreateOpen(false)}
                 subsidiaries={subsidiaries} departments={departments}
-                categories={categories} csrf={csrf_token}
+                issue_types={issue_types} categories_by_type={categories_by_type}
+                csrf={csrf_token}
             />
         </PageTemplate>
     );

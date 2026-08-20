@@ -204,7 +204,7 @@ export function AppSidebar() {
         items.push({ title: t('Mzitshwa AI'), href: '#mzitshwa', icon: Bot, group: t('Communications & Content') });
 
         // ICT Ticketing System
-        items.push({ title: t('ICT Tickets'), href: route('ict-tickets.index'), icon: HelpCircle, group: t('ICT Support') });
+        items.push({ title: t('Group Issue Reporting'), href: route('ict-tickets.index'), icon: HelpCircle, group: t('ICT Support') });
 
         return items;
     };

@@ -10,7 +10,7 @@ class IctTicket extends Model
 {
     protected $fillable = [
         'ticket_number', 'title', 'description', 'steps_to_reproduce',
-        'status', 'priority', 'category', 'subsidiary', 'department', 'location',
+        'status', 'priority', 'issue_type', 'category', 'subsidiary', 'department', 'location',
         'reported_by', 'assigned_to', 'workspace_id', 'resolution_notes',
         'due_date', 'first_response_at', 'resolved_at', 'closed_at',
     ];
@@ -22,43 +22,94 @@ class IctTicket extends Model
         'closed_at'         => 'datetime',
     ];
 
-    // ── Constants ─────────────────────────────────────────────────────────────
+    // ── Constants — Trukumb Holdings Group ────────────────────────────────────
 
     public const SUBSIDIARIES = [
         'Trukumb Holdings Head Office',
-        'Trukumb Mining Division',
-        'Trukumb Logistics',
-        'Trukumb Agriculture',
-        'Trukumb Finance',
-        'Trukumb Real Estate',
-        'Trukumb Energy',
+        'Epoch Mines & Resources',
+        'Talen Vision Enterprises',
+        'Talen Vision Engineering',
+        'Talen Vision Construction',
+        'Talen Vision Brick Moulding',
+        'Talen Vision Food Court',
+        'Trukumb Health Center',
+        'Ivinar Park Academy',
+        'Travelite PVT LTD',
+        'Talen Vision FC',
+        'Trukumb Microfinance',
         'Other',
     ];
 
     public const DEPARTMENTS = [
-        'IT Department',
-        'Finance',
+        'Executive / Management',
+        'Information Technology',
         'Human Resources',
+        'Finance & Accounts',
         'Operations',
-        'Management / Executive',
-        'Sales & Marketing',
         'Engineering',
+        'Construction & Infrastructure',
+        'Mining Operations',
+        'Sales & Marketing',
         'Administration',
+        'Transport & Logistics',
+        'Education & Training',
+        'Healthcare Services',
+        'Food Services',
         'Legal & Compliance',
-        'Procurement',
+        'Procurement & Supply Chain',
+        'Safety, Health & Environment',
+        'Sports & Recreation',
         'Other',
     ];
 
+    /** Broad issue type (the department/function the issue belongs to) */
+    public const ISSUE_TYPES = [
+        'it_systems'   => 'IT & Systems',
+        'hr_payroll'   => 'HR & Payroll',
+        'finance'      => 'Finance & Accounts',
+        'facilities'   => 'Facilities & Maintenance',
+        'operations'   => 'Operations',
+        'transport'    => 'Transport & Logistics',
+        'mining'       => 'Mining Operations',
+        'education'    => 'Education & Training',
+        'healthcare'   => 'Healthcare',
+        'safety'       => 'Safety, Health & Environment',
+        'legal'        => 'Legal & Compliance',
+        'management'   => 'Management / Executive',
+        'other'        => 'Other',
+    ];
+
+    /** Specific categories per issue type */
+    public const CATEGORIES_BY_TYPE = [
+        'it_systems' => ['hardware' => 'Hardware', 'software' => 'Software / Applications', 'network' => 'Network & Connectivity', 'access_security' => 'Access & Security', 'email_communication' => 'Email & Communication', 'server_infrastructure' => 'Server & Infrastructure', 'mobile_devices' => 'Mobile Devices', 'av_conferencing' => 'AV & Conferencing', 'other' => 'Other IT'],
+        'hr_payroll' => ['recruitment' => 'Recruitment', 'leave' => 'Leave & Absence', 'payroll' => 'Payroll', 'employee_relations' => 'Employee Relations', 'training' => 'Training & Development', 'disciplinary' => 'Disciplinary / Grievance', 'other' => 'Other HR'],
+        'finance'    => ['expense_claim' => 'Expense Claim', 'invoice' => 'Invoice Processing', 'budget' => 'Budget Query', 'petty_cash' => 'Petty Cash', 'audit' => 'Audit / Compliance', 'other' => 'Other Finance'],
+        'facilities' => ['building' => 'Building Maintenance', 'equipment' => 'Equipment Repair', 'vehicle' => 'Vehicle / Fleet Issue', 'cleaning' => 'Cleaning & Hygiene', 'security' => 'Security', 'utilities' => 'Utilities (Water/Power)', 'other' => 'Other Facilities'],
+        'operations' => ['process' => 'Process Issue', 'supply_chain' => 'Supply Chain', 'quality' => 'Quality Control', 'production' => 'Production', 'safety_incident' => 'Safety Incident', 'other' => 'Other Operations'],
+        'transport'  => ['breakdown' => 'Vehicle Breakdown', 'route' => 'Route Issues', 'booking' => 'Booking Problem', 'driver' => 'Driver Issue', 'fuel' => 'Fuel & Maintenance', 'other' => 'Other Transport'],
+        'mining'     => ['equipment_failure' => 'Equipment Failure', 'safety_mining' => 'Safety Incident', 'environmental' => 'Environmental Issue', 'production_mining' => 'Production Issue', 'blasting' => 'Blasting & Explosives', 'other' => 'Other Mining'],
+        'education'  => ['student_affairs' => 'Student Affairs', 'curriculum' => 'Curriculum / Academic', 'staff_edu' => 'Staff Issue', 'infrastructure_edu' => 'Infrastructure', 'parent_query' => 'Parent / Guardian Query', 'fees' => 'Fees & Finance', 'other' => 'Other Education'],
+        'healthcare' => ['medical_equipment' => 'Medical Equipment', 'patient' => 'Patient Complaint / Query', 'staff_health' => 'Staff Issue', 'supplies' => 'Medical Supplies', 'other' => 'Other Healthcare'],
+        'safety'     => ['incident' => 'Safety Incident', 'near_miss' => 'Near Miss', 'hazard' => 'Hazard Report', 'ppe' => 'PPE Issue', 'compliance' => 'Compliance Breach', 'other' => 'Other Safety'],
+        'legal'      => ['contract' => 'Contract Query', 'regulatory' => 'Regulatory Issue', 'dispute' => 'Dispute / Litigation', 'other' => 'Other Legal'],
+        'management' => ['strategic' => 'Strategic Issue', 'board' => 'Board Communication', 'inter_company' => 'Inter-Company Issue', 'other' => 'Other Management'],
+        'other'      => ['general' => 'General Enquiry', 'suggestion' => 'Suggestion / Improvement', 'other' => 'Other'],
+    ];
+
+    /** Flat categories map (all combined for backward compat) */
     public const CATEGORIES = [
-        'hardware'            => 'Hardware',
-        'software'            => 'Software',
-        'network'             => 'Network & Connectivity',
-        'access_security'     => 'Access & Security',
-        'email_communication' => 'Email & Communication',
-        'server_infrastructure' => 'Server & Infrastructure',
-        'mobile_devices'      => 'Mobile Devices',
-        'av_conferencing'     => 'AV & Conferencing',
-        'other'               => 'Other',
+        'hardware' => 'Hardware', 'software' => 'Software / Applications',
+        'network' => 'Network & Connectivity', 'access_security' => 'Access & Security',
+        'email_communication' => 'Email & Communication', 'server_infrastructure' => 'Server & Infrastructure',
+        'mobile_devices' => 'Mobile Devices', 'av_conferencing' => 'AV & Conferencing',
+        'recruitment' => 'Recruitment', 'leave' => 'Leave & Absence', 'payroll' => 'Payroll',
+        'expense_claim' => 'Expense Claim', 'building' => 'Building Maintenance',
+        'equipment' => 'Equipment Repair', 'vehicle' => 'Vehicle / Fleet Issue',
+        'safety_incident' => 'Safety Incident', 'breakdown' => 'Vehicle Breakdown',
+        'booking' => 'Booking Problem', 'equipment_failure' => 'Equipment Failure',
+        'student_affairs' => 'Student Affairs', 'medical_equipment' => 'Medical Equipment',
+        'incident' => 'Safety Incident Report', 'contract' => 'Contract Query',
+        'general' => 'General Enquiry', 'other' => 'Other',
     ];
 
     public const STATUSES = [

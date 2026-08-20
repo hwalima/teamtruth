@@ -73,14 +73,16 @@ class IctTicketController extends Controller
             ->get();
 
         return Inertia::render('ict-tickets/Index', [
-            'tickets'       => $tickets,
-            'stats'         => $stats,
-            'members'       => $members,
-            'subsidiaries'  => IctTicket::getSubsidiaries(),
-            'departments'   => IctTicket::getDepartments(),
-            'categories'    => IctTicket::getCategories(),
-            'statuses'      => IctTicket::STATUSES,
-            'priorities'    => IctTicket::PRIORITIES,
+            'tickets'          => $tickets,
+            'stats'            => $stats,
+            'members'          => $members,
+            'subsidiaries'     => IctTicket::getSubsidiaries(),
+            'departments'      => IctTicket::getDepartments(),
+            'issue_types'      => IctTicket::ISSUE_TYPES,
+            'categories'       => IctTicket::getCategories(),
+            'categories_by_type' => IctTicket::CATEGORIES_BY_TYPE,
+            'statuses'         => IctTicket::STATUSES,
+            'priorities'       => IctTicket::PRIORITIES,
             'filters'       => $request->only(['status', 'priority', 'category', 'subsidiary', 'assigned_to', 'search']),
             'can'           => [
                 'create' => true,
@@ -96,7 +98,8 @@ class IctTicketController extends Controller
             'description'         => 'nullable|string|max:5000',
             'steps_to_reproduce'  => 'nullable|string|max:3000',
             'priority'            => 'required|in:low,medium,high,critical',
-            'category'            => 'required|in:hardware,software,network,access_security,email_communication,server_infrastructure,mobile_devices,av_conferencing,other',
+            'issue_type'          => 'nullable|string|max:60',
+            'category'            => 'nullable|string|max:100',
             'subsidiary'          => 'nullable|string|max:255',
             'department'          => 'nullable|string|max:255',
             'location'            => 'nullable|string|max:255',
@@ -152,13 +155,15 @@ class IctTicketController extends Controller
             ->get();
 
         return Inertia::render('ict-tickets/Show', [
-            'ticket'        => $ictTicket,
-            'members'       => $members,
-            'subsidiaries'  => IctTicket::getSubsidiaries(),
-            'departments'   => IctTicket::getDepartments(),
-            'categories'    => IctTicket::getCategories(),
-            'statuses'      => IctTicket::STATUSES,
-            'priorities'    => IctTicket::PRIORITIES,
+            'ticket'           => $ictTicket,
+            'members'          => $members,
+            'subsidiaries'     => IctTicket::getSubsidiaries(),
+            'departments'      => IctTicket::getDepartments(),
+            'issue_types'      => IctTicket::ISSUE_TYPES,
+            'categories'       => IctTicket::getCategories(),
+            'categories_by_type' => IctTicket::CATEGORIES_BY_TYPE,
+            'statuses'         => IctTicket::STATUSES,
+            'priorities'       => IctTicket::PRIORITIES,
             'can'           => $this->ticketPermissions($ictTicket),
         ]);
     }

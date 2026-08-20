@@ -21,25 +21,26 @@ interface IctSettings {
 
 const DEFAULTS: IctSettings = {
     subsidiaries: [
-        'Trukumb Holdings Head Office', 'Trukumb Mining Division',
-        'Trukumb Logistics', 'Trukumb Agriculture', 'Trukumb Finance',
-        'Trukumb Real Estate', 'Trukumb Energy', 'Other',
+        'Trukumb Holdings Head Office', 'Epoch Mines & Resources',
+        'Talen Vision Enterprises', 'Talen Vision Engineering', 'Talen Vision Construction',
+        'Talen Vision Brick Moulding', 'Talen Vision Food Court', 'Trukumb Health Center',
+        'Ivinar Park Academy', 'Travelite PVT LTD', 'Talen Vision FC', 'Trukumb Microfinance', 'Other',
     ],
     departments: [
-        'IT Department', 'Finance', 'Human Resources', 'Operations',
-        'Management / Executive', 'Sales & Marketing', 'Engineering',
-        'Administration', 'Legal & Compliance', 'Procurement', 'Other',
+        'Executive / Management', 'Information Technology', 'Human Resources',
+        'Finance & Accounts', 'Operations', 'Engineering', 'Construction & Infrastructure',
+        'Mining Operations', 'Sales & Marketing', 'Administration', 'Transport & Logistics',
+        'Education & Training', 'Healthcare Services', 'Food Services', 'Legal & Compliance',
+        'Procurement & Supply Chain', 'Safety, Health & Environment', 'Sports & Recreation', 'Other',
     ],
     categories: {
-        hardware:              'Hardware',
-        software:              'Software',
-        network:               'Network & Connectivity',
-        access_security:       'Access & Security',
-        email_communication:   'Email & Communication',
-        server_infrastructure: 'Server & Infrastructure',
-        mobile_devices:        'Mobile Devices',
-        av_conferencing:       'AV & Conferencing',
-        other:                 'Other',
+        hardware: 'Hardware', software: 'Software / Applications',
+        network: 'Network & Connectivity', access_security: 'Access & Security',
+        recruitment: 'Recruitment', payroll: 'Payroll',
+        expense_claim: 'Expense Claim', building: 'Building Maintenance',
+        vehicle: 'Vehicle / Fleet Issue', safety_incident: 'Safety Incident',
+        breakdown: 'Vehicle Breakdown', equipment_failure: 'Equipment Failure',
+        student_affairs: 'Student Affairs', general: 'General Enquiry', other: 'Other',
     },
     sla_response_hours: 4,
     sla_resolution_hours: 24,
@@ -123,8 +124,8 @@ export default function IctTicketSettings() {
 
     return (
         <SettingsSection
-            title={t('ICT Ticket Settings')}
-            description={t('Configure subsidiaries, departments, categories and SLA targets for the ICT ticketing system')}
+            title={t('Group Issue Reporting Settings')}
+            description={t('Configure subsidiaries, departments, categories and SLA targets for the Trukumb Holdings group-wide issue reporting system')}
             action={
                 <Button size="sm" onClick={save} disabled={saving} style={{ background: '#E3B448', color: '#001a4d' }}>
                     <Save className="h-4 w-4 mr-2" />{saving ? t('Saving...') : t('Save Changes')}
