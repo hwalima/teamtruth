@@ -1,0 +1,94 @@
+name: Deploy to Production — planning.trukumbholdings.co.zw
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      force_migrate:
+        description: 'Run migrations even if no schema changes'
+        required: false
+        default: 'false'
+
+jobs:
+  deploy:
+    name: Deploy via SSH
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          extensions: mbstring, pdo, pdo_mysql, zip, gd, curl, openssl
+          tools: composer:v2
+
+      - name: Install PHP dependencies
+        run: composer install --no-dev --optimize-autoloader --no-interaction --prefer-dist
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install Node dependencies
+        run: npm ci
+
+      - name: Build frontend assets
+        run: npm run build
+
+      - name: Deploy to production server
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          passphrase: ${{ secrets.DEPLOY_SSH_PASSPHRASE }}
+          port: 22
+          script_stop: true
+          script: |
+            set -e
+            APP_DIR="$HOME/planning.trukumbholdings.co.zw"
+
+            echo "▶ Entering app directory..."
+            cd "$APP_DIR"
+
+            echo "▶ Pulling latest code from main..."
+            git pull origin main
+
+            echo "▶ Installing PHP dependencies on server..."
+            composer install --no-dev --optimize-autoloader --no-interaction --prefer-dist
+
+            echo "▶ Running database migrations..."
+            php artisan migrate --force
+
+            echo "▶ Caching config, routes & views..."
+            php artisan config:cache
+            php artisan route:cache
+            php artisan view:cache
+            php artisan event:cache
+
+            echo "▶ Restarting queue workers..."
+            php artisan queue:restart || true
+
+            echo "▶ Clearing old opcache..."
+            php artisan opcache:clear 2>/dev/null || true
+
+            echo "✅ Deployment complete — $(date)"
+
+      - name: Copy built assets to production
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          passphrase: ${{ secrets.DEPLOY_SSH_PASSPHRASE }}
+          port: 22
+          source: "public/build/"
+          target: "$HOME/planning.trukumbholdings.co.zw/public/"
+          strip_components: 1

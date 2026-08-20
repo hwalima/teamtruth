@@ -1,0 +1,213 @@
+/* RTL Layout Direction - Minimal and Focused */
+
+/* Core RTL Direction */
+html[dir="rtl"],
+html[dir="rtl"] body {
+  direction: rtl;
+}
+
+html[dir="ltr"],
+html[dir="ltr"] body {
+  direction: ltr;
+}
+
+/* Smooth transitions for direction changes */
+html {
+  transition: direction 0.2s ease;
+}
+
+/* Sidebar Layout for RTL */
+html[dir="rtl"] .group[data-sidebar="wrapper"] {
+  flex-direction: row-reverse;
+}
+
+/* Sidebar positioning for RTL */
+html[dir="rtl"] [data-slot="sidebar"] {
+  right: 0;
+  left: auto;
+}
+
+html[dir="rtl"] [data-side="left"] {
+  right: 0;
+  left: auto;
+}
+
+html[dir="rtl"] [data-side="right"] {
+  left: 0;
+  right: auto;
+}
+
+/* Force immediate sidebar repositioning */
+html[dir="rtl"] .group.peer.text-sidebar-foreground {
+  transform: translateX(0);
+}
+
+/* Main Content Margin for RTL */
+html[dir="rtl"] .peer-data-\[variant\=inset\]\:ml-0 {
+  margin-left: 0;
+  margin-right: var(--sidebar-width, 16rem);
+}
+
+/* Sidebar inset positioning */
+html[dir="rtl"] [data-slot="sidebar-inset"] {
+  margin-left: 0;
+  margin-right: var(--sidebar-width, 18rem);
+}
+
+/* Text Alignment */
+html[dir="rtl"] .text-left {
+  text-align: right;
+}
+
+html[dir="rtl"] .text-right {
+  text-align: left;
+}
+
+/* Flex Direction */
+html[dir="rtl"] .flex-row {
+  flex-direction: row-reverse;
+}
+
+/* Margins */
+html[dir="rtl"] .ml-auto {
+  margin-left: 0;
+  margin-right: auto;
+}
+
+html[dir="rtl"] .mr-auto {
+  margin-right: 0;
+  margin-left: auto;
+}
+
+/* Float */
+html[dir="rtl"] .float-left {
+  float: right;
+}
+
+html[dir="rtl"] .float-right {
+  float: left;
+}
+
+/* Justify Content */
+html[dir="rtl"] .justify-end {
+  justify-content: flex-start;
+}
+
+html[dir="rtl"] .justify-start {
+  justify-content: flex-end;
+}
+
+/* Form Elements */
+html[dir="rtl"] input[type="text"],
+html[dir="rtl"] input[type="email"],
+html[dir="rtl"] input[type="password"],
+html[dir="rtl"] textarea,
+html[dir="rtl"] select {
+  text-align: right;
+}
+
+/* Sidebar Specific Fixes */
+html[dir="rtl"] [data-sidebar="sidebar"] {
+  right: 0;
+  left: auto;
+}
+
+html[dir="rtl"] [data-sidebar="menu-action"] {
+  right: auto;
+  left: 1rem;
+}
+
+/* Table Alignment */
+html[dir="rtl"] table {
+  direction: rtl;
+}
+
+html[dir="rtl"] th,
+html[dir="rtl"] td {
+  text-align: right;
+}
+
+/* Ensure proper inheritance */
+html[dir="rtl"] * {
+  direction: inherit;
+}
+
+/* Override for LTR content */
+html[dir="rtl"] .ltr-content,
+html[dir="rtl"] code,
+html[dir="rtl"] pre {
+  direction: ltr;
+  text-align: left;
+}
+
+/* Force immediate layout recalculation for RTL */
+html[dir="rtl"] .group\/sidebar-wrapper {
+  transform: translateX(0);
+}
+
+/* Sidebar wrapper RTL positioning */
+html[dir="rtl"] [data-slot="sidebar-wrapper"] {
+  flex-direction: row-reverse;
+}
+
+/* Fixed sidebar positioning for RTL */
+html[dir="rtl"] .fixed.inset-y-0.z-10 {
+  right: 0;
+  left: auto;
+}
+
+/* Sidebar border adjustments for RTL */
+html[dir="rtl"] .group-data-\[side\=left\]\:border-r {
+  border-right: none;
+  border-left: 1px solid hsl(var(--sidebar-border));
+}
+
+html[dir="rtl"] .group-data-\[side\=right\]\:border-l {
+  border-left: none;
+  border-right: 1px solid hsl(var(--sidebar-border));
+}
+
+/* IMMEDIATE RTL SIDEBAR POSITIONING - OVERRIDE ALL */
+html[dir="rtl"] [data-slot="sidebar-wrapper"],
+html.rtl [data-slot="sidebar-wrapper"],
+.rtl [data-slot="sidebar-wrapper"] {
+  flex-direction: row-reverse !important;
+}
+
+html[dir="rtl"] .fixed.inset-y-0,
+html.rtl .fixed.inset-y-0,
+.rtl .fixed.inset-y-0 {
+  right: 0 !important;
+  left: auto !important;
+}
+
+html[dir="rtl"] .group.peer.text-sidebar-foreground,
+html.rtl .group.peer.text-sidebar-foreground,
+.rtl .group.peer.text-sidebar-foreground {
+  right: 0 !important;
+  left: auto !important;
+}
+
+/* Force sidebar to right side immediately */
+html[dir="rtl"] [data-side="left"],
+html.rtl [data-side="left"],
+.rtl [data-side="left"] {
+  right: 0 !important;
+  left: auto !important;
+}
+/* Toggle Switch Alignment Fix for RTL */
+html[dir="rtl"] .relative.inline-flex {
+  direction: ltr;
+}
+
+html[dir="rtl"] button[role="switch"] {
+  direction: ltr;
+}
+
+html[dir="rtl"] .translate-x-5 {
+  transform: translateX(-1.25rem);
+}
+
+html[dir="rtl"] .translate-x-0 {
+  transform: translateX(0);
+}

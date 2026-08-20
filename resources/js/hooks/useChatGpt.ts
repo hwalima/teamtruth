@@ -1,0 +1,75 @@
+import { useState } from 'react';
+import { toast } from '@/components/custom-toast';
+import { useTranslation } from 'react-i18next';
+
+interface UseChatGptOptions {
+  onSuccess?: (content: string) => void;
+  onError?: (error: string) => void;
+}
+
+export function useChatGpt(options: UseChatGptOptions = {}) {
+  const { t } = useTranslation();
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+
+  const openModal = () => setIsModalOpen(true);
+  const closeModal = () => setIsModalOpen(false);
+
+  const generateContent = async (prompt: string): Promise<string | null> => {
+    if (!prompt.trim()) {
+      toast.error(t('Please enter a prompt'));
+      return null;
+    }
+
+    setIsLoading(true);
+    try {
+      const response = await fetch(route('chatgpt.generate'), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+        },
+        body: JSON.stringify({ prompt })
+      });
+
+      const data = await response.json();
+      
+      if (response.ok && data.success) {
+        toast.success(t('Content generated successfully'));
+        options.onSuccess?.(data.content);
+        return data.content;
+      } else {
+        // Handle API errors with proper error messages
+        const errorMessage = data.message || data.error || t('Failed to generate content');
+        toast.error(errorMessage);
+        options.onError?.(errorMessage);
+        console.error('ChatGPT API Error:', data);
+        return null;
+      }
+    } catch (error: any) {
+      // Handle network/connection errors
+      let errorMessage = t('Error connecting to AI service');
+      
+      if (error.name === 'TypeError' && error.message.includes('fetch')) {
+        errorMessage = t('Network error. Please check your connection.');
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      toast.error(errorMessage);
+      options.onError?.(errorMessage);
+      console.error('ChatGPT Connection Error:', error);
+      return null;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return {
+    isModalOpen,
+    isLoading,
+    openModal,
+    closeModal,
+    generateContent
+  };
+}
