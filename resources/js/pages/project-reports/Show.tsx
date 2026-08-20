@@ -331,262 +331,181 @@ export default function Show({ project, stats, userStats, users, stages, workspa
             breadcrumbs={breadcrumbs}
             noPadding
         >
-
-            {/* First Row - Overview and Milestone Progress */}
-            <div className="grid grid-cols-1 lg:grid-cols-10 gap-6 mb-6">
-                <Card className="bg-white rounded-lg shadow lg:col-span-4">
-                    <CardContent className="p-4">
-                        <h3 className="text-lg font-bold mb-4">
-                            {t('Overview')}
-                        </h3>
-                        <div className="grid grid-cols-12 gap-4 items-center">
-                            <div className="col-span-4 space-y-4">
-                                <div>
-                                    <p className="text-sm text-gray-600 mb-1">{t('Project Name')}:</p>
-                                    <p className="text-sm font-medium">{project.title || project.name}</p>
-                                </div>
-                                <div>
-                                    <p className="text-sm text-gray-600 mb-1">{t('Project Status')}:</p>
-                                    <span className={`inline-flex items-center rounded-md px-2 py-1 text-xs font-medium ${getStatusColor(project.status)}`}>
-                                        {formatText(project.status || '')}
-                                    </span>
-                                </div>
-                                <div>
-                                    <p className="text-sm text-gray-600 mb-1">{t('Total Members')}:</p>
-                                    <p className="text-sm font-medium">{(project.members?.length || 0) + (project.clients?.length || 0)}</p>
-                                </div>
+            {/* ── Modern hero header ── */}
+            <div className="mb-6 rounded-2xl overflow-hidden" style={{ background: 'linear-gradient(135deg, #001a4d 0%, #002d80 60%, #001435 100%)' }}>
+                <div className="px-8 py-6">
+                    <div className="flex items-start justify-between flex-wrap gap-4">
+                        <div>
+                            <div className="flex items-center gap-3 mb-1">
+                                <span className="text-xs font-semibold tracking-widest uppercase opacity-60 text-white">Project Report</span>
+                                <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${getStatusColor(project.status)}`}>
+                                    {formatText(project.status || '')}
+                                </span>
                             </div>
-                            <div className="col-span-3 flex flex-col justify-center space-y-4">
-                                <div>
-                                    <p className="text-sm text-gray-600 mb-1">{t('Start Date')}:</p>
-                                    <p className="text-sm font-medium">{formatDate(project.start_date)}</p>
-                                </div>
-                                <div>
-                                    <p className="text-sm text-gray-600 mb-1">{t('Due Date')}:</p>
-                                    <p className="text-sm font-medium">{formatDate(project.deadline || project.end_date)}</p>
-                                </div>
-
-                            </div>
-                            <div className="col-span-5 flex justify-center">
-                                <div className="relative w-48 h-48">
-                                    <svg className="w-48 h-48 transform -rotate-90">
-                                        <circle cx="96" cy="96" r="80" stroke="#e5e7eb" strokeWidth="12" fill="none" />
-                                        <circle
-                                            cx="96"
-                                            cy="96"
-                                            r="80"
-                                            stroke="#f97316"
-                                            strokeWidth="12"
-                                            fill="none"
-                                            strokeDasharray={`${2 * Math.PI * 80}`}
-                                            strokeDashoffset={`${2 * Math.PI * 80 * (1 - (stats.completion_percentage || 0) / 100)}`}
-                                            strokeLinecap="round"
-                                        />
-                                    </svg>
-                                    <div className="absolute inset-0 flex flex-col items-center justify-center">
-                                        <span className="text-xl font-bold">{stats.completion_percentage || 0}%</span>
-                                    </div>
-                                </div>
+                            <h1 className="text-3xl font-bold text-white">{project.title || project.name}</h1>
+                            {project.description && <p className="text-white/50 text-sm mt-1 max-w-xl line-clamp-2">{project.description}</p>}
+                            <div className="flex gap-6 mt-4 text-sm text-white/70">
+                                <span>📅 {t('Start')}: <strong className="text-white">{formatDate(project.start_date) || '—'}</strong></span>
+                                <span>⏰ {t('Due')}: <strong className="text-white">{formatDate(project.deadline || project.end_date) || '—'}</strong></span>
+                                <span>👥 {t('Members')}: <strong className="text-white">{(project.members?.length || 0) + (project.clients?.length || 0)}</strong></span>
                             </div>
                         </div>
-                    </CardContent>
-                </Card>
+                        {/* Big progress circle */}
+                        <div className="relative w-28 h-28 shrink-0">
+                            <svg className="w-28 h-28 -rotate-90">
+                                <circle cx="56" cy="56" r="46" stroke="rgba(255,255,255,0.15)" strokeWidth="10" fill="none" />
+                                <circle cx="56" cy="56" r="46" stroke="#E3B448" strokeWidth="10" fill="none"
+                                    strokeDasharray={`${2 * Math.PI * 46}`}
+                                    strokeDashoffset={`${2 * Math.PI * 46 * (1 - (stats.completion_percentage || 0) / 100)}`}
+                                    strokeLinecap="round" />
+                            </svg>
+                            <div className="absolute inset-0 flex flex-col items-center justify-center">
+                                <span className="text-2xl font-bold text-white leading-none">{stats.completion_percentage || 0}%</span>
+                                <span className="text-[10px] text-white/60 mt-0.5">{t('Complete')}</span>
+                            </div>
+                        </div>
+                    </div>
 
-                <Card className="bg-white rounded-lg shadow lg:col-span-3">
-                    <CardContent className="p-4">
-                        <h3 className="text-lg font-bold mb-4">
+                    {/* Stat bar */}
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-6 pt-5 border-t border-white/10">
+                        {[
+                            { label: t('Total Tasks'), value: stats.total_tasks || 0, icon: '📋' },
+                            { label: t('Completed'), value: stats.completed_tasks || 0, icon: '✅' },
+                            { label: t('Milestones'), value: `${stats.completed_milestones || 0}/${stats.total_milestones || 0}`, icon: '🏁' },
+                            { label: t('Logged Hours'), value: `${stats.total_logged_hours || 0}h`, icon: '⏱️' },
+                        ].map(s => (
+                            <div key={s.label} className="rounded-xl px-4 py-3" style={{ background: 'rgba(255,255,255,0.07)' }}>
+                                <div className="text-lg mb-0.5">{s.icon}</div>
+                                <div className="text-xl font-bold text-white leading-none">{s.value}</div>
+                                <div className="text-xs text-white/50 mt-0.5">{s.label}</div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            </div>
+
+            {/* ── Charts row ── */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
+                {/* Milestone progress */}
+                <Card className="rounded-2xl border shadow-sm">
+                    <CardContent className="p-5">
+                        <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-4 flex items-center gap-2">
+                            <span className="w-1 h-4 rounded-full inline-block" style={{ background: '#E3B448' }} />
                             {t('Milestone Progress')}
                         </h3>
-                        <div className="flex justify-center">
-                            <div className="relative w-80 h-52">
-                                <svg className="w-80 h-52" viewBox="0 0 320 208">
-                                    {/* Background arc */}
-                                    <path
-                                        d="M 40 170 A 120 120 0 0 1 280 170"
-                                        stroke="#e5e7eb"
-                                        strokeWidth="20"
-                                        fill="none"
-                                    />
-                                    {/* Progress arc */}
-                                    <path
-                                        d="M 40 170 A 120 120 0 0 1 280 170"
-                                        stroke="#22c55e"
-                                        strokeWidth="20"
-                                        fill="none"
-                                        strokeDasharray={`${((stats.milestone_completion_percentage || 0) / 100) * 377} 377`}
-                                        strokeLinecap="round"
-                                        className="transition-all duration-1000 ease-out"
-                                    />
+                        <div className="flex flex-col items-center">
+                            <div className="relative w-56 h-36">
+                                <svg className="w-56 h-36" viewBox="0 0 224 144">
+                                    <path d="M 32 136 A 80 80 0 0 1 192 136" stroke="#e5e7eb" strokeWidth="16" fill="none" />
+                                    <path d="M 32 136 A 80 80 0 0 1 192 136" stroke="#E3B448" strokeWidth="16" fill="none"
+                                        strokeDasharray={`${((stats.milestone_completion_percentage || 0) / 100) * 251} 251`}
+                                        strokeLinecap="round" />
                                 </svg>
-                                <div className="absolute inset-0 flex flex-col items-center justify-center mt-6">
-                                    <span className="text-xl font-bold text-gray-900">{stats.milestone_completion_percentage || 0}%</span>
-                                    <span className="text-xl text-green-600 font-medium">{t('Progress')}</span>
+                                <div className="absolute inset-x-0 bottom-0 flex flex-col items-center pb-2">
+                                    <span className="text-2xl font-bold">{stats.milestone_completion_percentage || 0}%</span>
+                                    <span className="text-xs text-muted-foreground">{stats.completed_milestones || 0}/{stats.total_milestones || 0} {t('completed')}</span>
                                 </div>
                             </div>
                         </div>
                     </CardContent>
                 </Card>
 
-                <Card className="bg-white rounded-lg shadow lg:col-span-3">
-                    <CardContent className="p-4">
-                        <h3 className="text-lg font-bold mb-14">
+                {/* Task Priority */}
+                <Card className="rounded-2xl border shadow-sm">
+                    <CardContent className="p-5">
+                        <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-4 flex items-center gap-2">
+                            <span className="w-1 h-4 rounded-full inline-block" style={{ background: '#E3B448' }} />
                             {t('Task Priority')}
                         </h3>
-                        <ResponsiveContainer width="100%" height={120}>
-                            <BarChart data={priorityData}>
-                                <CartesianGrid strokeDasharray="3 3" />
-                                <XAxis dataKey="name" />
-                                <YAxis />
-                                <ChartTooltip />
-                                <Bar dataKey="value" />
+                        <ResponsiveContainer width="100%" height={140}>
+                            <BarChart data={priorityData} margin={{ top: 5, right: 5, bottom: 5, left: -20 }}>
+                                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                                <XAxis dataKey="name" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
+                                <YAxis tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
+                                <ChartTooltip formatter={(v: any) => [`${v} tasks`]} />
+                                <Bar dataKey="value" radius={[4, 4, 0, 0]}>
+                                    {priorityData.map((entry, i) => (
+                                        <Cell key={i} fill={entry.fill} />
+                                    ))}
+                                </Bar>
                             </BarChart>
                         </ResponsiveContainer>
-
-                        <div className="flex items-center justify-center gap-4 text-xs mt-4">
-                            <div className="flex items-center gap-2">
-                                <div className="w-3 h-3 bg-red-500 rounded"></div>
-                                <span>Critical</span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                                <div className="w-3 h-3 bg-orange-500 rounded"></div>
-                                <span>High</span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                                <div className="w-3 h-3 bg-yellow-500 rounded"></div>
-                                <span>Medium</span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                                <div className="w-3 h-3 bg-green-500 rounded"></div>
-                                <span>Low</span>
-                            </div>
-                        </div>
                     </CardContent>
                 </Card>
-            </div>
 
-            {/* Second Row - Task Status and Hours Estimation */}
-            <div className="grid grid-cols-1 lg:grid-cols-10 gap-6 mb-6">
-                <Card className="bg-white rounded-lg shadow lg:col-span-4">
-                    <CardContent className="p-4">
-                        <h3 className="text-lg font-bold mb-2">
+                {/* Task Status */}
+                <Card className="rounded-2xl border shadow-sm">
+                    <CardContent className="p-5">
+                        <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-4 flex items-center gap-2">
+                            <span className="w-1 h-4 rounded-full inline-block" style={{ background: '#E3B448' }} />
                             {t('Task Status')}
                         </h3>
-                        <ResponsiveContainer width="100%" height={200}>
-                            <PieChart>
-                                <Pie
-                                    data={statusData}
-                                    cx="50%"
-                                    cy="50%"
-                                    outerRadius={70}
-                                    dataKey="value"
-                                    label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                                >
-                                    {statusData.map((entry, index) => (
-                                        <Cell key={`cell-${index}`} fill={entry.fill} />
-                                    ))}
-                                </Pie>
-                                <ChartTooltip />
-                            </PieChart>
-                        </ResponsiveContainer>
-
-                        <div className="flex items-center justify-center gap-4 text-xs mt-2">
-                            {statusData.map((entry, index) => (
-                                <div key={index} className="flex items-center gap-2">
-                                    <div className="w-3 h-3 rounded" style={{ backgroundColor: entry.fill }}></div>
-                                    <span>{entry.name}</span>
-                                </div>
-                            ))}
-                        </div>
-                    </CardContent>
-                </Card>
-
-                <Card className="bg-white rounded-lg shadow lg:col-span-6">
-                    <CardContent className="p-6">
-                        <h3 className="text-lg font-bold mb-4">
-                            {t('Hours Estimation')}
-                        </h3>
-                        <div className="space-y-2">
-                            <div className="space-y-3">
-
-                                <div className="flex items-center justify-between">
-                                    <span className="text-sm text-gray-600">{t('Logged Hours')}</span>
-                                    <span className="font-medium">{stats.total_logged_hours || 0}h</span>
-                                </div>
-                            </div>
-
-                            <ResponsiveContainer width="100%" height={200}>
-                                <BarChart
-                                    data={stats.task_hours_data || []}
-                                    margin={{ top: 5, right: 30, left: 20}}
-                                >
-                                    <CartesianGrid strokeDasharray="3 3" />
-                                    <XAxis
-                                        dataKey="task_name"
-                                        axisLine={false}
-                                        tickLine={false}
-                                        tick={{ fontSize: 10, width: 100, wordWrap: 'break-word' }}
-                                        interval={0}
-                                        height={80}
-                                    />
-                                    <YAxis
-                                        axisLine={false}
-                                        tickLine={false}
-                                        tick={{ fontSize: 10 }}
-                                    />
-                                    <ChartTooltip
-                                        formatter={(value, name) => [
-                                            `${value}h`,
-                                            name === 'estimated_hours' ? 'Estimated Hours' : 'Logged Hours'
-                                        ]}
-                                    />
-                                    <Bar dataKey="logged_hours" fill="#f59e0b" name="logged_hours" />
-                                </BarChart>
+                        {statusData.length > 0 ? (
+                            <ResponsiveContainer width="100%" height={140}>
+                                <PieChart>
+                                    <Pie data={statusData} cx="50%" cy="50%" outerRadius={55} dataKey="value" label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`} labelLine={false} fontSize={9}>
+                                        {statusData.map((entry, i) => <Cell key={i} fill={entry.fill} />)}
+                                    </Pie>
+                                    <ChartTooltip formatter={(v: any, n: any) => [`${v} tasks`, n]} />
+                                </PieChart>
                             </ResponsiveContainer>
-
-                            <div className="flex items-center justify-center gap-6 text-xs">
-                                <div className="flex items-center gap-2">
-                                    <div className="w-3 h-3 bg-orange-500 rounded"></div>
-                                    <span>{t('Logged Hours')}</span>
-                                </div>
-                            </div>
-                        </div>
+                        ) : (
+                            <div className="h-36 flex items-center justify-center text-sm text-muted-foreground">{t('No tasks yet')}</div>
+                        )}
                     </CardContent>
                 </Card>
             </div>
 
-            {/* Third Row - Users and Milestones Tables */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-                <Card className="bg-white rounded-lg shadow">
-                    <CardContent className="p-6">
-                        <h3 className="text-lg font-bold mb-4">
-                            {t('Users')}
+            {/* ── Hours Estimation ── */}
+            <Card className="rounded-2xl border shadow-sm mb-6">
+                <CardContent className="p-5">
+                    <div className="flex items-center justify-between mb-4">
+                        <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-2">
+                            <span className="w-1 h-4 rounded-full inline-block" style={{ background: '#E3B448' }} />
+                            {t('Hours Estimation')}
+                        </h3>
+                        <span className="text-sm font-semibold" style={{ color: '#E3B448' }}>{t('Logged')}: {stats.total_logged_hours || 0}h</span>
+                    </div>
+                    <ResponsiveContainer width="100%" height={180}>
+                        <BarChart data={stats.task_hours_data || []} margin={{ top: 5, right: 10, left: -20, bottom: 60 }}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                            <XAxis dataKey="task_name" tick={{ fontSize: 10 }} angle={-35} textAnchor="end" axisLine={false} tickLine={false} interval={0} />
+                            <YAxis tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
+                            <ChartTooltip formatter={(v: any) => [`${v}h`]} />
+                            <Bar dataKey="logged_hours" name={t('Logged Hours')} radius={[4, 4, 0, 0]} fill="#E3B448" />
+                        </BarChart>
+                    </ResponsiveContainer>
+                </CardContent>
+            </Card>
+
+            {/* ── Users & Milestones ── */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
+                <Card className="rounded-2xl border shadow-sm">
+                    <CardContent className="p-5">
+                        <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-4 flex items-center gap-2">
+                            <span className="w-1 h-4 rounded-full inline-block" style={{ background: '#E3B448' }} />
+                            {t('Team Members')}
                         </h3>
                         <div className="overflow-x-auto">
                             <table className="w-full text-sm">
                                 <thead>
-                                    <tr className="border-b text-gray-500 text-xs">
-                                        <th className="text-left py-2 font-medium">{t('Name')}</th>
-                                        <th className="text-left py-2 font-medium">{t('Assigned tasks')}</th>
-                                        <th className="text-left py-2 font-medium">{t('Done tasks')}</th>
+                                    <tr className="border-b text-xs text-muted-foreground">
+                                        <th className="text-left pb-2 font-medium">{t('Name')}</th>
+                                        <th className="text-center pb-2 font-medium">{t('Assigned')}</th>
+                                        <th className="text-center pb-2 font-medium">{t('Done')}</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {userStats?.map((user, index) => (
-                                        <tr key={index} className="border-b hover:bg-gray-50">
-                                            <td className="py-3">
-                                                <div className="flex items-center gap-2">
-                                                    <span>{user.name}</span>
-                                                </div>
-                                            </td>
-                                            <td className="py-3">{user.assigned_tasks}</td>
-                                            <td className="py-3">{user.done_tasks}</td>
-                                        </tr>
-                                    )) || (
-                                        <tr>
-                                            <td colSpan={3} className="py-8 text-center text-gray-500">
-                                                {t('No users found')}
+                                    {userStats?.length ? userStats.map((user, i) => (
+                                        <tr key={i} className="border-b last:border-0 hover:bg-muted/30 transition-colors">
+                                            <td className="py-2.5 font-medium">{user.name}</td>
+                                            <td className="py-2.5 text-center">{user.assigned_tasks}</td>
+                                            <td className="py-2.5 text-center">
+                                                <span className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold" style={{ background: '#E3B44820', color: '#b8892a' }}>{user.done_tasks}</span>
                                             </td>
                                         </tr>
+                                    )) : (
+                                        <tr><td colSpan={3} className="py-8 text-center text-muted-foreground">{t('No users found')}</td></tr>
                                     )}
                                 </tbody>
                             </table>
@@ -594,50 +513,41 @@ export default function Show({ project, stats, userStats, users, stages, workspa
                     </CardContent>
                 </Card>
 
-                <Card className="bg-white rounded-lg shadow">
-                    <CardContent className="p-6">
-                        <h3 className="text-lg font-bold mb-4">
+                <Card className="rounded-2xl border shadow-sm">
+                    <CardContent className="p-5">
+                        <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-4 flex items-center gap-2">
+                            <span className="w-1 h-4 rounded-full inline-block" style={{ background: '#001a4d' }} />
                             {t('Milestones')}
                         </h3>
                         <div className="overflow-x-auto">
                             <table className="w-full text-sm">
                                 <thead>
-                                    <tr className="border-b text-gray-500 text-xs">
-                                        <th className="text-left py-2 font-medium">{t('Name')}</th>
-                                        <th className="text-left py-2 font-medium">{t('Progress')}</th>
-                                        <th className="text-left py-2 font-medium">{t('Status')}</th>
-                                        <th className="text-left py-2 font-medium">{t('Due date')}</th>
+                                    <tr className="border-b text-xs text-muted-foreground">
+                                        <th className="text-left pb-2 font-medium">{t('Name')}</th>
+                                        <th className="text-left pb-2 font-medium">{t('Progress')}</th>
+                                        <th className="text-left pb-2 font-medium">{t('Status')}</th>
+                                        <th className="text-left pb-2 font-medium">{t('Due')}</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {project.milestones?.map((milestone) => (
-                                        <tr key={milestone.id} className="border-b hover:bg-gray-50">
-                                            <td className="py-3">{milestone.title}</td>
-                                            <td className="py-3">
+                                    {project.milestones?.length ? project.milestones.map((milestone) => (
+                                        <tr key={milestone.id} className="border-b last:border-0 hover:bg-muted/30 transition-colors">
+                                            <td className="py-2.5 font-medium max-w-[120px] truncate">{milestone.title}</td>
+                                            <td className="py-2.5">
                                                 <div className="flex items-center gap-2">
-                                                    <Progress value={milestone.progress} className="w-16 h-1.5" />
-                                                    <span>{milestone.progress}%</span>
+                                                    <Progress value={milestone.progress} className="w-14 h-1.5" />
+                                                    <span className="text-xs">{milestone.progress}%</span>
                                                 </div>
                                             </td>
-                                            <td className="py-3">
-                                                <span className="inline-flex items-center rounded-md px-2 py-1 text-xs font-medium bg-orange-50 text-orange-700 ring-1 ring-inset ring-orange-600/20">
-                                                    {formatText(milestone.status)}
-                                                </span>
+                                            <td className="py-2.5">
+                                                <span className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium bg-orange-50 text-orange-700">{formatText(milestone.status)}</span>
                                             </td>
-                                            <td className="py-3">
-                                            <div className="flex items-center gap-1.5 text-sm whitespace-nowrap text-gray-500">
-                                                <Calendar className="h-3.5 w-3.5 shrink-0" />
-                                                <span className="text-sm">{formatDate(milestone.due_date) || '-'}</span>
-                                            </div>
-                                        </td>
-
-                                        </tr>
-                                    )) || (
-                                        <tr>
-                                            <td colSpan={4} className="py-8 text-center text-gray-500">
-                                                {t('No milestones found')}
+                                            <td className="py-2.5 text-xs text-muted-foreground whitespace-nowrap">
+                                                {formatDate(milestone.due_date) || '—'}
                                             </td>
                                         </tr>
+                                    )) : (
+                                        <tr><td colSpan={4} className="py-8 text-center text-muted-foreground">{t('No milestones found')}</td></tr>
                                     )}
                                 </tbody>
                             </table>
@@ -646,10 +556,10 @@ export default function Show({ project, stats, userStats, users, stages, workspa
                 </Card>
             </div>
 
-            {/* Tasks Table */}
-            <div className="bg-white rounded-lg border shadow overflow-hidden">
+            {/* ── Tasks Table ── */}
+            <div className="rounded-2xl border shadow-sm overflow-hidden">
                 {/* Search and filters section */}
-                <div className="border-b bg-gray-50">
+                <div className="border-b" style={{ background: 'linear-gradient(90deg, #001a4d08, transparent)' }}>
                     <SearchAndFilterBar
                         searchTerm={searchTerm}
                         onSearchChange={setSearchTerm}

@@ -349,7 +349,7 @@ class ProjectReportController extends Controller
         $completionPercentage = $stats['completion_percentage'] ?? 0;
 
         // Generate high-quality circular progress chart
-        $size = 400; // Larger size for better quality
+        $size = 600; // Larger = sharper in PDF at 200dpi
         $centerX = $size / 2;
         $centerY = $size / 2;
         $outerRadius = 160;
@@ -811,7 +811,14 @@ class ProjectReportController extends Controller
         ))->render();
 
         $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadHTML($html)
-            ->setPaper('a4', 'landscape');
+            ->setPaper('a4', 'landscape')
+            ->setOptions([
+                'dpi'                   => 200,
+                'defaultFont'           => 'DejaVu Sans',
+                'isHtml5ParserEnabled'  => true,
+                'isRemoteEnabled'       => false,
+                'isFontSubsettingEnabled' => true,
+            ]);
 
         return $pdf->download('project_report_' . ($project->title ?: $project->name) . '_' . date('Y-m-d') . '.pdf');
     }
