@@ -35,22 +35,18 @@ class ProjectReportController extends Controller
             ->forWorkspace($user->current_workspace_id);
 
         // Access control based on workspace role
-        if ($userWorkspaceRole === 'owner') {
-            // Owner: Full access to all projects
+        if ($userWorkspaceRole === 'owner' || $user->type === 'company') {
+            // Owner & company-type users: Full access to all workspace projects
         } else {
-            // Non-owners: Only assigned projects
-            $query->where(function ($q) use ($user, $userWorkspaceRole) {
+            // Non-owners: Only projects they're a member/client of or created
+            $query->where(function ($q) use ($user) {
                 $q->whereHas('members', function ($memberQuery) use ($user) {
                     $memberQuery->where('user_id', $user->id);
                 })
                     ->orWhereHas('clients', function ($clientQuery) use ($user) {
                         $clientQuery->where('user_id', $user->id);
-                    });
-
-                // Client/Member: Only self-created projects
-                if (in_array($userWorkspaceRole, ['client', 'member'])) {
-                    $q->orWhere('created_by', $user->id);
-                }
+                    })
+                    ->orWhere('created_by', $user->id);
             });
         }
 
