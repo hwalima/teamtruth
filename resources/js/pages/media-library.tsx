@@ -6,9 +6,10 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { usePage } from '@inertiajs/react';
+import { useIsMobile } from '@/hooks/use-mobile';
 import {
     ChevronRight, Download, Eye, File, FileText, Film, FolderOpen, FolderPlus, Grid3X3,
-    Image, List, Lock, LockOpen, MoreHorizontal, Music, Plus, Search,
+    Image, List, Lock, LockOpen, Menu, MoreHorizontal, Music, Plus, Search,
     Shield, Trash2, Upload, X, Folder as FolderIcon,
 } from 'lucide-react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
@@ -501,6 +502,8 @@ export default function MediaLibrary() {
     const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
     const [search, setSearch] = useState('');
     const [loading, setLoading] = useState(false);
+    const isMobile = useIsMobile();
+    const [sidebarOpen, setSidebarOpen] = useState(false);
 
     // Modal state
     const [folderModal, setFolderModal] = useState<{ open: boolean; editing: MediaFolder | null }>({ open: false, editing: null });
@@ -595,30 +598,57 @@ export default function MediaLibrary() {
 
     return (
         <PageTemplate title={t('Media Library')} noPadding>
-            <div className="flex h-[calc(100vh-8rem)] overflow-hidden">
+            <div className="flex h-[calc(100vh-8rem)] overflow-hidden relative">
 
                 {/* ── Sidebar ── */}
-                <aside className="w-56 shrink-0 border-r overflow-y-auto p-2 bg-muted/20">
-                    <button
-                        className={`flex items-center gap-2 rounded px-2 py-1.5 text-sm w-full hover:bg-muted/60 ${currentFolderId === null ? 'bg-muted font-medium' : ''}`}
-                        onClick={() => navigate(null)}
-                    >
-                        <FolderOpen className="w-4 h-4 text-primary" />
-                        {t('All Files')}
-                    </button>
-                    <div className="mt-1">
-                        {folders.filter((f) => f.parent_id === null).map((f) => (
-                            <FolderTreeItem key={f.id} folder={f} allFolders={folders} currentId={currentFolderId} depth={0} onNavigate={navigate} />
-                        ))}
-                    </div>
-                </aside>
+                {/* Mobile: overlay drawer; Desktop: always visible */}
+                {(sidebarOpen || !isMobile) && (
+                    <>
+                        {/* Mobile backdrop */}
+                        {isMobile && (
+                            <div className="fixed inset-0 z-20 bg-black/30" onClick={() => setSidebarOpen(false)} />
+                        )}
+                        <aside className={`${
+                            isMobile
+                                ? 'fixed inset-y-0 left-0 z-30 w-64 shadow-xl'
+                                : 'w-56 shrink-0'
+                        } border-r overflow-y-auto p-2 bg-background`}>
+                            {isMobile && (
+                                <div className="flex items-center justify-between px-2 py-2 mb-1 border-b">
+                                    <span className="text-sm font-semibold">{t('Folders')}</span>
+                                    <button onClick={() => setSidebarOpen(false)} className="p-1 rounded hover:bg-muted">
+                                        <X className="w-4 h-4" />
+                                    </button>
+                                </div>
+                            )}
+                            <button
+                                className={`flex items-center gap-2 rounded px-2 py-1.5 text-sm w-full hover:bg-muted/60 ${currentFolderId === null ? 'bg-muted font-medium' : ''}`}
+                                onClick={() => { navigate(null); if (isMobile) setSidebarOpen(false); }}
+                            >
+                                <FolderOpen className="w-4 h-4 text-primary" />
+                                {t('All Files')}
+                            </button>
+                            <div className="mt-1">
+                                {folders.filter((f) => f.parent_id === null).map((f) => (
+                                    <FolderTreeItem key={f.id} folder={f} allFolders={folders} currentId={currentFolderId} depth={0} onNavigate={(id) => { navigate(id); if (isMobile) setSidebarOpen(false); }} />
+                                ))}
+                            </div>
+                        </aside>
+                    </>
+                )}
 
                 {/* ── Main area ── */}
                 <div className="flex-1 flex flex-col overflow-hidden">
 
                     {/* Toolbar */}
-                    <div className="flex items-center gap-2 border-b px-4 py-2 shrink-0">
-                        {/* Breadcrumbs */}
+                    <div className="flex items-center gap-2 border-b px-3 py-2 shrink-0">
+                        {/* Mobile sidebar toggle */}
+                        {isMobile && (
+                            <button className="p-1 rounded hover:bg-muted shrink-0" onClick={() => setSidebarOpen(true)}>
+                                <Menu className="w-4 h-4" />
+                            </button>
+                        )}
+                        {/* Breadcrumbs */}}
                         <nav className="flex items-center gap-1 text-sm flex-1 min-w-0">
                             {breadcrumbs.map((crumb, i) => (
                                 <React.Fragment key={String(crumb.id)}>
@@ -635,11 +665,11 @@ export default function MediaLibrary() {
 
                         <div className="flex items-center gap-1.5 shrink-0">
                             {/* Search */}
-                            <div className="relative">
+                            <div className="relative hidden sm:block">
                                 <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
-                                <Input className="pl-7 h-7 w-40 text-xs" placeholder={t('Search...')} value={search} onChange={(e) => setSearch(e.target.value)} />
+                                <Input className="pl-7 h-7 w-36 text-xs" placeholder={t('Search...')} value={search} onChange={(e) => setSearch(e.target.value)} />
                             </div>
-                            <Button size="sm" variant="outline" className="h-7 px-2" onClick={() => setFolderModal({ open: true, editing: null })}>
+                            <Button size="sm" variant="outline" className="h-7 px-2 hidden sm:flex" onClick={() => setFolderModal({ open: true, editing: null })}>
                                 <FolderPlus className="w-3.5 h-3.5 mr-1" />{t('New Folder')}
                             </Button>
                             <Button size="sm" className="h-7 px-2" onClick={() => setUploadOpen(true)}>
@@ -826,7 +856,17 @@ function FileCard({ file, viewMode, onView, onDownload, onLock, onMove, onDelete
 }) {
     const { t } = useTranslation();
     const isImage = file.mime_type?.startsWith('image/');
-    const hasThumb = !!file.thumb_url;
+    const ext = file.file_name?.split('.').pop()?.toUpperCase() ?? 'FILE';
+
+    // Colour-code common file extensions
+    const extColor: Record<string, string> = {
+        PDF: 'bg-red-100 text-red-700', DOC: 'bg-blue-100 text-blue-700', DOCX: 'bg-blue-100 text-blue-700',
+        XLS: 'bg-green-100 text-green-700', XLSX: 'bg-green-100 text-green-700',
+        PPT: 'bg-orange-100 text-orange-700', PPTX: 'bg-orange-100 text-orange-700',
+        ZIP: 'bg-yellow-100 text-yellow-700', MP4: 'bg-purple-100 text-purple-700',
+        MP3: 'bg-pink-100 text-pink-700',
+    };
+    const extClass = extColor[ext] ?? 'bg-muted text-muted-foreground';
 
     const menu = (
         <DropdownMenu>
@@ -865,11 +905,14 @@ function FileCard({ file, viewMode, onView, onDownload, onLock, onMove, onDelete
     return (
         <div className="group relative flex flex-col rounded-lg border overflow-hidden hover:border-primary/50 transition-colors cursor-pointer" onClick={onView}>
             <div className="relative bg-muted h-24 flex items-center justify-center overflow-hidden">
-                {hasThumb ? (
-                    <img src={file.thumb_url} alt={file.name} className="w-full h-full object-cover" loading="lazy" />
-                ) : (
-                    <FileIcon mimeType={file.mime_type} className="w-10 h-10 text-muted-foreground/50" />
-                )}
+                {isImage ? (
+                    <img src={file.thumb_url} alt={file.name} className="w-full h-full object-cover" loading="lazy"
+                        onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; (e.target as HTMLImageElement).nextElementSibling?.removeAttribute('hidden'); }} />
+                ) : null}
+                <div className={`flex flex-col items-center gap-1 ${isImage ? 'hidden' : ''}`}>
+                    <FileIcon mimeType={file.mime_type} className="w-8 h-8 text-muted-foreground/50" />
+                    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${extClass}`}>{ext}</span>
+                </div>
                 <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 flex gap-0.5">
                     {file.is_locked && <Lock className="w-3 h-3 text-amber-500" />}
                     {menu}
