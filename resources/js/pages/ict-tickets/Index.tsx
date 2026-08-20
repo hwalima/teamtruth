@@ -133,7 +133,7 @@ function CreateTicketModal({ open, onClose, subsidiaries, departments, categorie
                             <Label>{t('Priority')}</Label>
                             <Select value={form.priority} onValueChange={v => set('priority', v)}>
                                 <SelectTrigger><SelectValue /></SelectTrigger>
-                                <SelectContent>
+                                <SelectContent className="z-[110000]">
                                     {['low','medium','high','critical'].map(p => (
                                         <SelectItem key={p} value={p}>{p.charAt(0).toUpperCase() + p.slice(1)}</SelectItem>
                                     ))}
@@ -144,7 +144,7 @@ function CreateTicketModal({ open, onClose, subsidiaries, departments, categorie
                             <Label>{t('Category')}</Label>
                             <Select value={form.category} onValueChange={v => set('category', v)}>
                                 <SelectTrigger><SelectValue /></SelectTrigger>
-                                <SelectContent>
+                                <SelectContent className="z-[110000]">
                                     {Object.entries(categories).map(([k, label]) => (
                                         <SelectItem key={k} value={k}>{label}</SelectItem>
                                     ))}
@@ -158,7 +158,7 @@ function CreateTicketModal({ open, onClose, subsidiaries, departments, categorie
                             <Label>{t('Subsidiary')}</Label>
                             <Select value={form.subsidiary} onValueChange={v => set('subsidiary', v)}>
                                 <SelectTrigger><SelectValue placeholder={t('Select subsidiary')} /></SelectTrigger>
-                                <SelectContent>
+                                <SelectContent className="z-[110000]">
                                     {subsidiaries.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
                                 </SelectContent>
                             </Select>
@@ -167,7 +167,7 @@ function CreateTicketModal({ open, onClose, subsidiaries, departments, categorie
                             <Label>{t('Department')}</Label>
                             <Select value={form.department} onValueChange={v => set('department', v)}>
                                 <SelectTrigger><SelectValue placeholder={t('Select department')} /></SelectTrigger>
-                                <SelectContent>
+                                <SelectContent className="z-[110000]">
                                     {departments.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}
                                 </SelectContent>
                             </Select>
