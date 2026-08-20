@@ -166,7 +166,8 @@ class MediaController extends Controller
                 'errors' => [$limitCheck['message']]
             ], 422);
         }
-        DynamicStorageService::configureDynamicDisks();
+        // Purge any cached disk instance so the config-cached S3 credentials are used fresh
+        app('filesystem')->forgetDisk('s3');
         $config = StorageConfigService::getStorageConfig();
 
         $allowedTypes    = $config['allowed_file_types'] ?? 'jpg,jpeg,png,webp,gif,pdf,doc,docx,zip,rar';
@@ -338,7 +339,7 @@ class MediaController extends Controller
         try {
             $diskName = $media->disk;
             if ($diskName === 's3') {
-                DynamicStorageService::configureDynamicDisks();
+                app('filesystem')->forgetDisk('s3');
                 $url = Storage::disk('s3')->temporaryUrl($media->getPath(), now()->addMinutes(30));
                 return redirect($url);
             }
