@@ -666,17 +666,18 @@ class ProjectReportController extends Controller
         $baseY = $marginTop + $chartH;
 
         $hoursImage = imagecreatetruecolor($imgW, $imgH);
-        imagesavealpha($hoursImage, true);
-        $hoursTransparent = imagecolorallocatealpha($hoursImage, 0, 0, 0, 127);
-        imagefill($hoursImage, 0, 0, $hoursTransparent);
+        // White background so the PNG renders correctly inside DomPDF
+        $whiteColor   = imagecolorallocate($hoursImage, 255, 255, 255);
+        imagefill($hoursImage, 0, 0, $whiteColor);
 
         $primaryColor = imagecolorallocate($hoursImage, $pr, $pg, $pb);
         $textColor    = imagecolorallocate($hoursImage, 55, 65, 81);
         $axisColor    = imagecolorallocate($hoursImage, 209, 213, 219);
         $gridColor    = imagecolorallocate($hoursImage, 229, 231, 235);
-        $whiteColor   = imagecolorallocate($hoursImage, 255, 255, 255);
 
-        if (count($taskHoursData) > 0) {
+        $hasHoursData = count($taskHoursData) > 0 && max(array_column($taskHoursData, 'logged_hours')) > 0;
+
+        if ($hasHoursData) {
             $displayTasks = array_slice($taskHoursData, 0, 6);
             $count = count($displayTasks);
             $maxHours = max(array_merge([1], array_column($displayTasks, 'logged_hours')));
@@ -762,6 +763,18 @@ class ProjectReportController extends Controller
                 $lw = $bbox[2] - $bbox[0];
                 imagettftext($hoursImage, 9, 0, $imgW - $marginRight - $lw, $legendY, $textColor, $fontPath, $totalLabel);
             }
+        } else {
+            // No hours data — render a simple "No hours logged" placeholder
+            $grayColor = imagecolorallocate($hoursImage, 156, 163, 175);
+            imageline($hoursImage, $marginLeft, $baseY, $imgW - $marginRight, $baseY, $axisColor);
+            imageline($hoursImage, $marginLeft, $marginTop, $marginLeft, $baseY, $axisColor);
+            if (file_exists($fontPath)) {
+                $msg = 'No hours logged for this project yet.';
+                $bbox = imagettfbbox(13, 0, $fontPath, $msg);
+                $mx = (int)(($imgW - ($bbox[2] - $bbox[0])) / 2);
+                $my = (int)($marginTop + $chartH / 2);
+                imagettftext($hoursImage, 13, 0, $mx, $my, $grayColor, $fontPath, $msg);
+            }
         }
 
         ob_start();
@@ -813,11 +826,11 @@ class ProjectReportController extends Controller
         $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadHTML($html)
             ->setPaper('a4', 'landscape')
             ->setOptions([
-                'dpi'                   => 200,
-                'defaultFont'           => 'DejaVu Sans',
-                'isHtml5ParserEnabled'  => true,
-                'isRemoteEnabled'       => false,
-                'isFontSubsettingEnabled' => true,
+                'dpi'                    => 96,   // keep px→pt correct; chart PNG sizes handle crispness
+                'defaultFont'            => 'DejaVu Sans',
+                'isHtml5ParserEnabled'   => true,
+                'isRemoteEnabled'        => false,
+                'isFontSubsettingEnabled'=> true,
             ]);
 
         return $pdf->download('project_report_' . ($project->title ?: $project->name) . '_' . date('Y-m-d') . '.pdf');

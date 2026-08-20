@@ -8,7 +8,7 @@
 
         body {
             font-family: DejaVu Sans, Arial, sans-serif;
-            font-size: 12px;
+            font-size: 14px;
             color: #1f2937;
             background: #fff;
         }
@@ -22,22 +22,22 @@
             border-bottom: 2px solid {{ $primaryColor }};
         }
         .report-heading .project-title {
-            font-size: 20px;
+            font-size: 26px;
             font-weight: bold;
             color: #0f172a;
             margin-bottom: 4px;
         }
         .report-heading .report-meta {
-            font-size: 10px;
+            font-size: 12px;
             color: #6b7280;
         }
 
         /* ── Section title ── */
         .section-title {
-            font-size: 12px;
+            font-size: 15px;
             font-weight: bold;
             color: #0f172a;
-            border-left: 3px solid {{ $primaryColor }};
+            border-left: 4px solid {{ $primaryColor }};
             padding-left: 8px;
             margin-bottom: 12px;
         }
@@ -54,8 +54,8 @@
         /* ── Info grid ── */
         .info-grid { width: 100%; border-collapse: collapse; }
         .info-grid td { padding: 5px 10px 5px 0; vertical-align: top; width: 50%; }
-        .info-label { font-size: 9px; color: #6b7280;  letter-spacing: 0.5px; margin-bottom: 2px; }
-        .info-value { font-size: 11px; font-weight: 600; color: #1f2937; }
+        .info-label { font-size: 11px; color: #6b7280; letter-spacing: 0.3px; margin-bottom: 3px; }
+        .info-value { font-size: 13px; font-weight: 600; color: #1f2937; }
 
         /* ── Stat boxes ── */
         .stat-boxes { width: 100%; border-collapse: collapse; margin-top: 12px; }
@@ -67,8 +67,8 @@
             padding: 10px 8px;
             text-align: center;
         }
-        .stat-box .stat-num { font-size: 18px; font-weight: bold; color: {{ $primaryColor }}; }
-        .stat-box .stat-lbl { font-size: 8px; color: #6b7280;  letter-spacing: 0.5px; margin-top: 2px; }
+        .stat-box .stat-num { font-size: 22px; font-weight: bold; color: {{ $primaryColor }}; }
+        .stat-box .stat-lbl { font-size: 11px; color: #6b7280; letter-spacing: 0.3px; margin-top: 3px; }
 
         /* ── Charts row ── */
         .charts-table { width: 100%; border-collapse: collapse; margin-bottom: 18px; }
@@ -80,17 +80,17 @@
         .data-table { width: 100%; border-collapse: collapse; }
         .data-table thead tr { background: #f8fafc; }
         .data-table th {
-            padding: 8px 10px;
+            padding: 9px 12px;
             text-align: left;
-            font-size: 9px;
+            font-size: 11px;
             font-weight: 700;
             color: #475569;
-            letter-spacing: 0.5px;
+            letter-spacing: 0.3px;
             border-bottom: 2px solid #e2e8f0;
         }
         .data-table td {
-            padding: 8px 10px;
-            font-size: 11px;
+            padding: 9px 12px;
+            font-size: 13px;
             color: #374151;
             border-bottom: 1px solid #f1f5f9;
         }
@@ -100,9 +100,9 @@
         /* ── Badges — matching app UI exactly ── */
         .badge {
             display: inline-block;
-            padding: 2px 7px;
+            padding: 3px 8px;
             border-radius: 5px;
-            font-size: 9px;
+            font-size: 11px;
             font-weight: 600;
         }
 
@@ -145,7 +145,7 @@
             padding-top: 10px;
             border-top: 1px solid #e2e8f0;
             text-align: center;
-            font-size: 9px;
+            font-size: 11px;
             color: #9ca3af;
         }
     </style>
@@ -259,13 +259,13 @@
             <td style="width:33%;">
                 <div class="card" style="text-align:center;">
                     <div class="section-title" style="text-align:left;">Task Priority</div>
-                    <img src="data:image/png;base64,{{ $base64PriorityImage }}" style="width:240px;height:auto;" alt="Priority"/>
+                    <img src="data:image/png;base64,{{ $base64PriorityImage }}" style="width:100%;max-width:280px;height:auto;" alt="Priority"/>
                 </div>
             </td>
             <td style="width:34%;">
                 <div class="card" style="text-align:center;">
                     <div class="section-title" style="text-align:left;">Task Status</div>
-                    <img src="data:image/png;base64,{{ $base64StatusImage }}" style="width:240px;height:auto;" alt="Status"/>
+                    <img src="data:image/png;base64,{{ $base64StatusImage }}" style="width:100%;max-width:280px;height:auto;" alt="Status"/>
                 </div>
             </td>
         </tr>
