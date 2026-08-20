@@ -49,7 +49,7 @@ jobs:
           username: ${{ secrets.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           passphrase: ${{ secrets.DEPLOY_SSH_PASSPHRASE }}
-          port: 22
+          port: 22000
           script_stop: true
           script: |
             set -e
@@ -88,7 +88,7 @@ jobs:
           username: ${{ secrets.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           passphrase: ${{ secrets.DEPLOY_SSH_PASSPHRASE }}
-          port: 22
+          port: 22000
           source: "public/build/"
           target: "$HOME/planning.trukumbholdings.co.zw/public/"
           strip_components: 1
