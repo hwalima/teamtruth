@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { Link, router, usePage } from '@inertiajs/react';
 import {
-    AlertCircle, CheckCircle2, ChevronDown, ChevronLeft, ChevronRight,
+    AlertCircle, AlertTriangle, CheckCircle2, ChevronLeft, ChevronRight,
     Clock, Filter, Loader2, MonitorSmartphone, Plus, Search, Ticket, UserCheck, X,
 } from 'lucide-react';
 import React, { useState } from 'react';
@@ -67,6 +67,21 @@ const STATUS_STYLE: Record<string, string> = {
 function formatDate(d?: string) {
     if (!d) return '—';
     return new Date(d).toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' });
+}
+
+/** Returns human-readable SLA remaining time or 'Overdue' */
+function slaLabel(dueDate?: string, status?: string): { text: string; overdue: boolean } | null {
+    if (!dueDate || status === 'resolved' || status === 'closed') return null;
+    const diff = new Date(dueDate).getTime() - Date.now();
+    const overdue = diff < 0;
+    const abs = Math.abs(diff);
+    const hours = Math.floor(abs / 3600000);
+    const mins  = Math.floor((abs % 3600000) / 60000);
+    if (hours >= 24) {
+        const days = Math.floor(hours / 24);
+        return { text: overdue ? `${days}d overdue` : `${days}d left`, overdue };
+    }
+    return { text: overdue ? `${hours}h ${mins}m overdue` : `${hours}h ${mins}m left`, overdue };
 }
 
 // ── Create Ticket Modal ───────────────────────────────────────────────────────
@@ -220,12 +235,13 @@ export default function IctTicketsIndex({ tickets, stats, members, subsidiaries,
         >
             {/* Stats row */}
             <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-4">
-                {[
-                    { label: t('Total'),       value: stats.total,       icon: <Ticket className="w-4 h-4" />,     color: '#E3B448' },
-                    { label: t('Open'),        value: stats.open,        icon: <AlertCircle className="w-4 h-4" />, color: '#3B82F6' },
-                    { label: t('In Progress'), value: stats.in_progress, icon: <Clock className="w-4 h-4" />,      color: '#F59E0B' },
-                    { label: t('Pending'),     value: stats.pending,     icon: <UserCheck className="w-4 h-4" />,  color: '#8B5CF6' },
+                {[  
+                    { label: t('Total'),       value: stats.total,       icon: <Ticket className="w-4 h-4" />,       color: '#E3B448' },
+                    { label: t('Open'),        value: stats.open,        icon: <AlertCircle className="w-4 h-4" />,  color: '#3B82F6' },
+                    { label: t('In Progress'), value: stats.in_progress, icon: <Clock className="w-4 h-4" />,       color: '#F59E0B' },
+                    { label: t('Pending'),     value: stats.pending,     icon: <UserCheck className="w-4 h-4" />,   color: '#8B5CF6' },
                     { label: t('Resolved'),    value: stats.resolved,    icon: <CheckCircle2 className="w-4 h-4" />, color: '#10B981' },
+                    { label: t('Overdue'),     value: stats.overdue ?? 0,icon: <AlertTriangle className="w-4 h-4" />, color: '#EF4444' },
                 ].map(s => (
                     <div key={s.label} className="rounded-xl border p-3 flex items-center gap-3">
                         <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: `${s.color}20`, color: s.color }}>
@@ -284,6 +300,7 @@ export default function IctTicketsIndex({ tickets, stats, members, subsidiaries,
                             <th className="text-left px-3 py-2.5 font-medium text-muted-foreground">{t('Status')}</th>
                             <th className="text-left px-3 py-2.5 font-medium text-muted-foreground hidden lg:table-cell">{t('Reported By')}</th>
                             <th className="text-left px-3 py-2.5 font-medium text-muted-foreground hidden lg:table-cell">{t('Assigned To')}</th>
+                            <th className="text-left px-3 py-2.5 font-medium text-muted-foreground">{t('SLA')}</th>
                             <th className="text-left px-3 py-2.5 font-medium text-muted-foreground hidden xl:table-cell">{t('Date')}</th>
                         </tr>
                     </thead>
@@ -324,6 +341,22 @@ export default function IctTicketsIndex({ tickets, stats, members, subsidiaries,
                                 </td>
                                 <td className="px-3 py-3 hidden lg:table-cell text-xs text-muted-foreground">
                                     {ticket.assignedTo?.name ?? <span className="italic opacity-60">{t('Unassigned')}</span>}
+                                </td>
+                                <td className="px-3 py-3">
+                                    {(() => {
+                                        const sla = slaLabel(ticket.due_date, ticket.status);
+                                        if (!sla) return <span className="text-xs text-muted-foreground">—</span>;
+                                        return (
+                                            <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium ${
+                                                sla.overdue
+                                                    ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                                                    : 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                                            }`}>
+                                                {sla.overdue ? <AlertTriangle className="w-3 h-3" /> : <Clock className="w-3 h-3" />}
+                                                {sla.text}
+                                            </span>
+                                        );
+                                    })()}
                                 </td>
                                 <td className="px-3 py-3 hidden xl:table-cell text-xs text-muted-foreground whitespace-nowrap">
                                     {formatDate(ticket.created_at)}

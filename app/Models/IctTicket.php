@@ -142,6 +142,30 @@ class IctTicket extends Model
         return static::CATEGORIES;
     }
 
+    /**
+     * Priority-based multiplier applied to the base SLA hours.
+     * Critical = 25 % of resolution time, Low = 200 %.
+     */
+    public static function slaMultiplier(string $priority): float
+    {
+        return match ($priority) {
+            'critical' => 0.25,
+            'high'     => 0.5,
+            'medium'   => 1.0,
+            'low'      => 2.0,
+            default    => 1.0,
+        };
+    }
+
+    /** Calculate the due_date for a new ticket based on priority + SLA settings. */
+    public static function calcDueDate(string $priority): \Carbon\Carbon
+    {
+        $baseHours = (int) getSetting('ict_sla_resolution_hours', 24);
+        $hours     = (int) ceil($baseHours * static::slaMultiplier($priority));
+
+        return now()->addHours(max(1, $hours));
+    }
+
     public function isOverdue(): bool
     {
         return $this->due_date && $this->due_date->isPast()

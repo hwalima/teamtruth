@@ -61,6 +61,11 @@ class IctTicketController extends Controller
             'pending'     => (clone $statsQuery)->where('status', 'pending')->count(),
             'resolved'    => (clone $statsQuery)->where('status', 'resolved')->count(),
             'total'       => (clone $statsQuery)->count(),
+            'overdue'     => (clone $statsQuery)
+                ->whereNotIn('status', ['resolved', 'closed'])
+                ->whereNotNull('due_date')
+                ->where('due_date', '<', now())
+                ->count(),
         ];
 
         $members = User::whereHas('workspaces', fn($q) => $q->where('workspaces.id', $workspaceId))
@@ -106,6 +111,10 @@ class IctTicketController extends Controller
             'status'        => 'open',
             'reported_by'   => $user->id,
             'workspace_id'  => $user->current_workspace_id,
+            // Auto-set SLA deadline unless the user provided one explicitly
+            'due_date'      => empty($validated['due_date'])
+                ? IctTicket::calcDueDate($validated['priority'])
+                : $validated['due_date'],
         ]);
 
         // Handle file attachments
