@@ -1,4 +1,4 @@
-name: Deploy to Production — planning.trukumbholdings.co.zw
+ï»¿name: Deploy to Production - planning.trukumbholdings.co.zw
 
 on:
   push:
@@ -6,23 +6,22 @@ on:
   workflow_dispatch:
 
 jobs:
-  build-and-deploy:
-    name: Build assets & trigger cPanel deployment
+  deploy:
+    name: Build & Deploy via SSH
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
 
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v4
 
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
         with:
           php-version: '8.2'
-          extensions: mbstring, pdo, pdo_mysql, zip, gd, curl, openssl
           tools: composer:v2
 
-      - name: Install PHP dependencies
+      - name: Install PHP deps
         run: composer install --no-dev --optimize-autoloader --no-interaction --prefer-dist
 
       - name: Setup Node.js
@@ -31,33 +30,44 @@ jobs:
           node-version: '20'
           cache: 'npm'
 
-      - name: Install Node dependencies
-        run: npm ci
-
       - name: Build frontend assets
-        run: npm run build
+        run: npm ci && npm run build
 
-      - name: Upload built assets via FTP
-        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+      - name: Deploy to server via SSH
+        uses: appleboy/ssh-action@v1.0.3
         with:
-          server: ${{ secrets.FTP_HOST }}
-          username: ${{ secrets.FTP_USER }}
-          password: ${{ secrets.FTP_PASSWORD }}
-          port: ${{ secrets.FTP_PORT }}
-          protocol: ftps
-          server-dir: /planning.trukumbholdings.co.zw/public/build/
-          local-dir: ./public/build/
-          dangerous-clean-slate: false
-        continue-on-error: true
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          passphrase: ${{ secrets.DEPLOY_SSH_PASSPHRASE }}
+          port: 22000
+          script_stop: true
+          script: |
+            set -e
+            cd ~/planning.trukumbholdings.co.zw
+            echo "==> Pulling latest code..."
+            git pull origin main
+            echo "==> Installing PHP dependencies..."
+            composer install --no-dev --optimize-autoloader --no-interaction --prefer-dist
+            echo "==> Running migrations..."
+            php artisan migrate --force
+            echo "==> Caching..."
+            php artisan config:cache
+            php artisan route:cache
+            php artisan view:cache
+            php artisan event:cache
+            echo "==> Restarting queues..."
+            php artisan queue:restart || true
+            echo "==> Done!"
 
-      - name: Trigger cPanel Git Version Control update
-        run: |
-          RESPONSE=$(curl -s -o /tmp/cpanel_response.json -w "%{http_code}" \
-            "https://cp69.domains.co.za:2083/execute/VersionControl/update" \
-            -u "${{ secrets.CPANEL_USER }}:${{ secrets.CPANEL_PASSWORD }}" \
-            --insecure \
-            -d "repository_root=/home/trukumbh/planning.trukumbholdings.co.zw")
-          cat /tmp/cpanel_response.json
-          echo "HTTP $RESPONSE"
-          [ "$RESPONSE" = "200" ] && echo "Deployment triggered" || echo "Check cPanel manually"
-        continue-on-error: true
+      - name: Copy built assets to server
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          passphrase: ${{ secrets.DEPLOY_SSH_PASSPHRASE }}
+          port: 22000
+          source: "public/build/"
+          target: "~/planning.trukumbholdings.co.zw/public/"
+          strip_components: 1
