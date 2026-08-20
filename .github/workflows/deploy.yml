@@ -47,6 +47,8 @@ jobs:
             cd ~/teamtruth
             echo "==> Pulling latest code..."
             git pull origin main
+            echo "==> Ensuring APP_DEBUG is off in production..."
+            sed -i 's/APP_DEBUG=true/APP_DEBUG=false/' .env
             echo "==> Installing PHP dependencies..."
             composer install --no-dev --optimize-autoloader --no-interaction --prefer-dist
             echo "==> Running migrations..."
