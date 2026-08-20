@@ -148,15 +148,16 @@ export function MzitshwaPanel({ isOpen, onClose, initialPrompt, onGenerate }: Mz
         abortRef.current = new AbortController();
 
         try {
+            // Use non-streaming JSON — SSE is buffered by LiteSpeed shared hosting
             const res = await fetch(route('mzitshwa.chat'), {
                 method: 'POST',
                 signal: abortRef.current.signal,
                 headers: {
                     'Content-Type': 'application/json',
                     'X-CSRF-TOKEN': csrf_token,
-                    'Accept': 'text/event-stream',
+                    'Accept': 'application/json',
                 },
-                body: JSON.stringify({ messages: history, context, stream: true }),
+                body: JSON.stringify({ messages: history, context, stream: false }),
             });
 
             if (!res.ok) {
@@ -165,34 +166,11 @@ export function MzitshwaPanel({ isOpen, onClose, initialPrompt, onGenerate }: Mz
                 return;
             }
 
-            const reader  = res.body!.getReader();
-            const decoder = new TextDecoder();
-            let accumulated = '';
+            const data = await res.json();
+            const content = data.content || data.message || '(No response)';
+            updateMessage(aiMsgId, content, false);
 
-            while (true) {
-                const { done, value } = await reader.read();
-                if (done) break;
-
-                const raw = decoder.decode(value, { stream: true });
-                const lines = raw.split('\n');
-
-                for (const line of lines) {
-                    if (!line.startsWith('data: ')) continue;
-                    const data = line.slice(6);
-                    if (data === '[DONE]') break;
-                    try {
-                        const parsed = JSON.parse(data);
-                        if (parsed.error) { accumulated += `\n⚠️ ${parsed.error}`; break; }
-                        accumulated += parsed.content ?? '';
-                        updateMessage(aiMsgId, accumulated, true);
-                    } catch {}
-                }
-            }
-
-            updateMessage(aiMsgId, accumulated || '(No response)', false);
-
-            // If this was triggered as a field-fill helper, fire callback
-            if (onGenerate && promptOverride) onGenerate(accumulated);
+            if (onGenerate && promptOverride) onGenerate(content);
 
         } catch (err: any) {
             if (err.name !== 'AbortError') {
@@ -291,7 +269,10 @@ export function MzitshwaPanel({ isOpen, onClose, initialPrompt, onGenerate }: Mz
                                     ? { background: '#E3B448', color: '#001a4d' }
                                     : { background: 'var(--muted)', color: 'var(--foreground)', border: '1px solid var(--border)' }}>
                                 {msg.loading && !msg.content
-                                    ? <div className="flex gap-1 py-0.5">{[0,1,2].map(i => <span key={i} className="w-1.5 h-1.5 rounded-full bg-current opacity-40 dot-bounce" style={{ animationDelay: `${i * 0.2}s` }} />)}</div>
+                                    ? <div className="flex gap-1 py-0.5 items-center">
+                                        <Loader2 className="w-3.5 h-3.5 animate-spin opacity-60" />
+                                        <span className="text-xs opacity-50">Thinking…</span>
+                                      </div>
                                     : msg.role === 'assistant'
                                         ? <MarkdownText text={msg.content} />
                                         : <p className="text-sm">{msg.content}</p>}
