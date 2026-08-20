@@ -169,6 +169,22 @@ class MediaController extends Controller
         // Purge any cached disk instance so the config-cached S3 credentials are used fresh
         app('filesystem')->forgetDisk('s3');
         $config = StorageConfigService::getStorageConfig();
+        $activeDisk = $config['disk'] ?? config('media-library.disk_name', 'public');
+
+        // Log the raw S3 connection test to expose the underlying exception Spatie wraps
+        try {
+            Storage::disk($activeDisk)->exists('__disk_check__');
+            \Log::info('Disk accessible in HTTP', ['disk' => $activeDisk]);
+        } catch (\Exception $diskEx) {
+            \Log::error('Disk NOT accessible in HTTP — falling back to public', [
+                'disk' => $activeDisk,
+                'class' => get_class($diskEx),
+                'msg' => $diskEx->getMessage(),
+            ]);
+            // Fall back to local public storage so uploads don't fail
+            $activeDisk = 'public';
+            config(['media-library.disk_name' => 'public']);
+        }
 
         $allowedTypes    = $config['allowed_file_types'] ?? 'jpg,jpeg,png,webp,gif,pdf,doc,docx,zip,rar';
         $normalizedTypes = strtolower($allowedTypes);
