@@ -14,22 +14,8 @@ class DynamicStorageService
     {
         $config = StorageConfigService::getStorageConfig();
 
-        // Always configure S3 from config (works after config:cache; env() does not)
-        if (config('filesystems.disks.s3.key') && config('filesystems.disks.s3.secret')) {
-            \Illuminate\Support\Facades\Config::set('filesystems.disks.s3', [
-                'driver'                  => 's3',
-                'key'                     => config('filesystems.disks.s3.key'),
-                'secret'                  => config('filesystems.disks.s3.secret'),
-                'region'                  => config('filesystems.disks.s3.region'),
-                'bucket'                  => config('filesystems.disks.s3.bucket'),
-                'url'                     => config('filesystems.disks.s3.url'),
-                'endpoint'                => config('filesystems.disks.s3.endpoint'),
-                'use_path_style_endpoint' => false,
-                'visibility'              => 'public',
-            ]);
-        }
-
-        // Override with DB-stored credentials if configured (full config required)
+        // Only override S3 config when credentials come from the DB settings (SaaS per-workspace S3).
+        // When credentials are in .env (config:cache), do NOT override — let filesystems.php stand.
         if (!empty($config['s3']['key']) && !empty($config['s3']['secret'])) {
             Config::set('filesystems.disks.s3', [
                 'driver'                  => 's3',
@@ -40,21 +26,22 @@ class DynamicStorageService
                 'url'                     => $config['s3']['url'] ?? null,
                 'endpoint'                => $config['s3']['endpoint'] ?? null,
                 'use_path_style_endpoint' => false,
-                'visibility'              => 'public',
+                // Inherit visibility from filesystems.php — never hardcode public-read ACL
+                'visibility'              => config('filesystems.disks.s3.visibility', 'private'),
             ]);
         }
-        
+
         // Configure Wasabi disk if credentials exist
         if (!empty($config['wasabi']['key']) && !empty($config['wasabi']['secret'])) {
             Config::set('filesystems.disks.wasabi', [
-                'driver' => 's3',
-                'key' => $config['wasabi']['key'],
-                'secret' => $config['wasabi']['secret'],
-                'region' => $config['wasabi']['region'],
-                'bucket' => $config['wasabi']['bucket'],
-                'endpoint' => 'https://s3.' . $config['wasabi']['region'] . '.wasabisys.com',
+                'driver'                  => 's3',
+                'key'                     => $config['wasabi']['key'],
+                'secret'                  => $config['wasabi']['secret'],
+                'region'                  => $config['wasabi']['region'],
+                'bucket'                  => $config['wasabi']['bucket'],
+                'endpoint'                => 'https://s3.' . $config['wasabi']['region'] . '.wasabisys.com',
                 'use_path_style_endpoint' => false,
-                'visibility' => 'public',
+                'visibility'              => 'private',
             ]);
         }
     }
