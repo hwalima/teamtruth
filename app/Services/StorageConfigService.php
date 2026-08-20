@@ -12,7 +12,8 @@ class StorageConfigService
     public static function getActiveDisk(): string
     {
         $config = self::getStorageConfig();
-        return $config['disk'] ?? 'public';
+        // Use env MEDIA_DISK as fallback when DB has no storage configured
+        return $config['disk'] ?? env('MEDIA_DISK', 'public');
     }
 
     /**
@@ -215,10 +216,17 @@ class StorageConfigService
     private static function getDefaultConfig(): array
     {
         return [
-            'disk'               => 'public',
-            'allowed_file_types' => 'jpg,png,webp,gif',
-            'max_file_size_kb'   => 2048,
-            's3'                 => [],
+            'disk'               => env('MEDIA_DISK', 'public'),
+            'allowed_file_types' => 'jpg,jpeg,png,webp,gif,pdf,doc,docx,zip',
+            'max_file_size_kb'   => 10240,
+            's3'                 => [
+                'key'    => env('AWS_ACCESS_KEY_ID'),
+                'secret' => env('AWS_SECRET_ACCESS_KEY'),
+                'region' => env('AWS_DEFAULT_REGION'),
+                'bucket' => env('AWS_BUCKET'),
+                'url'    => env('AWS_URL'),
+                'endpoint' => env('AWS_ENDPOINT'),
+            ],
             'wasabi'             => [],
         ];
     }

@@ -13,19 +13,34 @@ class DynamicStorageService
     public static function configureDynamicDisks(): void
     {
         $config = StorageConfigService::getStorageConfig();
-        
-        // Configure S3 disk if credentials exist
+
+        // Always configure S3 from env as baseline (overridden by DB settings if present)
+        if (env('AWS_ACCESS_KEY_ID') && env('AWS_SECRET_ACCESS_KEY')) {
+            \Illuminate\Support\Facades\Config::set('filesystems.disks.s3', [
+                'driver'                  => 's3',
+                'key'                     => env('AWS_ACCESS_KEY_ID'),
+                'secret'                  => env('AWS_SECRET_ACCESS_KEY'),
+                'region'                  => env('AWS_DEFAULT_REGION'),
+                'bucket'                  => env('AWS_BUCKET'),
+                'url'                     => env('AWS_URL'),
+                'endpoint'                => env('AWS_ENDPOINT'),
+                'use_path_style_endpoint' => env('AWS_USE_PATH_STYLE_ENDPOINT', false),
+                'visibility'              => 'public',
+            ]);
+        }
+
+        // Override with DB-stored credentials if configured (full config required)
         if (!empty($config['s3']['key']) && !empty($config['s3']['secret'])) {
             Config::set('filesystems.disks.s3', [
-                // 'driver' => 's3',
-                'key' => $config['s3']['key'],
-                'secret' => $config['s3']['secret'],
-                'region' => $config['s3']['region'],
-                'bucket' => $config['s3']['bucket'],
-                // 'url' => null,
-                // 'endpoint' => null,
-                // 'use_path_style_endpoint' => false,
-                // 'visibility' => 'public',
+                'driver'                  => 's3',
+                'key'                     => $config['s3']['key'],
+                'secret'                  => $config['s3']['secret'],
+                'region'                  => $config['s3']['region'],
+                'bucket'                  => $config['s3']['bucket'],
+                'url'                     => $config['s3']['url'] ?? null,
+                'endpoint'                => $config['s3']['endpoint'] ?? null,
+                'use_path_style_endpoint' => false,
+                'visibility'              => 'public',
             ]);
         }
         
