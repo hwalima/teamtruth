@@ -339,7 +339,7 @@ export function MzitshwaPanel({ isOpen, onClose, initialPrompt, onGenerate }: Mz
                                 <Send className="w-4 h-4" />
                               </button>}
                     </div>
-                    <p className="text-center text-[10px] opacity-40">Mzitshwa · Powered by Groq · compound</p>
+                    <p className="text-center text-[10px] opacity-40">Mzitshwa · Powered by Groq · compound-mini</p>
                 </div>
             </div>
         </>,

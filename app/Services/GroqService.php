@@ -93,27 +93,17 @@ class GroqService
         $workspace = $user->currentWorkspace;
         $wsName    = $workspace ? $workspace->name : 'your workspace';
 
-        $base = <<<PROMPT
-You are Mzitshwa, an intelligent AI assistant embedded in Team Truth — a project management platform.
+        // Keep base prompt minimal to stay within token-per-minute limits
+        $base = "You are Mzitshwa, an AI assistant for Team Truth (workspace: {$wsName}, user: {$user->name}). "
+              . "Help with projects, tasks, timesheets, invoices, expenses, and ICT tickets. "
+              . "Be concise. Use markdown. Quote numbers when available.";
 
-Your capabilities:
-• Answer questions about projects, tasks, bugs, timesheets, invoices, and expenses
-• Generate and improve content: project descriptions, task details, emails, reports
-• Analyse workspace data and provide actionable insights
-• Help users plan and prioritise work
-
-Current user: {$user->name} (workspace: {$wsName})
-
-Guidelines:
-- Be concise, professional, and helpful
-- Use markdown formatting (bullet points, bold, headings) where it improves clarity
-- When analysing data, quote specific numbers
-- If you cannot answer something, say so honestly
-PROMPT;
-
-        $contextData = $this->fetchContextData($user, $contextType);
-        if ($contextData) {
-            $base .= "\n\n--- Live workspace context ---\n" . $contextData;
+        // Only inject live workspace data when a specific context tab is selected
+        if ($contextType !== 'general') {
+            $contextData = $this->fetchContextData($user, $contextType);
+            if ($contextData) {
+                $base .= "\n\n--- {$contextType} data ---\n" . $contextData;
+            }
         }
 
         return $base;
