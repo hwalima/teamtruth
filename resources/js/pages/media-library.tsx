@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { usePage } from '@inertiajs/react';
 import {
-    ChevronRight, Download, File, FileText, Film, FolderOpen, FolderPlus, Grid3X3,
+    ChevronRight, Download, Eye, File, FileText, Film, FolderOpen, FolderPlus, Grid3X3,
     Image, List, Lock, LockOpen, MoreHorizontal, Music, Plus, Search,
     Shield, Trash2, Upload, X, Folder as FolderIcon,
 } from 'lucide-react';
@@ -579,10 +579,7 @@ export default function MediaLibrary() {
     };
 
     const downloadFile = (file: MediaFile) => {
-        const a = document.createElement('a');
-        a.href = route('api.media.download', file.media_id);
-        a.download = file.file_name;
-        a.click();
+        window.open(route('api.media.download', file.media_id), '_blank');
     };
 
     const onFileMoved = (fileId: number, folderId: number | null) => {
@@ -690,6 +687,7 @@ export default function MediaLibrary() {
                                                 key={file.id}
                                                 file={file}
                                                 viewMode={viewMode}
+                                                onView={() => window.open(file.url, '_blank')}
                                                 onDownload={() => downloadFile(file)}
                                                 onLock={() => setLockModal({ open: true, type: 'file', item: file })}
                                                 onMove={() => setMoveModal({ open: true, file })}
@@ -822,12 +820,13 @@ function FolderCard({ folder, viewMode, onOpen, onRename, onLock, onDelete }: {
 
 // ── File card ─────────────────────────────────────────────────────────────────
 
-function FileCard({ file, viewMode, onDownload, onLock, onMove, onDelete }: {
+function FileCard({ file, viewMode, onView, onDownload, onLock, onMove, onDelete }: {
     file: MediaFile; viewMode: 'grid' | 'list';
-    onDownload: () => void; onLock: () => void; onMove: () => void; onDelete: () => void;
+    onView: () => void; onDownload: () => void; onLock: () => void; onMove: () => void; onDelete: () => void;
 }) {
     const { t } = useTranslation();
     const isImage = file.mime_type?.startsWith('image/');
+    const hasThumb = !!file.thumb_url;
 
     const menu = (
         <DropdownMenu>
@@ -837,6 +836,7 @@ function FileCard({ file, viewMode, onDownload, onLock, onMove, onDelete }: {
                 </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onView(); }}><Eye className="w-3.5 h-3.5 mr-2" />{t('View')}</DropdownMenuItem>
                 <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onDownload(); }}><Download className="w-3.5 h-3.5 mr-2" />{t('Download')}</DropdownMenuItem>
                 <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onLock(); }}>
                     <Lock className="w-3.5 h-3.5 mr-2" />{t('Lock & Access')}
@@ -852,7 +852,7 @@ function FileCard({ file, viewMode, onDownload, onLock, onMove, onDelete }: {
 
     if (viewMode === 'list') {
         return (
-            <div className="flex items-center gap-3 px-3 py-2 rounded hover:bg-muted/50 group">
+            <div className="flex items-center gap-3 px-3 py-2 rounded hover:bg-muted/50 group cursor-pointer" onClick={onView}>
                 <FileIcon mimeType={file.mime_type} className="w-4 h-4 shrink-0 text-muted-foreground" />
                 <span className="flex-1 text-sm truncate">{file.name}</span>
                 <span className="text-xs text-muted-foreground">{formatBytes(file.size)}</span>
@@ -863,9 +863,9 @@ function FileCard({ file, viewMode, onDownload, onLock, onMove, onDelete }: {
     }
 
     return (
-        <div className="group relative flex flex-col rounded-lg border overflow-hidden hover:border-primary/50 transition-colors">
+        <div className="group relative flex flex-col rounded-lg border overflow-hidden hover:border-primary/50 transition-colors cursor-pointer" onClick={onView}>
             <div className="relative bg-muted h-24 flex items-center justify-center overflow-hidden">
-                {isImage ? (
+                {hasThumb ? (
                     <img src={file.thumb_url} alt={file.name} className="w-full h-full object-cover" loading="lazy" />
                 ) : (
                     <FileIcon mimeType={file.mime_type} className="w-10 h-10 text-muted-foreground/50" />

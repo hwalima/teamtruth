@@ -150,7 +150,7 @@ class MediaFolderController extends Controller
             'is_locked'   => $folder->is_locked,
             'user_id'     => $folder->user_id,
             'accesses'    => $accesses,
-            'items_count' => $folder->items()->count(),
+            'items_count' => $folder->items()->count() + $folder->children()->count(),
             'created_at'  => $folder->created_at,
         ];
     }
