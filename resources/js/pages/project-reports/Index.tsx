@@ -27,6 +27,12 @@ export default function ProjectReportsIndex() {
     const [searchTerm, setSearchTerm] = useState(pageFilters.search || '');
     const [selectedStatus, setSelectedStatus] = useState(pageFilters.status || 'all');
     const [selectedUser, setSelectedUser] = useState(pageFilters.user_id || 'all');
+    const [deadlineFrom, setDeadlineFrom] = useState(pageFilters.deadline_from || '');
+    const [deadlineTo, setDeadlineTo] = useState(pageFilters.deadline_to || '');
+    const [startFrom, setStartFrom] = useState(pageFilters.start_from || '');
+    const [startTo, setStartTo] = useState(pageFilters.start_to || '');
+    const [milestoneSearch, setMilestoneSearch] = useState(pageFilters.milestone_search || '');
+    const [showDateFilters, setShowDateFilters] = useState(!!(pageFilters.deadline_from || pageFilters.deadline_to || pageFilters.start_from || pageFilters.start_to));
     const [showFilters, setShowFilters] = useState(false);
     const [pageInitialState, setPageInitialState] = useState(true);
 
@@ -47,6 +53,11 @@ export default function ProjectReportsIndex() {
         if (searchTerm) params.search = searchTerm;
         if (selectedStatus !== 'all') params.status = selectedStatus;
         if (selectedUser !== 'all') params.user_id = selectedUser;
+        if (deadlineFrom) params.deadline_from = deadlineFrom;
+        if (deadlineTo) params.deadline_to = deadlineTo;
+        if (startFrom) params.start_from = startFrom;
+        if (startTo) params.start_to = startTo;
+        if (milestoneSearch) params.milestone_search = milestoneSearch;
         if (pageFilters.per_page) params.per_page = pageFilters.per_page;
         if (pageFilters.sort_by) params.sort_by = pageFilters.sort_by;
         if (pageFilters.sort_order) params.sort_order = pageFilters.sort_order;
@@ -77,13 +88,19 @@ export default function ProjectReportsIndex() {
     };
     
     const activeFilterCount = () => {
-        return (selectedStatus !== 'all' ? 1 : 0) + (selectedUser !== 'all' ? 1 : 0) + (searchTerm ? 1 : 0);
+        return (selectedStatus !== 'all' ? 1 : 0) + (selectedUser !== 'all' ? 1 : 0) + (searchTerm ? 1 : 0)
+            + (deadlineFrom ? 1 : 0) + (deadlineTo ? 1 : 0) + (startFrom ? 1 : 0) + (startTo ? 1 : 0) + (milestoneSearch ? 1 : 0);
     };
     
     const handleResetFilters = () => {
         setSelectedStatus('all');
         setSelectedUser('all');
         setSearchTerm('');
+        setDeadlineFrom('');
+        setDeadlineTo('');
+        setStartFrom('');
+        setStartTo('');
+        setMilestoneSearch('');
         router.get(route('project-reports.index'), { page: 1 }, { preserveState: false, preserveScroll: false });
     };
     
@@ -327,6 +344,40 @@ export default function ProjectReportsIndex() {
                     activeFilterCount={activeFilterCount}
                     onResetFilters={handleResetFilters}
                 />
+                {/* Date range & milestone filters */}
+                <div className="px-4 pb-3 border-t pt-3 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
+                    <div className="flex flex-col gap-0.5">
+                        <span className="text-xs text-muted-foreground">{t('Start From')}</span>
+                        <input type="date" value={startFrom} onChange={e => setStartFrom(e.target.value)}
+                            className="h-8 rounded-md border border-input bg-background px-2 text-xs" />
+                    </div>
+                    <div className="flex flex-col gap-0.5">
+                        <span className="text-xs text-muted-foreground">{t('Start To')}</span>
+                        <input type="date" value={startTo} onChange={e => setStartTo(e.target.value)}
+                            className="h-8 rounded-md border border-input bg-background px-2 text-xs" />
+                    </div>
+                    <div className="flex flex-col gap-0.5">
+                        <span className="text-xs text-muted-foreground">{t('Deadline From')}</span>
+                        <input type="date" value={deadlineFrom} onChange={e => setDeadlineFrom(e.target.value)}
+                            className="h-8 rounded-md border border-input bg-background px-2 text-xs" />
+                    </div>
+                    <div className="flex flex-col gap-0.5">
+                        <span className="text-xs text-muted-foreground">{t('Deadline To')}</span>
+                        <input type="date" value={deadlineTo} onChange={e => setDeadlineTo(e.target.value)}
+                            className="h-8 rounded-md border border-input bg-background px-2 text-xs" />
+                    </div>
+                    <div className="flex flex-col gap-0.5">
+                        <span className="text-xs text-muted-foreground">{t('Milestone Contains')}</span>
+                        <input type="text" value={milestoneSearch} onChange={e => setMilestoneSearch(e.target.value)}
+                            placeholder={t('e.g. Phase 1')}
+                            className="h-8 rounded-md border border-input bg-background px-2 text-xs" />
+                    </div>
+                    <button onClick={() => router.get(route('project-reports.index'), buildParams(), { preserveState: false })}
+                        className="self-end h-8 px-3 rounded-md text-xs font-medium text-white col-span-full sm:col-span-1"
+                        style={{ background: '#E3B448', color: '#001a4d' }}>
+                        {t('Apply Date Filters')}
+                    </button>
+                </div>
             </div>
 
             {/* Projects Table */}

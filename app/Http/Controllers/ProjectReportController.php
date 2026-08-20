@@ -68,6 +68,19 @@ class ProjectReportController extends Controller
                     });
             });
 
+        // Date range filters
+        if ($request->filled('start_from'))
+            $query->where('start_date', '>=', $request->start_from);
+        if ($request->filled('start_to'))
+            $query->where('start_date', '<=', $request->start_to);
+        if ($request->filled('deadline_from'))
+            $query->where('deadline', '>=', $request->deadline_from);
+        if ($request->filled('deadline_to'))
+            $query->where('deadline', '<=', $request->deadline_to);
+        // Filter projects that contain a specific milestone title
+        if ($request->filled('milestone_search'))
+            $query->whereHas('milestones', fn($q) => $q->where('title', 'like', '%' . $request->milestone_search . '%'));
+
         // Add sorting
         $sortBy = $request->get('sort_by', 'created_at');
         $sortOrder = $request->get('sort_order', 'desc');
@@ -111,7 +124,7 @@ class ProjectReportController extends Controller
         return Inertia::render('project-reports/Index', [
             'projects' => $projects,
             'users' => $users,
-            'filters' => $request->only(['search', 'status', 'user_id', 'per_page', 'sort_by', 'sort_order']),
+            'filters' => $request->only(['search', 'status', 'user_id', 'per_page', 'sort_by', 'sort_order', 'start_from', 'start_to', 'deadline_from', 'deadline_to', 'milestone_search']),
             'userWorkspaceRole' => $userWorkspaceRole,
         ]);
     }
@@ -247,6 +260,12 @@ class ProjectReportController extends Controller
         if ($request->filled('milestone_id') && $request->milestone_id !== 'all') {
             $tasksQuery->where('milestone_id', $request->milestone_id);
         }
+
+        // Date range filters on task start_date / end_date
+        if ($request->filled('date_from'))
+            $tasksQuery->where(fn($q) => $q->where('start_date', '>=', $request->date_from)->orWhere('end_date', '>=', $request->date_from));
+        if ($request->filled('date_to'))
+            $tasksQuery->where(fn($q) => $q->where('start_date', '<=', $request->date_to)->orWhere('end_date', '<=', $request->date_to));
 
         // Pagination
         $perPage = $request->get('per_page', 10);

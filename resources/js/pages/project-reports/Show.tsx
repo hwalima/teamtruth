@@ -86,6 +86,8 @@ export default function Show({ project, stats, userStats, users, stages, workspa
     const [selectedMilestone, setSelectedMilestone] = useState(pageFilters.milestone_id || 'all');
     const [selectedStatus, setSelectedStatus] = useState(pageFilters.status || 'all');
     const [selectedPriority, setSelectedPriority] = useState(pageFilters.priority || 'all');
+    const [dateFrom, setDateFrom] = useState(pageFilters.date_from || '');
+    const [dateTo, setDateTo] = useState(pageFilters.date_to || '');
     const [perPage, setPerPage] = useState(pageFilters.per_page || 10);
     const [currentPage, setCurrentPage] = useState(1);
     const { csrf_token } = usePage().props as any;
@@ -113,7 +115,7 @@ export default function Show({ project, stats, userStats, users, stages, workspa
     useEffect(() => {
         setCurrentPage(1);
         fetchTasks();
-    }, [selectedUser, selectedMilestone, selectedStatus, selectedPriority, perPage]);
+    }, [selectedUser, selectedMilestone, selectedStatus, selectedPriority, perPage, dateFrom, dateTo]);
 
     const fetchTasks = async () => {
         try {
@@ -126,6 +128,8 @@ export default function Show({ project, stats, userStats, users, stages, workspa
                 milestone_id: selectedMilestone !== 'all' ? selectedMilestone : undefined,
                 status: selectedStatus !== 'all' ? selectedStatus : undefined,
                 priority: selectedPriority !== 'all' ? selectedPriority : undefined,
+                date_from: dateFrom || undefined,
+                date_to: dateTo || undefined,
                 per_page: perPage,
                 page: currentPage
             };
@@ -705,6 +709,25 @@ export default function Show({ project, stats, userStats, users, stages, workspa
                         activeFilterCount={activeFilterCount}
                         onResetFilters={handleResetFilters}
                     />
+                    {/* Date range filter row */}
+                    <div className="px-4 pb-3 border-t pt-3 flex flex-wrap gap-3 items-end">
+                        <div className="flex flex-col gap-0.5">
+                            <span className="text-xs text-muted-foreground">{t('Task Date From')}</span>
+                            <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)}
+                                className="h-8 rounded-md border border-input bg-background px-2 text-xs w-36" />
+                        </div>
+                        <div className="flex flex-col gap-0.5">
+                            <span className="text-xs text-muted-foreground">{t('Task Date To')}</span>
+                            <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)}
+                                className="h-8 rounded-md border border-input bg-background px-2 text-xs w-36" />
+                        </div>
+                        {(dateFrom || dateTo) && (
+                            <button onClick={() => { setDateFrom(''); setDateTo(''); }}
+                                className="h-8 px-2 text-xs rounded-md border text-muted-foreground hover:text-foreground">
+                                ✕ {t('Clear Dates')}
+                            </button>
+                        )}
+                    </div>
                 </div>
                 <div className="overflow-x-auto">
                     <table className="min-w-full divide-y divide-gray-200">
