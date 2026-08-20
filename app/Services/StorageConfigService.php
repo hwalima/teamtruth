@@ -12,8 +12,8 @@ class StorageConfigService
     public static function getActiveDisk(): string
     {
         $config = self::getStorageConfig();
-        // Use env MEDIA_DISK as fallback when DB has no storage configured
-        return $config['disk'] ?? env('MEDIA_DISK', 'public');
+        // config() works after config:cache; env() does not
+        return $config['disk'] ?? config('media-library.disk_name', 'public');
     }
 
     /**
@@ -216,16 +216,16 @@ class StorageConfigService
     private static function getDefaultConfig(): array
     {
         return [
-            'disk'               => env('MEDIA_DISK', 'public'),
+            'disk'               => config('media-library.disk_name', 'public'),
             'allowed_file_types' => 'jpg,jpeg,png,webp,gif,pdf,doc,docx,zip',
             'max_file_size_kb'   => 10240,
             's3'                 => [
-                'key'    => env('AWS_ACCESS_KEY_ID'),
-                'secret' => env('AWS_SECRET_ACCESS_KEY'),
-                'region' => env('AWS_DEFAULT_REGION'),
-                'bucket' => env('AWS_BUCKET'),
-                'url'    => env('AWS_URL'),
-                'endpoint' => env('AWS_ENDPOINT'),
+                'key'      => config('filesystems.disks.s3.key'),
+                'secret'   => config('filesystems.disks.s3.secret'),
+                'region'   => config('filesystems.disks.s3.region'),
+                'bucket'   => config('filesystems.disks.s3.bucket'),
+                'url'      => config('filesystems.disks.s3.url'),
+                'endpoint' => config('filesystems.disks.s3.endpoint'),
             ],
             'wasabi'             => [],
         ];

@@ -14,17 +14,17 @@ class DynamicStorageService
     {
         $config = StorageConfigService::getStorageConfig();
 
-        // Always configure S3 from env as baseline (overridden by DB settings if present)
-        if (env('AWS_ACCESS_KEY_ID') && env('AWS_SECRET_ACCESS_KEY')) {
+        // Always configure S3 from config (works after config:cache; env() does not)
+        if (config('filesystems.disks.s3.key') && config('filesystems.disks.s3.secret')) {
             \Illuminate\Support\Facades\Config::set('filesystems.disks.s3', [
                 'driver'                  => 's3',
-                'key'                     => env('AWS_ACCESS_KEY_ID'),
-                'secret'                  => env('AWS_SECRET_ACCESS_KEY'),
-                'region'                  => env('AWS_DEFAULT_REGION'),
-                'bucket'                  => env('AWS_BUCKET'),
-                'url'                     => env('AWS_URL'),
-                'endpoint'                => env('AWS_ENDPOINT'),
-                'use_path_style_endpoint' => env('AWS_USE_PATH_STYLE_ENDPOINT', false),
+                'key'                     => config('filesystems.disks.s3.key'),
+                'secret'                  => config('filesystems.disks.s3.secret'),
+                'region'                  => config('filesystems.disks.s3.region'),
+                'bucket'                  => config('filesystems.disks.s3.bucket'),
+                'url'                     => config('filesystems.disks.s3.url'),
+                'endpoint'                => config('filesystems.disks.s3.endpoint'),
+                'use_path_style_endpoint' => false,
                 'visibility'              => 'public',
             ]);
         }
