@@ -108,20 +108,20 @@ export function AppSidebarHeader({ breadcrumbs = [] }: { breadcrumbs?: Breadcrum
 
     return (
         <>
-            <header className="border-sidebar-border/50 flex h-14 shrink-0 items-center gap-2 border-b px-[50px] transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">            
-            <div className="flex w-full items-center justify-between">
-                <div className="flex items-center gap-2">
-                    {position === 'left' && <SidebarTrigger className="-ml-1" />}
+            <header className="border-sidebar-border/50 flex h-14 shrink-0 items-center gap-2 border-b px-3 sm:px-4 lg:px-10 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">
+            <div className="flex w-full items-center justify-between min-w-0">
+                <div className="flex items-center gap-2 min-w-0">
+                    {position === 'left' && <SidebarTrigger className="-ml-1 shrink-0" />}
                     {auth?.user?.type === 'company' && (
-                        <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                        <div className="hidden sm:flex items-center gap-1 text-sm text-muted-foreground shrink-0">
                             <Building2 className="h-4 w-4" />
-                            <span>{currentWorkspace?.name || 'No Workspace'}</span>
+                            <span className="truncate max-w-[120px]">{currentWorkspace?.name || 'No Workspace'}</span>
                             {breadcrumbs.length > 0 && <span className="mx-1">/</span>}
                         </div>
                     )}
                     <Breadcrumbs items={breadcrumbs.map(b => ({ label: b.title, href: b.href }))} />
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1.5 shrink-0">
                     {(usePage().props as any).isImpersonating && (
                         <button 
                             onClick={() => router.post(route('impersonate.leave'))}
@@ -130,12 +130,18 @@ export function AppSidebarHeader({ breadcrumbs = [] }: { breadcrumbs?: Breadcrum
                             {t("Return Back")}
                         </button>
                     )}
-                    {auth?.user?.type !== 'superadmin' && <NavigationTimer />}
-                    <WorkspaceSwitcher />
+                    {auth?.user?.type !== 'superadmin' && (
+                        <div className="hidden sm:block">
+                            <NavigationTimer />
+                        </div>
+                    )}
+                    <div className="hidden md:block">
+                        <WorkspaceSwitcher />
+                    </div>
                     {/* Dark/Light Mode Toggle */}
                     <button
                         onClick={handleToggle}
-                        className="flex items-center justify-center h-9 w-9 rounded-md border shadow-sm bg-white dark:bg-gray-900 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors cursor-pointer"
+                        className="flex items-center justify-center h-8 w-8 rounded-md border shadow-sm bg-white dark:bg-gray-900 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors cursor-pointer"
                         title={isDark ? t('Switch to Light Mode') : t('Switch to Dark Mode')}
                     >
                         {isDark
@@ -143,9 +149,11 @@ export function AppSidebarHeader({ breadcrumbs = [] }: { breadcrumbs?: Breadcrum
                             : <Moon className="h-4 w-4 text-gray-600 dark:text-gray-400" />
                         }
                     </button>
-                    <LanguageSwitcher />
+                    <div className="hidden sm:block">
+                        <LanguageSwitcher />
+                    </div>
                     <ProfileMenu />
-                    {position === 'right' && <SidebarTrigger className="-mr-1" />}
+                    {position === 'right' && <SidebarTrigger className="-mr-1 shrink-0" />}
                 </div>
             </div>
         </header>

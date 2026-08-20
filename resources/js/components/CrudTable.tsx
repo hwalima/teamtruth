@@ -259,7 +259,7 @@ export function CrudTable({
   };
 
   return (
-    <div className="border-collapse dark:bg-gray-900">
+    <div className="overflow-x-auto dark:bg-gray-900">
       <Table>
         <TableHeader>
             <TableRow className="bg-[#F0F0F1] dark:bg-gray-800 border-b hover:bg-[#F0F0F1] dark:hover:bg-gray-800">

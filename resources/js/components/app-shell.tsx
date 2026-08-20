@@ -35,7 +35,7 @@ export function AppShell({ children, variant = 'header' }: AppShellProps) {
 
     return (
         <SidebarProvider defaultOpen={isOpen} open={isOpen} onOpenChange={handleSidebarChange}>
-            <div className={cn('flex w-full', position === 'right' ? 'flex-row-reverse' : 'flex-row')}>
+            <div className={cn('flex w-full overflow-x-hidden', position === 'right' ? 'flex-row-reverse' : 'flex-row')}>
 
                 {children}
                 <FloatingChatGpt />
