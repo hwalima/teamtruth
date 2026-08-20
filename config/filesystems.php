@@ -56,8 +56,10 @@ return [
             'url' => env('AWS_URL'),
             'endpoint' => env('AWS_ENDPOINT'),
             'use_path_style_endpoint' => env('AWS_USE_PATH_STYLE_ENDPOINT', false),
-            'throw' => false,
+            'throw' => true,
             'report' => false,
+            // Private prevents Laravel defaulting to public-read ACL (blocked on this bucket)
+            'visibility' => 'private',
         ],
 
     ],
