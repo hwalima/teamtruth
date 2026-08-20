@@ -92,6 +92,7 @@ function SheetContent({
   children,
   side = "right",
   modalId,
+  style: propStyle,
   ...props
 }: React.ComponentProps<typeof SheetPrimitive.Content> & {
   side?: "top" | "right" | "bottom" | "left"
@@ -110,7 +111,7 @@ function SheetContent({
   return (
     <SheetPortal>
       <SheetOverlay modalId={currentModalId} />
-      <SheetPrimitive.Content
+        <SheetPrimitive.Content
         data-slot="sheet-content"
         className={cn(
           "bg-background data-[state=open]:animate-in data-[state=closed]:animate-out fixed z-50 flex flex-col gap-4 shadow-lg transition ease-in-out data-[state=closed]:duration-300 data-[state=open]:duration-500",
@@ -124,7 +125,7 @@ function SheetContent({
             "data-[state=closed]:slide-out-to-bottom data-[state=open]:slide-in-from-bottom inset-x-0 bottom-0 h-auto border-t",
           className
         )}
-        style={{ zIndex: zIndex + 1 }}
+        style={{ zIndex: zIndex + 1, ...propStyle }}
         onPointerDownOutside={(e) => {
           const target = e.target as Element;
           if (target.closest('[data-chatgpt-button]') || target.closest('[data-chatgpt-modal]')) {
