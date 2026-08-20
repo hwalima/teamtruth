@@ -219,7 +219,15 @@ class MediaController extends Controller
         config(['media-library.max_file_size' => $maxKb * 1024]);
 
         foreach ($request->file('files') as $file) {
+            $localTempPath = null;
             try {
+                // Move the uploaded file to a local temp path inside storage/
+                // so Spatie reads from a known location instead of PHP's /tmp/ dir
+                $tempDir = storage_path('app/temp');
+                if (!is_dir($tempDir)) mkdir($tempDir, 0775, true);
+                $localTempPath = $tempDir . '/' . uniqid() . '_' . $file->getClientOriginalName();
+                $file->move($tempDir, basename($localTempPath));
+
                 $mediaItem = MediaItem::create([
                     'name'         => $file->getClientOriginalName(),
                     'workspace_id' => auth()->user()->current_workspace_id,
@@ -227,7 +235,9 @@ class MediaController extends Controller
                     'folder_id'    => $request->input('folder_id') ?: null,
                 ]);
 
-                $media = $mediaItem->addMedia($file)
+                $media = $mediaItem->addMedia($localTempPath)
+                    ->usingName($file->getClientOriginalName())
+                    ->usingFileName($file->getClientOriginalName())
                     ->toMediaCollection('images');
 
                 $media->user_id = auth()->id();
@@ -273,6 +283,8 @@ class MediaController extends Controller
                     'upload'  => $file->getClientOriginalName(),
                     'disk'    => $config['disk'] ?? '?',
                 ]);
+                if (isset($mediaItem)) $mediaItem->delete();
+                if ($localTempPath && file_exists($localTempPath)) @unlink($localTempPath);
 
                 if (isset($mediaItem)) {
                     $mediaItem->delete();
