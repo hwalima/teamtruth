@@ -166,8 +166,7 @@ class MediaController extends Controller
                 'errors' => [$limitCheck['message']]
             ], 422);
         }
-        // Purge any cached disk instance so the config-cached S3 credentials are used fresh
-        app('filesystem')->forgetDisk('s3');
+        // S3 disk is configured from config:cache — do NOT call forgetDisk which breaks recreation
         $config = StorageConfigService::getStorageConfig();
         $activeDisk = $config['disk'] ?? config('media-library.disk_name', 'public');
 
@@ -367,7 +366,6 @@ class MediaController extends Controller
         try {
             $diskName = $media->disk;
             if ($diskName === 's3') {
-                app('filesystem')->forgetDisk('s3');
                 $url = Storage::disk('s3')->temporaryUrl($media->getPath(), now()->addMinutes(30));
                 return redirect($url);
             }
