@@ -79,6 +79,11 @@ class MediaItem extends Model implements HasMedia
 
     public function registerMediaConversions(?Media $media = null): void
     {
+        // Only generate thumbnails for images — PDFs/docs need Imagick which isn't always available
+        if ($media && !str_starts_with($media->mime_type ?? '', 'image/')) {
+            return;
+        }
+
         $this->addMediaConversion('thumb')
             ->width(300)
             ->height(300)
