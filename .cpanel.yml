@@ -1,0 +1,13 @@
+---
+deployment:
+  tasks:
+    - export DEPLOYPATH=/home/trukumbh/planning.trukumbholdings.co.zw/
+    - /usr/local/cpanel/3rdparty/bin/php artisan down --retry=15 || true
+    - /usr/local/cpanel/3rdparty/bin/composer install --no-dev --optimize-autoloader --no-interaction --prefer-dist --working-dir="$DEPLOYPATH"
+    - /usr/local/cpanel/3rdparty/bin/php artisan migrate --force
+    - /usr/local/cpanel/3rdparty/bin/php artisan config:cache
+    - /usr/local/cpanel/3rdparty/bin/php artisan route:cache
+    - /usr/local/cpanel/3rdparty/bin/php artisan view:cache
+    - /usr/local/cpanel/3rdparty/bin/php artisan event:cache
+    - /usr/local/cpanel/3rdparty/bin/php artisan queue:restart || true
+    - /usr/local/cpanel/3rdparty/bin/php artisan up

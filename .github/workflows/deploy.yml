@@ -1,18 +1,13 @@
-name: Deploy to Production — planning.trukumbholdings.co.zw
+name: Deploy to Production � planning.trukumbholdings.co.zw
 
 on:
   push:
     branches: [main]
   workflow_dispatch:
-    inputs:
-      force_migrate:
-        description: 'Run migrations even if no schema changes'
-        required: false
-        default: 'false'
 
 jobs:
-  deploy:
-    name: Deploy via SSH
+  build-and-deploy:
+    name: Build assets & trigger cPanel deployment
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
@@ -42,53 +37,27 @@ jobs:
       - name: Build frontend assets
         run: npm run build
 
-      - name: Deploy to production server
-        uses: appleboy/ssh-action@v1.0.3
+      - name: Upload built assets via FTP
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
         with:
-          host: ${{ secrets.DEPLOY_HOST }}
-          username: ${{ secrets.DEPLOY_USER }}
-          key: ${{ secrets.DEPLOY_SSH_KEY }}
-          passphrase: ${{ secrets.DEPLOY_SSH_PASSPHRASE }}
-          port: 22000
-          script_stop: true
-          script: |
-            set -e
-            APP_DIR="$HOME/planning.trukumbholdings.co.zw"
+          server: ${{ secrets.FTP_HOST }}
+          username: ${{ secrets.FTP_USER }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          port: ${{ secrets.FTP_PORT }}
+          protocol: ftps
+          server-dir: /planning.trukumbholdings.co.zw/public/build/
+          local-dir: ./public/build/
+          dangerous-clean-slate: false
+        continue-on-error: true
 
-            echo "▶ Entering app directory..."
-            cd "$APP_DIR"
-
-            echo "▶ Pulling latest code from main..."
-            git pull origin main
-
-            echo "▶ Installing PHP dependencies on server..."
-            composer install --no-dev --optimize-autoloader --no-interaction --prefer-dist
-
-            echo "▶ Running database migrations..."
-            php artisan migrate --force
-
-            echo "▶ Caching config, routes & views..."
-            php artisan config:cache
-            php artisan route:cache
-            php artisan view:cache
-            php artisan event:cache
-
-            echo "▶ Restarting queue workers..."
-            php artisan queue:restart || true
-
-            echo "▶ Clearing old opcache..."
-            php artisan opcache:clear 2>/dev/null || true
-
-            echo "✅ Deployment complete — $(date)"
-
-      - name: Copy built assets to production
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.DEPLOY_HOST }}
-          username: ${{ secrets.DEPLOY_USER }}
-          key: ${{ secrets.DEPLOY_SSH_KEY }}
-          passphrase: ${{ secrets.DEPLOY_SSH_PASSPHRASE }}
-          port: 22000
-          source: "public/build/"
-          target: "$HOME/planning.trukumbholdings.co.zw/public/"
-          strip_components: 1
+      - name: Trigger cPanel Git Version Control update
+        run: |
+          RESPONSE=$(curl -s -o /tmp/cpanel_response.json -w "%{http_code}" \
+            "https://cp69.domains.co.za:2083/execute/VersionControl/update" \
+            -u "${{ secrets.CPANEL_USER }}:${{ secrets.CPANEL_PASSWORD }}" \
+            --insecure \
+            -d "repository_root=/home/trukumbh/planning.trukumbholdings.co.zw")
+          cat /tmp/cpanel_response.json
+          echo "HTTP $RESPONSE"
+          [ "$RESPONSE" = "200" ] && echo "Deployment triggered" || echo "Check cPanel manually"
+        continue-on-error: true
