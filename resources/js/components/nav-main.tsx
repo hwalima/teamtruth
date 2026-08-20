@@ -13,7 +13,9 @@ const STORAGE_KEY = 'nav_expanded_items';
 export function NavMain({ items = [], position, sidebarStyle = 'plain' }: { items: NavItem[]; position: 'left' | 'right'; sidebarStyle?: string }) {
     const { t } = useTranslation();
     const page = usePage();
-    const { state } = useSidebar();
+    const { state, isMobile, setOpenMobile } = useSidebar();
+    // On mobile the sidebar is always shown full-width — never treat it as collapsed
+    const effectiveState = isMobile ? 'expanded' : state;
     const [expandedItems, setExpandedItems] = useState<Record<string, boolean>>({});
 
     // Reset and update expanded state when URL changes
@@ -163,6 +165,7 @@ export function NavMain({ items = [], position, sidebarStyle = 'plain' }: { item
                                         href={child.href || '#'}
                                         preserveState={false}
                                         target={child.target}
+                                        onClick={() => isMobile && setOpenMobile(false)}
                                         className={`flex items-center gap-2 ${position === 'right' ? 'justify-end text-right' : 'justify-start text-left'}`}
                                     >
                                         <span>{child.title}</span>
@@ -209,7 +212,7 @@ export function NavMain({ items = [], position, sidebarStyle = 'plain' }: { item
                             // Parent item with children
                             <>
                                 <SidebarMenuItem>
-                                    {state === "collapsed" ? (
+                                    {effectiveState === "collapsed" ? (
                                         <DropdownMenu>
                                             <DropdownMenuTrigger asChild>
                                                 <SidebarMenuButton
@@ -264,7 +267,7 @@ export function NavMain({ items = [], position, sidebarStyle = 'plain' }: { item
                                 </SidebarMenuItem>
 
                                 {/* Child items */}
-                                {state !== "collapsed" && expandedItems[item.title] && renderSubMenu(item.children)}
+                                {effectiveState !== "collapsed" && expandedItems[item.title] && renderSubMenu(item.children)}
                             </>
                         ) : (
                             // Regular item without children
@@ -277,35 +280,18 @@ export function NavMain({ items = [], position, sidebarStyle = 'plain' }: { item
                                             rel="noopener noreferrer"
                                             className={`flex items-center gap-2 ${position === 'right' ? 'justify-end text-right' : 'justify-start text-left'}`}
                                         >
-                                            {position === 'right' ? (
-                                                <>
-                                                    {item.icon && <item.icon className="h-4 w-4" />}
-                                                    {state !== "collapsed" && <span>{item.title}</span>}
-                                                </>
-                                            ) : (
-                                                <>
-                                                    {item.icon && <item.icon className="h-4 w-4" />}
-                                                    {state !== "collapsed" && <span>{item.title}</span>}
-                                                </>
-                                            )}
+                                            {item.icon && <item.icon className="h-4 w-4" />}
+                                            {effectiveState !== "collapsed" && <span>{item.title}</span>}
                                         </a>
                                     ) : (
                                         <Link
                                             href={item.href || '#'}
                                             preserveState={false}
+                                            onClick={() => isMobile && setOpenMobile(false)}
                                             className={`flex items-center gap-2 ${position === 'right' ? 'justify-end text-right' : 'justify-start text-left'}`}
                                         >
-                                            {position === 'right' ? (
-                                                <>
-                                                    {item.icon && <item.icon className="h-4 w-4" />}
-                                                    {state !== "collapsed" && <span>{item.title}</span>}
-                                                </>
-                                            ) : (
-                                                <>
-                                                    {item.icon && <item.icon className="h-4 w-4" />}
-                                                    {state !== "collapsed" && <span>{item.title}</span>}
-                                                </>
-                                            )}
+                                            {item.icon && <item.icon className="h-4 w-4" />}
+                                            {effectiveState !== "collapsed" && <span>{item.title}</span>}
                                         </Link>
                                     )}
                                 </SidebarMenuButton>

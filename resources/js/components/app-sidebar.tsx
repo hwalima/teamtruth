@@ -1,7 +1,7 @@
 import { NavFooter } from '@/components/nav-footer';
 import { NavMain } from '@/components/nav-main';
 import { NavUser } from '@/components/nav-user';
-import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar';
+import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarTrigger } from '@/components/ui/sidebar';
 import { useLayout } from '@/contexts/LayoutContext';
 import { useSidebarSettings } from '@/contexts/SidebarContext';
 import { useBrand } from '@/contexts/BrandContext';
@@ -345,7 +345,9 @@ export function AppSidebar() {
             className={style !== 'plain' ? 'sidebar-custom-style' : ''}
         >
             <SidebarHeader className={style !== 'plain' ? 'sidebar-styled' : ''} style={sidebarStyle}>
-                <div className="flex justify-center items-center p-2">
+                <div className="flex justify-center items-center p-2 relative">
+                    {/* Close button — only shown on mobile inside the Sheet */}
+                    <SidebarTrigger className="md:hidden absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8" />
                     <Link href={getFirstAvailableHref()} prefetch className="flex items-center justify-center">
                         {/* Logo for expanded sidebar */}
                         <div className="group-data-[collapsible=icon]:hidden flex items-center">
