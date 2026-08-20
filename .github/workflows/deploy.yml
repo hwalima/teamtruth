@@ -44,7 +44,7 @@ jobs:
           script_stop: true
           script: |
             set -e
-            cd ~/planning.trukumbholdings.co.zw
+            cd ~/teamtruth
             echo "==> Pulling latest code..."
             git pull origin main
             echo "==> Installing PHP dependencies..."
@@ -69,5 +69,5 @@ jobs:
           passphrase: ${{ secrets.DEPLOY_SSH_PASSPHRASE }}
           port: 22000
           source: "public/build/"
-          target: "~/planning.trukumbholdings.co.zw/public/"
+          target: "~/teamtruth/public/"
           strip_components: 1
