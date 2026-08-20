@@ -248,12 +248,24 @@ class MediaController extends Controller
                     'created_at' => $media->created_at,
                 ];
             } catch (\Exception $e) {
+                // Log the real exception so we can diagnose production upload failures
+                \Log::error('Media upload exception', [
+                    'class'   => get_class($e),
+                    'message' => $e->getMessage(),
+                    'file'    => $e->getFile() . ':' . $e->getLine(),
+                    'upload'  => $file->getClientOriginalName(),
+                    'disk'    => $config['disk'] ?? '?',
+                ]);
+
                 if (isset($mediaItem)) {
                     $mediaItem->delete();
                 }
                 $errors[] = [
-                    'file' => $file->getClientOriginalName(),
-                    'error' => $this->getUserFriendlyError($e, $file->getClientOriginalName())
+                    'file'  => $file->getClientOriginalName(),
+                    // Return actual message in debug mode so we can diagnose
+                    'error' => config('app.debug')
+                        ? get_class($e) . ': ' . $e->getMessage()
+                        : $this->getUserFriendlyError($e, $file->getClientOriginalName()),
                 ];
             }
         }
