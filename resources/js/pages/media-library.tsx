@@ -648,7 +648,7 @@ export default function MediaLibrary() {
                                 <Menu className="w-4 h-4" />
                             </button>
                         )}
-                        {/* Breadcrumbs */}}
+                        {/* Breadcrumbs */}
                         <nav className="flex items-center gap-1 text-sm flex-1 min-w-0">
                             {breadcrumbs.map((crumb, i) => (
                                 <React.Fragment key={String(crumb.id)}>
