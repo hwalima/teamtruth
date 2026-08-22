@@ -842,7 +842,7 @@ export default function Dashboard({ dashboardData, isSuperAdmin, isSaasMode = tr
 
         {/* ── COMPANY CHUNK 2: Main Stats Cards ── */}
         {dashboardData?.cards && dashboardData.cards.length > 0 && (
-          <div className={`grid gap-4 md:grid-cols-2 ${dashboardData.cards.length >= 3 ? 'lg:grid-cols-' + Math.min(dashboardData.cards.length, 4) : ''}`}>
+          <div className={`grid gap-4 grid-cols-1 sm:grid-cols-2 ${dashboardData.cards.length >= 3 ? 'lg:grid-cols-' + Math.min(dashboardData.cards.length, 4) : ''}`}>
             {dashboardData.cards.map((card: any, index: number) => {
 
               const getCardConfig = (title: string) => {
