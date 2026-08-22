@@ -21,6 +21,12 @@ jobs:
           php-version: '8.3'
           tools: composer:v2
 
+      - name: Prepare Laravel storage dirs
+        run: |
+          mkdir -p storage/framework/{cache,sessions,views}
+          mkdir -p bootstrap/cache
+          cp .env.example .env || echo "APP_KEY=base64:placeholder" > .env
+
       - name: Install PHP deps
         run: composer install --no-dev --optimize-autoloader --no-interaction --prefer-dist
 
