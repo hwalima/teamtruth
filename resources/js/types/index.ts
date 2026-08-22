@@ -72,6 +72,7 @@ export interface Task {
     assigned_to?: number;
     created_by: number;
     progress: number;
+    budget?: number;
     is_googlecalendar_sync?: boolean;
     created_at: string;
     updated_at: string;

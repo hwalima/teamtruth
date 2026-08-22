@@ -329,6 +329,7 @@ class TaskController extends Controller
             'start_date' => 'nullable|date',
             'end_date' => 'nullable|date|after:start_date',
             'assigned_to' => 'nullable|exists:users,id',
+            'budget' => 'nullable|numeric|min:0',
             'is_googlecalendar_sync' => 'nullable|boolean'
         ]);
 
@@ -393,6 +394,7 @@ class TaskController extends Controller
             'end_date' => 'nullable|date|after:start_date',
             'assigned_to' => 'nullable|exists:users,id',
             'milestone_id' => 'required|exists:project_milestones,id',
+            'budget' => 'nullable|numeric|min:0',
             'is_googlecalendar_sync' => 'boolean'
         ]);
 

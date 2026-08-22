@@ -14,7 +14,7 @@ class Task extends Model
     protected $fillable = [
         'project_id', 'task_stage_id', 'milestone_id', 'title', 'description',
         'priority', 'start_date', 'end_date', 'due_date', 'assigned_to', 'created_by', 'progress',
-        'estimated_hours', 'google_calendar_event_id', 'is_googlecalendar_sync'
+        'budget', 'estimated_hours', 'google_calendar_event_id', 'is_googlecalendar_sync'
     ];
 
     protected $casts = [
@@ -22,6 +22,7 @@ class Task extends Model
         'end_date' => 'date',
         'due_date' => 'date',
         'progress' => 'integer',
+        'budget' => 'decimal:2',
         'estimated_hours' => 'decimal:2',
         'is_googlecalendar_sync' => 'boolean'
     ];

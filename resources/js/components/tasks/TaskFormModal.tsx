@@ -34,6 +34,7 @@ export default function TaskFormModal({ isOpen, onClose, task, projects, members
         start_date: task?.start_date || '',
         end_date: task?.end_date || '',
         assigned_to: task?.assigned_to?.id?.toString() || 'none',
+        budget: task?.budget?.toString() || '',
         is_googlecalendar_sync: task?.is_googlecalendar_sync || false
     });
 
@@ -61,6 +62,7 @@ export default function TaskFormModal({ isOpen, onClose, task, projects, members
                 start_date: task.start_date?.split('T')[0] || '',
                 end_date: task.end_date?.split('T')[0] || '',
                 assigned_to: task.assigned_to?.id?.toString() || 'none',
+                budget: task.budget?.toString() || '',
                 is_googlecalendar_sync: task.is_googlecalendar_sync || false
             });
         } else {
@@ -74,6 +76,7 @@ export default function TaskFormModal({ isOpen, onClose, task, projects, members
                 start_date: '',
                 end_date: '',
                 assigned_to: 'none',
+                budget: '',
                 is_googlecalendar_sync: false
             });
             setCurrentMilestones([]);
@@ -299,6 +302,22 @@ export default function TaskFormModal({ isOpen, onClose, task, projects, members
                                 onChange={(e) => setFormData({...formData, end_date: e.target.value})}
                             />
                         </div>
+                    </div>
+
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                            {t('Budget')} <span className="text-xs text-gray-500">({t('Optional')})</span>
+                        </label>
+                        <Input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            value={formData.budget}
+                            onChange={(e) => setFormData({...formData, budget: e.target.value})}
+                            placeholder={t('Enter task budget amount')}
+                            className={errors.budget ? 'border-red-500' : ''}
+                        />
+                        {errors.budget && <p className="text-sm text-red-600 mt-1">{errors.budget}</p>}
                     </div>
 
                     {googleCalendarEnabled && !isEditing && (

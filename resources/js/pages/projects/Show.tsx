@@ -29,7 +29,7 @@ import { getImagePath } from '@/utils/helpers';
 
 export default function ProjectShow() {
     const { t } = useTranslation();
-    const { auth, project, budget = null, members, managers, clients, projectTasks = [], projectBugs = [], projectTimesheets = [], canDeleteProject, canViewBudget, canManageSharedSettings, attachmentFilters = {}, activityFilters = {} } = usePage().props as any;
+    const { auth, project, budget = null, taskBudgetTotal = 0, members, managers, clients, projectTasks = [], projectBugs = [], projectTimesheets = [], canDeleteProject, canViewBudget, canManageSharedSettings, attachmentFilters = {}, activityFilters = {} } = usePage().props as any;
     const permissions = auth?.permissions || [];
 
     // Get expenses from project relationship
@@ -998,6 +998,31 @@ export default function ProjectShow() {
                                                     <span className="text-sm text-gray-600">{t('Utilization')}:</span>
                                                     <span className="font-semibold">{budget?.utilization_percentage?.toFixed(1) || '0.0'}%</span>
                                                 </div>
+
+                                                {taskBudgetTotal > 0 && (
+                                                    <>
+                                                        <div className="border-t border-gray-200 dark:border-gray-700 pt-4 mt-4">
+                                                            <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3">{t('Task Budget Breakdown')}</p>
+                                                            <div className="flex justify-between items-center">
+                                                                <span className="text-sm text-gray-600">{t('Total Task Costs')}:</span>
+                                                                <span className="font-semibold font-mono">{formatCurrency(taskBudgetTotal)}</span>
+                                                            </div>
+                                                            {(budget?.total_budget || project.budget) && (() => {
+                                                                const allocated = budget?.total_budget || project.budget || 0;
+                                                                const variance = allocated - taskBudgetTotal;
+                                                                const isOverBudget = variance < 0;
+                                                                return (
+                                                                    <div className="flex justify-between items-center mt-2">
+                                                                        <span className="text-sm text-gray-600">{t('Budget Variance')}:</span>
+                                                                        <span className={`font-semibold font-mono ${isOverBudget ? 'text-red-600' : 'text-green-600'}`}>
+                                                                            {isOverBudget ? '-' : '+'}{formatCurrency(Math.abs(variance))}
+                                                                        </span>
+                                                                    </div>
+                                                                );
+                                                            })()}
+                                                        </div>
+                                                    </>
+                                                )}
                                             </div>
                                         </CardContent>
                                     </Card>
@@ -1549,6 +1574,39 @@ export default function ProjectShow() {
                                             </Card>
                                         </div>
 
+                                        {taskBudgetTotal > 0 && (
+                                            <Card>
+                                                <CardHeader>
+                                                    <CardTitle className="text-lg">{t('Task Budget Variance')}</CardTitle>
+                                                </CardHeader>
+                                                <CardContent>
+                                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                                        <div className="text-center p-3 rounded-lg bg-gray-50 dark:bg-gray-800">
+                                                            <p className="text-xs text-gray-500 mb-1">{t('Allocated Budget')}</p>
+                                                            <p className="text-lg font-bold font-mono">{formatCurrency(budget.total_budget || 0)}</p>
+                                                        </div>
+                                                        <div className="text-center p-3 rounded-lg bg-gray-50 dark:bg-gray-800">
+                                                            <p className="text-xs text-gray-500 mb-1">{t('Total Task Costs')}</p>
+                                                            <p className="text-lg font-bold font-mono">{formatCurrency(taskBudgetTotal)}</p>
+                                                        </div>
+                                                        <div className="text-center p-3 rounded-lg bg-gray-50 dark:bg-gray-800">
+                                                            <p className="text-xs text-gray-500 mb-1">{t('Variance')}</p>
+                                                            {(() => {
+                                                                const allocated = budget.total_budget || 0;
+                                                                const variance = allocated - taskBudgetTotal;
+                                                                const isOverBudget = variance < 0;
+                                                                return (
+                                                                    <p className={`text-lg font-bold font-mono ${isOverBudget ? 'text-red-600' : 'text-green-600'}`}>
+                                                                        {isOverBudget ? '-' : '+'}{formatCurrency(Math.abs(variance))}
+                                                                    </p>
+                                                                );
+                                                            })()}
+                                                        </div>
+                                                    </div>
+                                                </CardContent>
+                                            </Card>
+                                        )}
+
                                         <Card>
                                             <CardHeader>
                                                 <CardTitle className="text-lg">{t('Budget Progress')}</CardTitle>
@@ -1908,6 +1966,12 @@ export default function ProjectShow() {
                                                                         {task.end_date ? window.appSettings.formatDateTime(new Date(task.end_date),false) : '-'}
                                                                     </span>
                                                                 </div>
+                                                                {task.budget > 0 && (
+                                                                    <div className="flex items-center gap-1.5 py-0.5 px-2 rounded-lg bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400 text-[10px] font-medium">
+                                                                        <DollarSign className="h-3 w-3" />
+                                                                        <span>{formatCurrency(task.budget)}</span>
+                                                                    </div>
+                                                                )}
                                                             </div>
                                                         </div>
 

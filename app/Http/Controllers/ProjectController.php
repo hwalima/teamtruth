@@ -413,6 +413,11 @@ class ProjectController extends Controller
                 ->get();
         }
 
+        // Calculate total task budgets for this project
+        $taskBudgetTotal = \App\Models\Task::where('project_id', $project->id)
+            ->whereNotNull('budget')
+            ->sum('budget');
+
         // Get workspace members (users with member role in workspace)
         $members = User::whereHas('workspaces', function ($q) use ($workspace) {
             $q->where('workspace_id', $workspace->id)
@@ -437,6 +442,7 @@ class ProjectController extends Controller
         return Inertia::render('projects/Show', [
             'project' => $project,
             'budget' => $budget,
+            'taskBudgetTotal' => (float) $taskBudgetTotal,
             'members' => $members,
             'managers' => $managers,
             'clients' => $clients,
