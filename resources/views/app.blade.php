@@ -63,6 +63,12 @@
     <meta name="twitter:card" content="summary_large_image">    
 
     <link rel="icon" type="image/png" href="{{ asset('images/logos/favicon.png') }}">
+    <link rel="manifest" href="{{ asset('manifest.json') }}">
+    <meta name="theme-color" content="#E3B448">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Taskly">
+    <link rel="apple-touch-icon" href="{{ asset('images/icons/icon-192x192.png') }}">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <script src="{{ asset('js/jquery.min.js') }}"></script>
@@ -80,5 +86,12 @@
 </head>
 <body class="font-sans antialiased">
     @inertia
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js').catch(() => {});
+            });
+        }
+    </script>
 </body>
 </html>
