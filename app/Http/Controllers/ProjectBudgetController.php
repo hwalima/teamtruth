@@ -198,8 +198,13 @@ class ProjectBudgetController extends Controller
         
         $allProjects = $allProjectsQuery->get(['id', 'title']);
         
+        $taskBudgetTotal = \App\Models\Task::where('project_id', $budget->project_id)
+            ->whereNotNull('budget')
+            ->sum('budget');
+
         return Inertia::render('budgets/Show', [
             'budget' => $budget,
+            'taskBudgetTotal' => (float) $taskBudgetTotal,
             'allProjects' => $allProjects,
             'permissions' => [
                 'update' => $this->checkPermission('budget_update'),

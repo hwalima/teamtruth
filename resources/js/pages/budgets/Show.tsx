@@ -19,7 +19,7 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 export default function BudgetShow() {
     const { t } = useTranslation();
-    const { budget, projects = [], permissions } = usePage().props as any;
+    const { budget, taskBudgetTotal = 0, projects = [], permissions } = usePage().props as any;
     const { auth } = usePage().props as any;
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [isExpenseModalOpen, setIsExpenseModalOpen] = useState(false);
@@ -236,6 +236,40 @@ export default function BudgetShow() {
                         </div>
                     </CardContent>
                 </Card>
+
+                {/* Task Budget Variance */}
+                {taskBudgetTotal > 0 && (
+                    <Card className="shadow-sm border border-gray-200 dark:border-gray-700">
+                        <CardContent className="p-6">
+                            <div className="flex items-center gap-2 mb-4">
+                                <Activity className="h-5 w-5 text-primary" />
+                                <h3 className="text-base font-semibold text-gray-900 dark:text-white">{t('Task Budget Variance')}</h3>
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                <div className="text-center p-4 rounded-xl bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800">
+                                    <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">{t('Allocated Budget')}</p>
+                                    <p className="text-xl font-bold font-mono text-gray-900 dark:text-white">{formatCurrency(budget.total_budget || 0)}</p>
+                                </div>
+                                <div className="text-center p-4 rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-100 dark:border-amber-800">
+                                    <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">{t('Total Task Costs')}</p>
+                                    <p className="text-xl font-bold font-mono text-gray-900 dark:text-white">{formatCurrency(taskBudgetTotal)}</p>
+                                </div>
+                                <div className="text-center p-4 rounded-xl border border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/50">
+                                    <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">{t('Variance')}</p>
+                                    {(() => {
+                                        const variance = (budget.total_budget || 0) - taskBudgetTotal;
+                                        const isOverBudget = variance < 0;
+                                        return (
+                                            <p className={`text-xl font-bold font-mono ${isOverBudget ? 'text-red-600' : 'text-green-600'}`}>
+                                                {isOverBudget ? '-' : '+'}{formatCurrency(Math.abs(variance))}
+                                            </p>
+                                        );
+                                    })()}
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
+                )}
 
                 {/* Categories + Recent Expenses — 2 column layout */}
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
