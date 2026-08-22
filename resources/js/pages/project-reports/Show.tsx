@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { router, usePage } from '@inertiajs/react';
 import { useTranslation } from 'react-i18next';
-import { Download, ArrowLeft, Calendar } from 'lucide-react';
+import { Download, ArrowLeft, Calendar, Clock } from 'lucide-react';
 import { usePdfDownload } from '@/hooks/usePdfDownload';
 import { PageTemplate } from '@/components/page-template';
 import { Button } from '@/components/ui/button';
@@ -11,7 +11,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
-import { PieChart, Pie, Cell, BarChart, Bar, LineChart, Line, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as ChartTooltip, ResponsiveContainer } from 'recharts';
+import { PieChart, Pie, Cell, BarChart, Bar, LineChart, Line, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as ChartTooltip, ResponsiveContainer, LabelList } from 'recharts';
 
 interface Project {
     id: number;
@@ -456,25 +456,55 @@ export default function Show({ project, stats, userStats, users, stages, workspa
                 </Card>
             </div>
 
-            {/* ── Hours Estimation ── */}
+            {/* ── Hours Logged ── */}
             <Card className="rounded-2xl border shadow-sm mb-6">
                 <CardContent className="p-5">
                     <div className="flex items-center justify-between mb-4">
                         <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-2">
                             <span className="w-1 h-4 rounded-full inline-block" style={{ background: '#E3B448' }} />
-                            {t('Hours Estimation')}
+                            {t('Hours Logged')}
                         </h3>
-                        <span className="text-sm font-semibold" style={{ color: '#E3B448' }}>{t('Logged')}: {stats.total_logged_hours || 0}h</span>
+                        <span className="text-sm font-semibold" style={{ color: '#E3B448' }}>{t('Total')}: {stats.total_logged_hours || 0}h</span>
                     </div>
-                    <ResponsiveContainer width="100%" height={180}>
-                        <BarChart data={stats.task_hours_data || []} margin={{ top: 5, right: 10, left: -20, bottom: 60 }}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                            <XAxis dataKey="task_name" tick={{ fontSize: 10 }} angle={-35} textAnchor="end" axisLine={false} tickLine={false} interval={0} />
-                            <YAxis tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
-                            <ChartTooltip formatter={(v: any) => [`${v}h`]} />
-                            <Bar dataKey="logged_hours" name={t('Logged Hours')} radius={[4, 4, 0, 0]} fill="#E3B448" />
-                        </BarChart>
-                    </ResponsiveContainer>
+                    {(() => {
+                        const hoursData = (stats.task_hours_data || [])
+                            .filter((d: any) => d.logged_hours > 0)
+                            .sort((a: any, b: any) => b.logged_hours - a.logged_hours)
+                            .slice(0, 10)
+                            .map((d: any) => ({
+                                ...d,
+                                task_name: d.task_name.length > 28 ? d.task_name.slice(0, 26) + '…' : d.task_name
+                            }));
+
+                        if (hoursData.length === 0) {
+                            return (
+                                <div className="flex flex-col items-center justify-center py-10 text-muted-foreground">
+                                    <Clock className="h-8 w-8 opacity-30 mb-2" />
+                                    <p className="text-sm">{t('No hours logged yet')}</p>
+                                    <p className="text-xs opacity-60 mt-1">{t('Timesheet entries will appear here')}</p>
+                                </div>
+                            );
+                        }
+
+                        const chartHeight = Math.max(180, hoursData.length * 36 + 40);
+                        return (
+                            <ResponsiveContainer width="100%" height={chartHeight}>
+                                <BarChart data={hoursData} layout="vertical" margin={{ top: 5, right: 40, left: 10, bottom: 5 }}>
+                                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" horizontal={false} />
+                                    <XAxis type="number" tick={{ fontSize: 10, fill: 'currentColor' }} axisLine={false} tickLine={false} tickFormatter={(v) => `${v}h`} />
+                                    <YAxis type="category" dataKey="task_name" tick={{ fontSize: 11, fill: 'currentColor' }} axisLine={false} tickLine={false} width={180} />
+                                    <ChartTooltip
+                                        contentStyle={{ fontSize: 12, borderRadius: 8, border: '1px solid hsl(var(--border))', background: 'hsl(var(--popover))', color: 'hsl(var(--popover-foreground))' }}
+                                        formatter={(v: any) => [`${v}h`, t('Logged')]}
+                                        labelFormatter={(label) => label}
+                                    />
+                                    <Bar dataKey="logged_hours" name={t('Logged Hours')} radius={[0, 6, 6, 0]} fill="#E3B448" maxBarSize={24}>
+                                        <LabelList dataKey="logged_hours" position="right" style={{ fontSize: 10, fontWeight: 600, fill: '#E3B448' }} formatter={(v: number) => `${v}h`} />
+                                    </Bar>
+                                </BarChart>
+                            </ResponsiveContainer>
+                        );
+                    })()}
                 </CardContent>
             </Card>
 
