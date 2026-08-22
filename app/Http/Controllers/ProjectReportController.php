@@ -966,7 +966,7 @@ class ProjectReportController extends Controller
 
         return Inertia::render('project-reports/MilestoneReport', [
             'projects' => $projects,
-            'filters' => $request->only(['project_id', 'milestone_id', 'report_date']),
+            'filters' => $request->only(['project_id', 'milestone_id', 'date_from', 'date_to']),
         ]);
     }
 
@@ -981,20 +981,23 @@ class ProjectReportController extends Controller
         $milestone->load(['project', 'creator']);
         $project = $milestone->project;
 
-        $reportDate = $request->query('date');
+        $dateFrom = $request->query('date_from');
+        $dateTo = $request->query('date_to');
 
         // Load tasks for this milestone
         $tasksQuery = Task::where('milestone_id', $milestone->id)
             ->with(['taskStage', 'members.user', 'assignedUser']);
 
-        if ($reportDate) {
-            $tasksQuery->where(function ($q) use ($reportDate) {
-                $q->whereDate('start_date', '<=', $reportDate)
-                  ->where(function ($q2) use ($reportDate) {
-                      $q2->whereDate('due_date', '>=', $reportDate)
-                         ->orWhereDate('end_date', '>=', $reportDate)
-                         ->orWhereNull('due_date');
-                  });
+        if ($dateFrom) {
+            $tasksQuery->where(function ($q) use ($dateFrom) {
+                $q->whereDate('start_date', '>=', $dateFrom)
+                  ->orWhereDate('due_date', '>=', $dateFrom)
+                  ->orWhereDate('end_date', '>=', $dateFrom);
+            });
+        }
+        if ($dateTo) {
+            $tasksQuery->where(function ($q) use ($dateTo) {
+                $q->whereDate('start_date', '<=', $dateTo);
             });
         }
 
@@ -1064,10 +1067,32 @@ class ProjectReportController extends Controller
         $logoPath = \App\Models\Setting::where('user_id', $ownerId)->where('workspace_id', $workspace->id)->where('key', 'logoLight')->value('value');
         $companyLogo = null;
         if ($logoPath) {
-            $fullPath = storage_path('app/public/' . $logoPath);
-            if (file_exists($fullPath)) {
-                $ext = pathinfo($fullPath, PATHINFO_EXTENSION);
-                $companyLogo = 'data:image/' . $ext . ';base64,' . base64_encode(file_get_contents($fullPath));
+            // Try multiple paths: direct storage, public storage, or absolute
+            $possiblePaths = [
+                storage_path('app/public/' . $logoPath),
+                storage_path('app/public/' . ltrim($logoPath, '/')),
+                public_path($logoPath),
+                public_path(ltrim($logoPath, '/')),
+                public_path('storage/' . ltrim($logoPath, '/')),
+            ];
+            // If path starts with /storage/, strip it for the file lookup
+            if (str_starts_with($logoPath, '/storage/')) {
+                $possiblePaths[] = storage_path('app/public/' . substr($logoPath, 9));
+            }
+            foreach ($possiblePaths as $fullPath) {
+                if (file_exists($fullPath)) {
+                    $ext = strtolower(pathinfo($fullPath, PATHINFO_EXTENSION));
+                    $mime = match($ext) {
+                        'svg' => 'image/svg+xml',
+                        'png' => 'image/png',
+                        'jpg', 'jpeg' => 'image/jpeg',
+                        'gif' => 'image/gif',
+                        'webp' => 'image/webp',
+                        default => 'image/png',
+                    };
+                    $companyLogo = 'data:' . $mime . ';base64,' . base64_encode(file_get_contents($fullPath));
+                    break;
+                }
             }
         }
         $workspaceName = $workspace->name;
@@ -1097,7 +1122,8 @@ class ProjectReportController extends Controller
             'tasks',
             'stats',
             'teamStats',
-            'reportDate',
+            'dateFrom',
+            'dateTo',
             'companyName',
             'companyLogo',
             'workspaceName',
@@ -1127,8 +1153,8 @@ class ProjectReportController extends Controller
         $size = 400;
         $centerX = $size / 2;
         $centerY = $size / 2;
-        $outerRadius = 130;
-        $innerRadius = 110;
+        $outerRadius = 140;
+        $innerRadius = 105;
 
         $image = imagecreatetruecolor($size, $size);
         imageantialias($image, true);
@@ -1136,12 +1162,13 @@ class ProjectReportController extends Controller
         $transparent = imagecolorallocatealpha($image, 0, 0, 0, 127);
         imagefill($image, 0, 0, $transparent);
 
-        $gray = imagecolorallocate($image, 229, 231, 235);
+        $trackColor = imagecolorallocate($image, 241, 245, 249);
         $primary = imagecolorallocate($image, $pr, $pg, $pb);
-        $black = imagecolorallocate($image, 31, 41, 55);
+        $darkText = imagecolorallocate($image, 15, 23, 42);
         $white = imagecolorallocate($image, 255, 255, 255);
+        $subText = imagecolorallocate($image, 100, 116, 139);
 
-        imagefilledellipse($image, $centerX, $centerY, $outerRadius * 2, $outerRadius * 2, $gray);
+        imagefilledellipse($image, $centerX, $centerY, $outerRadius * 2, $outerRadius * 2, $trackColor);
         imagefilledellipse($image, $centerX, $centerY, $innerRadius * 2, $innerRadius * 2, $white);
 
         if ($percentage > 0) {
@@ -1151,25 +1178,32 @@ class ProjectReportController extends Controller
 
             $capRadius = ($outerRadius - $innerRadius) / 2;
             $ringRadius = ($outerRadius + $innerRadius) / 2;
-            imagefilledellipse($image, $centerX, $centerY - $ringRadius, $capRadius * 2, $capRadius * 2, $primary);
+            imagefilledellipse($image, $centerX, (int)($centerY - $ringRadius), (int)($capRadius * 2), (int)($capRadius * 2), $primary);
 
             $endAngleRad = deg2rad(-90 + $endAngle);
-            $endX = $centerX + ($ringRadius * cos($endAngleRad));
-            $endY = $centerY + ($ringRadius * sin($endAngleRad));
-            imagefilledellipse($image, $endX, $endY, $capRadius * 2, $capRadius * 2, $primary);
+            $endX = (int)($centerX + ($ringRadius * cos($endAngleRad)));
+            $endY = (int)($centerY + ($ringRadius * sin($endAngleRad)));
+            imagefilledellipse($image, $endX, $endY, (int)($capRadius * 2), (int)($capRadius * 2), $primary);
         }
 
         $fontPath = '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf';
+        $fontPathRegular = '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf';
         $text = $percentage . '%';
         if (file_exists($fontPath)) {
-            $bbox = imagettfbbox(36, 0, $fontPath, $text);
+            $bbox = imagettfbbox(40, 0, $fontPath, $text);
             $textWidth = $bbox[2] - $bbox[0];
             $textHeight = $bbox[1] - $bbox[7];
-            imagettftext($image, 36, 0, $centerX - ($textWidth / 2), $centerY + ($textHeight / 2), $black, $fontPath, $text);
+            imagettftext($image, 40, 0, (int)($centerX - ($textWidth / 2)), (int)($centerY + ($textHeight / 2) - 8), $darkText, $fontPath, $text);
+
+            $label = 'Complete';
+            $labelFont = file_exists($fontPathRegular) ? $fontPathRegular : $fontPath;
+            $lbbox = imagettfbbox(12, 0, $labelFont, $label);
+            $lw = $lbbox[2] - $lbbox[0];
+            imagettftext($image, 12, 0, (int)($centerX - ($lw / 2)), (int)($centerY + $textHeight / 2 + 18), $subText, $labelFont, $label);
         } else {
             $font = 5;
             $tw = strlen($text) * imagefontwidth($font);
-            imagestring($image, $font, $centerX - ($tw / 2), $centerY - (imagefontheight($font) / 2), $text, $black);
+            imagestring($image, $font, (int)($centerX - ($tw / 2)), (int)($centerY - (imagefontheight($font) / 2)), $text, $darkText);
         }
 
         ob_start();
@@ -1182,62 +1216,93 @@ class ProjectReportController extends Controller
 
     private function generatePriorityChart($priorityStats, $pr, $pg, $pb)
     {
-        $imgW = 450;
-        $imgH = 180;
+        $imgW = 500;
+        $imgH = 200;
         $image = imagecreatetruecolor($imgW, $imgH);
         $white = imagecolorallocate($image, 255, 255, 255);
         imagefill($image, 0, 0, $white);
 
         $priorityColors = [
-            'critical' => imagecolorallocate($image, 220, 38, 38),
-            'high'     => imagecolorallocate($image, 234, 88, 12),
-            'medium'   => imagecolorallocate($image, 202, 138, 4),
-            'low'      => imagecolorallocate($image, $pr, $pg, $pb),
+            'critical' => imagecolorallocate($image, 239, 68, 68),
+            'high'     => imagecolorallocate($image, 249, 115, 22),
+            'medium'   => imagecolorallocate($image, 234, 179, 8),
+            'low'      => imagecolorallocate($image, 34, 197, 94),
         ];
-        $textColor = imagecolorallocate($image, 55, 65, 81);
-        $axisColor = imagecolorallocate($image, 209, 213, 219);
+        $textColor = imagecolorallocate($image, 71, 85, 105);
+        $darkText = imagecolorallocate($image, 15, 23, 42);
+        $gridColor = imagecolorallocate($image, 241, 245, 249);
+        $axisColor = imagecolorallocate($image, 226, 232, 240);
 
         $fontPath = '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf';
+        $fontPathRegular = '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf';
+        $labelFont = file_exists($fontPathRegular) ? $fontPathRegular : $fontPath;
+
         $maxValue = max(array_merge([1], array_values($priorityStats)));
-        $barWidth = 50;
-        $barSpacing = 25;
-        $startX = 60;
-        $chartHeight = 110;
-        $baseY = 150;
+        $step = max(1, ceil($maxValue / 4));
+        $maxValue = $step * ceil($maxValue / $step);
 
-        imageline($image, 45, $baseY, 340, $baseY, $axisColor);
-        imageline($image, 45, 30, 45, $baseY, $axisColor);
+        $marginLeft = 40;
+        $marginRight = 120;
+        $marginTop = 20;
+        $marginBottom = 35;
+        $chartW = $imgW - $marginLeft - $marginRight;
+        $chartH = $imgH - $marginTop - $marginBottom;
+        $baseY = $marginTop + $chartH;
 
+        // Grid lines
         if (file_exists($fontPath)) {
-            for ($i = 0; $i <= $maxValue; $i++) {
-                $y = $baseY - (($i / $maxValue) * $chartHeight);
-                imagettftext($image, 9, 0, 25, $y + 4, $textColor, $fontPath, (string)$i);
-                imageline($image, 43, (int)$y, 47, (int)$y, $axisColor);
+            for ($i = 0; $i <= $maxValue; $i += $step) {
+                $y = (int)($baseY - (($i / $maxValue) * $chartH));
+                imageline($image, $marginLeft, $y, $marginLeft + $chartW, $y, $i === 0 ? $axisColor : $gridColor);
+                $bbox = imagettfbbox(8, 0, $labelFont, (string)$i);
+                $lw = $bbox[2] - $bbox[0];
+                imagettftext($image, 8, 0, $marginLeft - $lw - 6, $y + 3, $textColor, $labelFont, (string)$i);
             }
         }
 
-        $idx = 0;
-        foreach (['critical', 'high', 'medium', 'low'] as $priority) {
-            $value = $priorityStats[$priority] ?? 0;
-            $barHeight = $maxValue > 0 ? ($value / $maxValue) * $chartHeight : 0;
-            $x = $startX + ($idx * ($barWidth + $barSpacing));
-            $y = $baseY - $barHeight;
+        $priorities = ['critical', 'high', 'medium', 'low'];
+        $count = count($priorities);
+        $totalBarArea = $chartW / $count;
+        $barWidth = (int)($totalBarArea * 0.6);
 
-            imagefilledrectangle($image, $x, (int)$y, $x + $barWidth, $baseY, $priorityColors[$priority]);
+        $idx = 0;
+        foreach ($priorities as $priority) {
+            $value = $priorityStats[$priority] ?? 0;
+            $barH = $maxValue > 0 ? ($value / $maxValue) * $chartH : 0;
+            $x = (int)($marginLeft + ($idx * $totalBarArea) + (($totalBarArea - $barWidth) / 2));
+            $y = (int)($baseY - $barH);
+
+            if ($barH > 0) {
+                imagefilledrectangle($image, $x, $y, $x + $barWidth, $baseY, $priorityColors[$priority]);
+                // Rounded top
+                imagefilledellipse($image, (int)($x + $barWidth / 2), $y, $barWidth, 8, $priorityColors[$priority]);
+            }
 
             if (file_exists($fontPath) && $value > 0) {
-                imagettftext($image, 10, 0, $x + 18, (int)$y - 6, $textColor, $fontPath, (string)$value);
+                $valStr = (string)$value;
+                $bbox = imagettfbbox(9, 0, $fontPath, $valStr);
+                $lw = $bbox[2] - $bbox[0];
+                imagettftext($image, 9, 0, (int)($x + $barWidth / 2 - $lw / 2), $y - 6, $darkText, $fontPath, $valStr);
+            }
+
+            // Label below bar
+            if (file_exists($labelFont)) {
+                $lbl = ucfirst($priority);
+                $bbox = imagettfbbox(8, 0, $labelFont, $lbl);
+                $lw = $bbox[2] - $bbox[0];
+                imagettftext($image, 8, 0, (int)($x + $barWidth / 2 - $lw / 2), $baseY + 16, $textColor, $labelFont, $lbl);
             }
             $idx++;
         }
 
-        if (file_exists($fontPath)) {
-            $legendX = 370;
-            $legendY = 45;
-            foreach (['critical', 'high', 'medium', 'low'] as $priority) {
+        // Legend
+        if (file_exists($labelFont)) {
+            $legendX = $imgW - 105;
+            $legendY = $marginTop + 10;
+            foreach ($priorities as $priority) {
                 imagefilledrectangle($image, $legendX, $legendY, $legendX + 10, $legendY + 10, $priorityColors[$priority]);
-                imagettftext($image, 9, 0, $legendX + 16, $legendY + 9, $textColor, $fontPath, ucfirst($priority));
-                $legendY += 24;
+                imagettftext($image, 8, 0, $legendX + 15, $legendY + 9, $textColor, $labelFont, ucfirst($priority) . ' (' . ($priorityStats[$priority] ?? 0) . ')');
+                $legendY += 22;
             }
         }
 
@@ -1251,60 +1316,75 @@ class ProjectReportController extends Controller
 
     private function generateStatusPieChart($statusStats)
     {
-        $imgW = 450;
-        $imgH = 220;
+        $imgW = 500;
+        $imgH = 240;
         $image = imagecreatetruecolor($imgW, $imgH);
         $white = imagecolorallocate($image, 255, 255, 255);
         imagefill($image, 0, 0, $white);
 
         $statusColorMap = [
-            'To Do'       => imagecolorallocate($image, 107, 114, 128),
+            'To Do'       => imagecolorallocate($image, 148, 163, 184),
             'In Progress' => imagecolorallocate($image, 59, 130, 246),
-            'Review'      => imagecolorallocate($image, 168, 85, 247),
+            'Review'      => imagecolorallocate($image, 139, 92, 246),
             'Done'        => imagecolorallocate($image, 34, 197, 94),
             'Blocked'     => imagecolorallocate($image, 239, 68, 68),
         ];
-        $textColor = imagecolorallocate($image, 55, 65, 81);
+        $textColor = imagecolorallocate($image, 71, 85, 105);
+        $darkText = imagecolorallocate($image, 15, 23, 42);
         $whiteColor = imagecolorallocate($image, 255, 255, 255);
         $fontPath = '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf';
+        $fontPathRegular = '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf';
+        $labelFont = file_exists($fontPathRegular) ? $fontPathRegular : $fontPath;
 
         $total = array_sum($statusStats);
         if ($total > 0) {
-            $startAngle = 0;
-            $centerX = 110;
-            $centerY = 110;
-            $radius = 85;
+            $startAngle = -90;
+            $centerX = 120;
+            $centerY = 120;
+            $outerRadius = 95;
+            $innerRadius = 55;
 
+            // Draw donut (modern pie = donut)
             foreach ($statusStats as $status => $count) {
                 $angle = ($count / $total) * 360;
-                $color = $statusColorMap[$status] ?? imagecolorallocate($image, 150, 150, 150);
-                imagefilledarc($image, $centerX, $centerY, $radius * 2, $radius * 2, $startAngle, $startAngle + $angle, $color, IMG_ARC_PIE);
-
-                if ($angle > 15 && file_exists($fontPath)) {
-                    $percentage = round(($count / $total) * 100);
-                    $labelAngle = deg2rad($startAngle + ($angle / 2));
-                    $labelX = $centerX + (cos($labelAngle) * $radius * 0.6);
-                    $labelY = $centerY + (sin($labelAngle) * $radius * 0.6);
-                    imagettftext($image, 10, 0, (int)$labelX - 10, (int)$labelY + 4, $whiteColor, $fontPath, $percentage . '%');
-                }
-
+                $color = $statusColorMap[$status] ?? imagecolorallocate($image, 180, 180, 180);
+                imagefilledarc($image, $centerX, $centerY, $outerRadius * 2, $outerRadius * 2, (int)$startAngle, (int)($startAngle + $angle), $color, IMG_ARC_PIE);
                 $startAngle += $angle;
             }
+            // Cut out center for donut effect
+            imagefilledellipse($image, $centerX, $centerY, $innerRadius * 2, $innerRadius * 2, $white);
 
+            // Center total text
             if (file_exists($fontPath)) {
-                $legendX = 240;
-                $legendY = 40;
+                $totalStr = (string)$total;
+                $bbox = imagettfbbox(22, 0, $fontPath, $totalStr);
+                $lw = $bbox[2] - $bbox[0];
+                imagettftext($image, 22, 0, (int)($centerX - $lw / 2), $centerY + 4, $darkText, $fontPath, $totalStr);
+
+                $sublabel = 'tasks';
+                $bbox2 = imagettfbbox(9, 0, $labelFont, $sublabel);
+                $lw2 = $bbox2[2] - $bbox2[0];
+                imagettftext($image, 9, 0, (int)($centerX - $lw2 / 2), $centerY + 20, $textColor, $labelFont, $sublabel);
+            }
+
+            // Legend on right
+            if (file_exists($labelFont)) {
+                $legendX = 260;
+                $legendY = 35;
                 foreach ($statusStats as $status => $count) {
-                    $color = $statusColorMap[$status] ?? imagecolorallocate($image, 150, 150, 150);
-                    imagefilledellipse($image, $legendX, $legendY, 10, 10, $color);
-                    imagettftext($image, 10, 0, $legendX + 14, $legendY + 4, $textColor, $fontPath, $status . ' (' . $count . ')');
-                    $legendY += 26;
+                    $color = $statusColorMap[$status] ?? imagecolorallocate($image, 180, 180, 180);
+                    $pct = round(($count / $total) * 100);
+
+                    imagefilledrectangle($image, $legendX, $legendY, $legendX + 12, $legendY + 12, $color);
+                    imagettftext($image, 9, 0, $legendX + 18, $legendY + 10, $darkText, $labelFont, $status);
+                    imagettftext($image, 9, 0, $legendX + 18, $legendY + 26, $textColor, $labelFont, $count . ' (' . $pct . '%)');
+                    $legendY += 38;
                 }
             }
         } else {
             if (file_exists($fontPath)) {
                 $grayColor = imagecolorallocate($image, 156, 163, 175);
-                imagettftext($image, 12, 0, 140, 115, $grayColor, $fontPath, 'No tasks');
+                imagettftext($image, 12, 0, 180, 120, $grayColor, $fontPath, 'No tasks');
             }
         }
 
@@ -1319,11 +1399,11 @@ class ProjectReportController extends Controller
     private function generateHoursChart($hoursData, $pr, $pg, $pb)
     {
         $imgW = 700;
-        $imgH = 250;
-        $marginLeft = 60;
+        $imgH = 260;
+        $marginLeft = 55;
         $marginRight = 20;
         $marginTop = 25;
-        $marginBottom = 70;
+        $marginBottom = 75;
         $chartW = $imgW - $marginLeft - $marginRight;
         $chartH = $imgH - $marginTop - $marginBottom;
         $baseY = $marginTop + $chartH;
@@ -1333,17 +1413,21 @@ class ProjectReportController extends Controller
         imagefill($image, 0, 0, $white);
 
         $primary = imagecolorallocate($image, $pr, $pg, $pb);
-        $textColor = imagecolorallocate($image, 55, 65, 81);
-        $axisColor = imagecolorallocate($image, 209, 213, 219);
-        $gridColor = imagecolorallocate($image, 240, 240, 240);
+        $primaryLight = imagecolorallocate($image, (int)($pr + (255 - $pr) * 0.3), (int)($pg + (255 - $pg) * 0.3), (int)($pb + (255 - $pb) * 0.3));
+        $textColor = imagecolorallocate($image, 71, 85, 105);
+        $darkText = imagecolorallocate($image, 15, 23, 42);
+        $axisColor = imagecolorallocate($image, 226, 232, 240);
+        $gridColor = imagecolorallocate($image, 241, 245, 249);
 
         $fontPath = '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf';
+        $fontPathRegular = '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf';
+        $labelFont = file_exists($fontPathRegular) ? $fontPathRegular : $fontPath;
 
         if (count($hoursData) === 0 || max(array_column($hoursData, 'logged_hours')) == 0) {
             $grayColor = imagecolorallocate($image, 156, 163, 175);
             imageline($image, $marginLeft, $baseY, $imgW - $marginRight, $baseY, $axisColor);
             if (file_exists($fontPath)) {
-                imagettftext($image, 11, 0, (int)($imgW / 2 - 80), (int)($imgH / 2), $grayColor, $fontPath, 'No hours logged');
+                imagettftext($image, 11, 0, (int)($imgW / 2 - 60), (int)($imgH / 2), $grayColor, $labelFont, 'No hours logged');
             }
             ob_start();
             imagepng($image);
@@ -1358,42 +1442,54 @@ class ProjectReportController extends Controller
         $step = max(1, ceil($maxHours / 5));
         $maxHours = $step * ceil($maxHours / $step);
 
-        if (file_exists($fontPath)) {
+        // Grid lines
+        if (file_exists($labelFont)) {
             for ($i = 0; $i <= $maxHours; $i += $step) {
-                $y = $baseY - (($i / $maxHours) * $chartH);
-                imageline($image, $marginLeft, (int)$y, $imgW - $marginRight, (int)$y, $i === 0 ? $axisColor : $gridColor);
-                $bbox = imagettfbbox(8, 0, $fontPath, (string)$i);
+                $y = (int)($baseY - (($i / $maxHours) * $chartH));
+                imageline($image, $marginLeft, $y, $imgW - $marginRight, $y, $i === 0 ? $axisColor : $gridColor);
+                $label = $i . 'h';
+                $bbox = imagettfbbox(8, 0, $labelFont, $label);
                 $lw = $bbox[2] - $bbox[0];
-                imagettftext($image, 8, 0, $marginLeft - $lw - 6, (int)$y + 3, $textColor, $fontPath, (string)$i);
+                imagettftext($image, 8, 0, $marginLeft - $lw - 6, $y + 3, $textColor, $labelFont, $label);
             }
         }
 
-        imageline($image, $marginLeft, $marginTop, $marginLeft, $baseY, $axisColor);
-
         $totalBarArea = $chartW / $count;
-        $barWidth = (int)($totalBarArea * 0.6);
+        $barWidth = min(55, (int)($totalBarArea * 0.6));
 
         foreach ($displayTasks as $index => $taskData) {
             $hours = $taskData['logged_hours'];
             $barH = $maxHours > 0 ? ($hours / $maxHours) * $chartH : 0;
-            $x = $marginLeft + ($index * $totalBarArea) + (($totalBarArea - $barWidth) / 2);
-            $y = $baseY - $barH;
+            $x = (int)($marginLeft + ($index * $totalBarArea) + (($totalBarArea - $barWidth) / 2));
+            $y = (int)($baseY - $barH);
 
-            imagefilledrectangle($image, (int)$x, (int)$y, (int)($x + $barWidth), $baseY, $primary);
+            if ($barH > 0) {
+                imagefilledrectangle($image, $x, $y, $x + $barWidth, $baseY, $primary);
+                imagefilledellipse($image, (int)($x + $barWidth / 2), $y, $barWidth, 8, $primary);
+            }
 
+            // Value above bar
             if (file_exists($fontPath) && $hours > 0) {
                 $valLabel = $hours . 'h';
-                $bbox = imagettfbbox(8, 0, $fontPath, $valLabel);
+                $bbox = imagettfbbox(9, 0, $fontPath, $valLabel);
                 $lw = $bbox[2] - $bbox[0];
-                imagettftext($image, 8, 0, (int)($x + $barWidth / 2 - $lw / 2), (int)$y - 5, $textColor, $fontPath, $valLabel);
+                imagettftext($image, 9, 0, (int)($x + $barWidth / 2 - $lw / 2), $y - 7, $darkText, $fontPath, $valLabel);
             }
 
-            if (file_exists($fontPath)) {
-                $taskName = mb_strlen($taskData['task_name']) > 14 ? mb_substr($taskData['task_name'], 0, 12) . '..' : $taskData['task_name'];
-                $bbox = imagettfbbox(7, 0, $fontPath, $taskName);
-                $lw = $bbox[2] - $bbox[0];
-                imagettftext($image, 7, 25, (int)($x + $barWidth / 2 - 2), $baseY + 14, $textColor, $fontPath, $taskName);
+            // Task name below (angled for readability)
+            if (file_exists($labelFont)) {
+                $taskName = mb_strlen($taskData['task_name']) > 16 ? mb_substr($taskData['task_name'], 0, 14) . '..' : $taskData['task_name'];
+                imagettftext($image, 7, 30, (int)($x + $barWidth / 2 - 2), $baseY + 16, $textColor, $labelFont, $taskName);
             }
+        }
+
+        // Total label at bottom-right
+        if (file_exists($labelFont)) {
+            $totalHours = array_sum(array_column($hoursData, 'logged_hours'));
+            $totalLabel = 'Total: ' . round($totalHours, 1) . 'h';
+            $bbox = imagettfbbox(9, 0, $fontPath, $totalLabel);
+            $lw = $bbox[2] - $bbox[0];
+            imagettftext($image, 9, 0, $imgW - $marginRight - $lw, $imgH - 10, $darkText, $fontPath, $totalLabel);
         }
 
         ob_start();

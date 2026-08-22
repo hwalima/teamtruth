@@ -28,7 +28,8 @@ interface Props {
     filters: {
         project_id?: string;
         milestone_id?: string;
-        report_date?: string;
+        date_from?: string;
+        date_to?: string;
     };
 }
 
@@ -37,7 +38,8 @@ export default function MilestoneReport({ projects, filters }: Props) {
 
     const [selectedProjectId, setSelectedProjectId] = useState<string>(filters.project_id || '');
     const [selectedMilestoneId, setSelectedMilestoneId] = useState<string>(filters.milestone_id || '');
-    const [reportDate, setReportDate] = useState<string>(filters.report_date || '');
+    const [dateFrom, setDateFrom] = useState<string>(filters.date_from || '');
+    const [dateTo, setDateTo] = useState<string>(filters.date_to || '');
     const [isGenerating, setIsGenerating] = useState(false);
 
     const selectedProject = projects.find(p => String(p.id) === selectedProjectId);
@@ -54,7 +56,8 @@ export default function MilestoneReport({ projects, filters }: Props) {
 
         setIsGenerating(true);
         const params = new URLSearchParams();
-        if (reportDate) params.append('date', reportDate);
+        if (dateFrom) params.append('date_from', dateFrom);
+        if (dateTo) params.append('date_to', dateTo);
 
         const url = route('project-reports.milestone.export', selectedMilestoneId) + (params.toString() ? '?' + params.toString() : '');
         window.open(url, '_blank');
@@ -133,35 +136,52 @@ export default function MilestoneReport({ projects, filters }: Props) {
                                 </Select>
                             </div>
 
-                            {/* Report Date */}
+                            {/* Date From */}
                             <div className="space-y-2">
                                 <Label className="flex items-center gap-2">
                                     <Calendar className="h-4 w-4 text-muted-foreground" />
-                                    {t('Report Date')}
+                                    {t('Date From')}
                                     <span className="text-xs text-muted-foreground">({t('optional')})</span>
                                 </Label>
                                 <input
                                     type="date"
-                                    value={reportDate}
-                                    onChange={(e) => setReportDate(e.target.value)}
+                                    value={dateFrom}
+                                    onChange={(e) => setDateFrom(e.target.value)}
+                                    className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                                />
+                            </div>
+
+                            {/* Date To */}
+                            <div className="space-y-2">
+                                <Label className="flex items-center gap-2">
+                                    <Calendar className="h-4 w-4 text-muted-foreground" />
+                                    {t('Date To')}
+                                    <span className="text-xs text-muted-foreground">({t('optional')})</span>
+                                </Label>
+                                <input
+                                    type="date"
+                                    value={dateTo}
+                                    onChange={(e) => setDateTo(e.target.value)}
+                                    min={dateFrom || undefined}
                                     className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
                                 />
                                 <p className="text-xs text-muted-foreground">
-                                    {t('Filter tasks active on this date. Leave empty for all tasks.')}
+                                    {t('Filter tasks within this date range. Leave empty for all tasks.')}
                                 </p>
                             </div>
+                        </div>
 
-                            {/* Generate Button */}
-                            <div className="space-y-2 flex items-end">
-                                <Button
-                                    onClick={handleExport}
-                                    disabled={!selectedMilestoneId || isGenerating}
-                                    className="w-full h-9"
-                                >
-                                    <Download className="h-4 w-4 mr-2" />
-                                    {isGenerating ? t('Generating...') : t('Download PDF Report')}
-                                </Button>
-                            </div>
+                        {/* Generate Button */}
+                        <div className="mt-6">
+                            <Button
+                                onClick={handleExport}
+                                disabled={!selectedMilestoneId || isGenerating}
+                                className="w-full sm:w-auto"
+                                size="lg"
+                            >
+                                <Download className="h-4 w-4 mr-2" />
+                                {isGenerating ? t('Generating...') : t('Download PDF Report')}
+                            </Button>
                         </div>
                     </CardContent>
                 </Card>
@@ -230,7 +250,7 @@ export default function MilestoneReport({ projects, filters }: Props) {
                             </div>
                             <div className="flex items-center gap-2">
                                 <div className="w-1.5 h-1.5 rounded-full bg-primary" />
-                                {t('Complete task listing with details')}
+                                {t('Complete task listing with descriptions')}
                             </div>
                             <div className="flex items-center gap-2">
                                 <div className="w-1.5 h-1.5 rounded-full bg-primary" />

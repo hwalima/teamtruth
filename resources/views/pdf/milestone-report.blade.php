@@ -7,13 +7,13 @@
         * { box-sizing: border-box; margin: 0; padding: 0; }
 
         @page {
-            margin: 20mm 15mm 18mm 15mm;
+            margin: 18mm 14mm 16mm 14mm;
         }
 
         body {
             font-family: DejaVu Sans, Arial, sans-serif;
-            font-size: 13px;
-            color: #1f2937;
+            font-size: 12px;
+            color: #1e293b;
             background: #fff;
             line-height: 1.5;
         }
@@ -22,57 +22,58 @@
 
         /* ── Company Header ── */
         .company-header {
-            margin-bottom: 20px;
-            padding-bottom: 16px;
+            margin-bottom: 18px;
+            padding-bottom: 14px;
             border-bottom: 3px solid {{ $primaryColor }};
         }
         .company-header table { width: 100%; border-collapse: collapse; }
-        .company-logo { width: 60px; height: 60px; border-radius: 6px; }
+        .company-logo { width: 52px; height: 52px; border-radius: 8px; object-fit: contain; }
         .company-name {
-            font-size: 22px;
+            font-size: 20px;
             font-weight: bold;
             color: #0f172a;
-            margin-bottom: 2px;
+            margin-bottom: 1px;
         }
         .company-subtitle {
-            font-size: 11px;
-            color: #6b7280;
+            font-size: 10px;
+            color: #64748b;
+            letter-spacing: 0.3px;
         }
         .report-badge {
             display: inline-block;
             background: {{ $primaryColor }};
             color: #fff;
-            padding: 5px 14px;
+            padding: 4px 12px;
             border-radius: 4px;
-            font-size: 11px;
+            font-size: 10px;
             font-weight: 700;
-            letter-spacing: 0.5px;
+            letter-spacing: 0.6px;
         }
 
         /* ── Report Title ── */
         .report-title {
-            margin-bottom: 20px;
+            margin-bottom: 16px;
         }
         .report-title h1 {
-            font-size: 20px;
+            font-size: 18px;
             font-weight: bold;
             color: #0f172a;
             margin-bottom: 4px;
         }
         .report-title .meta {
             font-size: 11px;
-            color: #6b7280;
+            color: #64748b;
         }
 
         /* ── Section Title ── */
         .section-title {
-            font-size: 14px;
+            font-size: 13px;
             font-weight: bold;
             color: #0f172a;
             border-left: 4px solid {{ $primaryColor }};
             padding-left: 10px;
-            margin-bottom: 12px;
-            margin-top: 6px;
+            margin-bottom: 10px;
+            margin-top: 4px;
         }
 
         /* ── Card ── */
@@ -80,42 +81,42 @@
             background: #fff;
             border: 1px solid #e2e8f0;
             border-radius: 8px;
-            padding: 16px 18px;
-            margin-bottom: 18px;
+            padding: 14px 16px;
+            margin-bottom: 14px;
         }
 
         /* ── Info Grid ── */
         .info-grid { width: 100%; border-collapse: collapse; }
-        .info-grid td { padding: 6px 12px 6px 0; vertical-align: top; }
-        .info-label { font-size: 10px; color: #6b7280; letter-spacing: 0.4px; text-transform: uppercase; margin-bottom: 2px; }
-        .info-value { font-size: 13px; font-weight: 600; color: #1f2937; }
+        .info-grid td { padding: 5px 10px 5px 0; vertical-align: top; }
+        .info-label { font-size: 9px; color: #64748b; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 2px; }
+        .info-value { font-size: 12px; font-weight: 600; color: #1e293b; }
 
         /* ── Stat Boxes ── */
-        .stat-boxes { width: 100%; border-collapse: collapse; margin-top: 14px; }
-        .stat-boxes td { padding: 4px; }
+        .stat-boxes { width: 100%; border-collapse: collapse; margin-top: 12px; }
+        .stat-boxes td { padding: 3px; }
         .stat-box {
             background: #f8fafc;
             border: 1px solid #e2e8f0;
             border-radius: 6px;
-            padding: 12px 10px;
+            padding: 10px 8px;
             text-align: center;
         }
-        .stat-box .stat-num { font-size: 24px; font-weight: bold; color: {{ $primaryColor }}; }
-        .stat-box .stat-lbl { font-size: 10px; color: #6b7280; letter-spacing: 0.3px; margin-top: 3px; }
+        .stat-box .stat-num { font-size: 20px; font-weight: bold; color: {{ $primaryColor }}; }
+        .stat-box .stat-lbl { font-size: 9px; color: #64748b; letter-spacing: 0.3px; margin-top: 2px; }
 
         /* ── Charts ── */
-        .charts-table { width: 100%; border-collapse: collapse; margin-bottom: 18px; }
-        .charts-table td { vertical-align: top; padding: 0 8px; }
+        .charts-table { width: 100%; border-collapse: collapse; margin-bottom: 14px; }
+        .charts-table td { vertical-align: top; padding: 0 6px; }
         .charts-table td:first-child { padding-left: 0; }
         .charts-table td:last-child { padding-right: 0; }
 
         /* ── Data Tables ── */
         .data-table { width: 100%; border-collapse: collapse; }
-        .data-table thead tr { background: #f8fafc; }
+        .data-table thead tr { background: #f1f5f9; }
         .data-table th {
-            padding: 10px 12px;
+            padding: 8px 8px;
             text-align: left;
-            font-size: 10px;
+            font-size: 9px;
             font-weight: 700;
             color: #475569;
             letter-spacing: 0.4px;
@@ -123,10 +124,11 @@
             border-bottom: 2px solid #e2e8f0;
         }
         .data-table td {
-            padding: 9px 12px;
-            font-size: 12px;
-            color: #374151;
+            padding: 7px 8px;
+            font-size: 11px;
+            color: #334155;
             border-bottom: 1px solid #f1f5f9;
+            vertical-align: top;
         }
         .data-table tbody tr:last-child td { border-bottom: none; }
         .data-table tbody tr:nth-child(even) td { background: #fafbfc; }
@@ -134,15 +136,15 @@
         /* ── Badges ── */
         .badge {
             display: inline-block;
-            padding: 3px 9px;
+            padding: 2px 7px;
             border-radius: 4px;
-            font-size: 10px;
+            font-size: 9px;
             font-weight: 600;
         }
-        .badge-completed  { background: #dcfce7; color: #166534; border: 1px solid rgba(22,163,74,0.2); }
-        .badge-pending    { background: #fff7ed; color: #c2410c; border: 1px solid rgba(234,88,12,0.2); }
+        .badge-completed   { background: #dcfce7; color: #166534; border: 1px solid rgba(22,163,74,0.2); }
+        .badge-pending     { background: #fff7ed; color: #c2410c; border: 1px solid rgba(234,88,12,0.2); }
         .badge-in_progress { background: #dbeafe; color: #1d4ed8; border: 1px solid rgba(37,99,235,0.2); }
-        .badge-overdue    { background: #fef2f2; color: #dc2626; border: 1px solid rgba(220,38,38,0.2); }
+        .badge-overdue     { background: #fef2f2; color: #dc2626; border: 1px solid rgba(220,38,38,0.2); }
 
         .badge-low      { background: #f0fdf4; color: #15803d; border: 1px solid rgba(22,163,74,0.2); }
         .badge-medium   { background: #fefce8; color: #a16207; border: 1px solid rgba(202,138,4,0.2); }
@@ -151,39 +153,38 @@
 
         /* ── Progress Bar ── */
         .progress-wrap {
-            background: #e5e7eb;
+            background: #e2e8f0;
             border-radius: 4px;
-            height: 8px;
-            width: 100px;
+            height: 7px;
+            width: 90px;
             display: inline-block;
             vertical-align: middle;
-            margin-right: 6px;
+            margin-right: 5px;
         }
         .progress-fill {
             background: {{ $primaryColor }};
             border-radius: 4px;
-            height: 8px;
+            height: 7px;
         }
 
         /* ── Footer ── */
         .page-footer {
-            margin-top: 28px;
-            padding-top: 12px;
+            margin-top: 22px;
+            padding-top: 10px;
             border-top: 1px solid #e2e8f0;
-            font-size: 10px;
-            color: #9ca3af;
+            font-size: 9px;
+            color: #94a3b8;
         }
         .page-footer table { width: 100%; border-collapse: collapse; }
         .page-footer .left { text-align: left; }
         .page-footer .right { text-align: right; }
 
-        /* ── Summary Row ── */
-        .summary-row {
-            background: linear-gradient(135deg, {{ $primaryColor }}10, {{ $primaryColor }}05);
-            border: 1px solid {{ $primaryColor }}30;
-            border-radius: 6px;
-            padding: 12px 16px;
-            margin-bottom: 18px;
+        /* Task description */
+        .task-desc {
+            font-size: 10px;
+            color: #64748b;
+            margin-top: 3px;
+            line-height: 1.4;
         }
 
         /* Page break helper */
@@ -197,11 +198,11 @@
     <div class="company-header">
         <table>
             <tr>
-                <td style="width: 70px; vertical-align: middle;">
+                <td style="width: 62px; vertical-align: middle;">
                     @if($companyLogo)
                         <img src="{{ $companyLogo }}" class="company-logo" alt="Logo"/>
                     @else
-                        <div style="width:50px;height:50px;background:{{ $primaryColor }};border-radius:6px;text-align:center;line-height:50px;color:#fff;font-size:20px;font-weight:bold;">
+                        <div style="width:48px;height:48px;background:{{ $primaryColor }};border-radius:8px;text-align:center;line-height:48px;color:#fff;font-size:18px;font-weight:bold;">
                             {{ strtoupper(substr($companyName, 0, 1)) }}
                         </div>
                     @endif
@@ -212,7 +213,7 @@
                 </td>
                 <td style="text-align: right; vertical-align: middle;">
                     <span class="report-badge">MILESTONE REPORT</span>
-                    <div style="font-size:10px;color:#6b7280;margin-top:6px;">
+                    <div style="font-size:9px;color:#94a3b8;margin-top:5px;">
                         Generated: {{ date('F j, Y') }} at {{ date('H:i') }}
                     </div>
                 </td>
@@ -225,8 +226,13 @@
         <h1>{{ $milestone->title }}</h1>
         <div class="meta">
             Project: <strong>{{ $project->title ?? $project->name }}</strong>
-            @if($reportDate)
-                &nbsp;·&nbsp; Report Date: <strong>{{ \Carbon\Carbon::parse($reportDate)->format('F j, Y') }}</strong>
+            @if($dateFrom || $dateTo)
+                &nbsp;·&nbsp; Period:
+                <strong>
+                    {{ $dateFrom ? \Carbon\Carbon::parse($dateFrom)->format('M j, Y') : 'Start' }}
+                    &ndash;
+                    {{ $dateTo ? \Carbon\Carbon::parse($dateTo)->format('M j, Y') : 'Present' }}
+                </strong>
             @endif
             &nbsp;·&nbsp; Status: <span class="badge badge-{{ $milestone->status ?? 'pending' }}">{{ ucfirst(str_replace('_', ' ', $milestone->status ?? 'pending')) }}</span>
         </div>
@@ -237,11 +243,11 @@
         <div class="section-title">Milestone Overview</div>
         <table style="width:100%;border-collapse:collapse;">
             <tr>
-                <td style="width:60%;vertical-align:top;padding-right:20px;">
+                <td style="width:58%;vertical-align:top;padding-right:16px;">
                     <table class="info-grid">
                         <tr>
                             <td style="width:50%;">
-                                <div class="info-label">Milestone Title</div>
+                                <div class="info-label">Milestone</div>
                                 <div class="info-value">{{ $milestone->title }}</div>
                             </td>
                             <td style="width:50%;">
@@ -302,9 +308,9 @@
                         </tr>
                     </table>
                 </td>
-                <td style="width:40%;text-align:center;vertical-align:middle;">
-                    <img src="data:image/png;base64,{{ $progressChartImage }}" style="width:150px;height:150px;" alt="Progress"/>
-                    <div style="font-size:10px;color:#6b7280;margin-top:6px;">Milestone Progress</div>
+                <td style="width:42%;text-align:center;vertical-align:middle;">
+                    <img src="data:image/png;base64,{{ $progressChartImage }}" style="width:140px;height:140px;" alt="Progress"/>
+                    <div style="font-size:9px;color:#64748b;margin-top:4px;">Milestone Progress</div>
                 </td>
             </tr>
         </table>
@@ -316,13 +322,13 @@
             <td style="width:50%;">
                 <div class="card" style="text-align:center;">
                     <div class="section-title" style="text-align:left;">Task Priority Distribution</div>
-                    <img src="data:image/png;base64,{{ $priorityChartImage }}" style="width:100%;max-width:320px;height:auto;" alt="Priority"/>
+                    <img src="data:image/png;base64,{{ $priorityChartImage }}" style="width:100%;max-width:300px;height:auto;" alt="Priority"/>
                 </div>
             </td>
             <td style="width:50%;">
                 <div class="card" style="text-align:center;">
                     <div class="section-title" style="text-align:left;">Task Status Breakdown</div>
-                    <img src="data:image/png;base64,{{ $statusChartImage }}" style="width:100%;max-width:320px;height:auto;" alt="Status"/>
+                    <img src="data:image/png;base64,{{ $statusChartImage }}" style="width:100%;max-width:300px;height:auto;" alt="Status"/>
                 </div>
             </td>
         </tr>
@@ -343,14 +349,14 @@
         <table class="data-table">
             <thead>
                 <tr>
-                    <th style="width:5%;">#</th>
-                    <th style="width:28%;">Task</th>
-                    <th style="width:12%;">Start Date</th>
-                    <th style="width:12%;">Due Date</th>
-                    <th style="width:16%;">Assigned To</th>
-                    <th style="width:8%;">Hours</th>
+                    <th style="width:4%;">#</th>
+                    <th style="width:30%;">Task</th>
+                    <th style="width:11%;">Start</th>
+                    <th style="width:11%;">Due</th>
+                    <th style="width:13%;">Assigned To</th>
+                    <th style="width:7%;">Hrs</th>
                     <th style="width:9%;">Priority</th>
-                    <th style="width:10%;">Status</th>
+                    <th style="width:9%;">Status</th>
                 </tr>
             </thead>
             <tbody>
@@ -362,18 +368,23 @@
                     if ($task->members) $assignedUsers = $assignedUsers->merge($task->members->pluck('user')->filter());
                     $assignedUsers = $assignedUsers->unique('id');
                     $priority = $task->priority ?? 'medium';
-                    $stageColor = $task->taskStage->color ?? '#6b7280';
+                    $stageColor = $task->taskStage->color ?? '#64748b';
                     $statusName = $task->taskStage ? $task->taskStage->name : 'To Do';
                     $hex = ltrim($stageColor, '#');
                     $r = hexdec(substr($hex,0,2)); $g = hexdec(substr($hex,2,2)); $b = hexdec(substr($hex,4,2));
                 @endphp
                 <tr>
-                    <td style="color:#9ca3af;">{{ $index + 1 }}</td>
-                    <td><strong>{{ $task->title }}</strong></td>
+                    <td style="color:#94a3b8;font-size:10px;">{{ $index + 1 }}</td>
+                    <td>
+                        <strong>{{ $task->title }}</strong>
+                        @if($task->description)
+                            <div class="task-desc">{{ \Illuminate\Support\Str::limit(strip_tags($task->description), 120) }}</div>
+                        @endif
+                    </td>
                     <td>{{ $task->start_date ? \Carbon\Carbon::parse($task->start_date)->format('M j, Y') : '—' }}</td>
                     <td>{{ ($task->due_date ?? $task->end_date) ? \Carbon\Carbon::parse($task->due_date ?? $task->end_date)->format('M j, Y') : '—' }}</td>
                     <td>{{ $assignedUsers->pluck('name')->join(', ') ?: '—' }}</td>
-                    <td>{{ round($loggedHours, 2) }}h</td>
+                    <td>{{ round($loggedHours, 1) }}h</td>
                     <td><span class="badge badge-{{ $priority }}">{{ ucfirst($priority) }}</span></td>
                     <td>
                         <span class="badge" style="background:rgba({{ $r }},{{ $g }},{{ $b }},0.12);color:{{ $stageColor }};border:1px solid rgba({{ $r }},{{ $g }},{{ $b }},0.25);">
@@ -385,8 +396,8 @@
             </tbody>
         </table>
         @else
-        <div style="text-align:center;padding:20px;color:#9ca3af;font-size:12px;">
-            No tasks found for this milestone{{ $reportDate ? ' on the selected date' : '' }}.
+        <div style="text-align:center;padding:18px;color:#94a3b8;font-size:11px;">
+            No tasks found for this milestone{{ ($dateFrom || $dateTo) ? ' in the selected date range' : '' }}.
         </div>
         @endif
     </div>
@@ -427,8 +438,8 @@
     {{-- DESCRIPTION --}}
     @if($milestone->description)
     <div class="card">
-        <div class="section-title">Description</div>
-        <div style="font-size:12px;color:#374151;line-height:1.6;">
+        <div class="section-title">Milestone Description</div>
+        <div style="font-size:11px;color:#334155;line-height:1.6;">
             {!! nl2br(e($milestone->description)) !!}
         </div>
     </div>
