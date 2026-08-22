@@ -931,6 +931,479 @@ class ProjectReportController extends Controller
         return $chartData;
     }
 
+    public function milestoneReport(Request $request)
+    {
+        $this->authorizePermission('project_report_view_any');
+
+        $user = Auth::user();
+        $workspace = $user->currentWorkspace;
+
+        if (!$workspace) {
+            return redirect()->route('dashboard')->with('error', 'No workspace selected.');
+        }
+
+        $projects = Project::where('workspace_id', $workspace->id)
+            ->with(['milestones' => function ($q) {
+                $q->orderBy('order');
+            }])
+            ->orderBy('title')
+            ->get()
+            ->map(function ($project) {
+                return [
+                    'id' => $project->id,
+                    'title' => $project->title ?? $project->name,
+                    'milestones' => $project->milestones->map(function ($m) {
+                        return [
+                            'id' => $m->id,
+                            'title' => $m->title,
+                            'due_date' => $m->due_date,
+                            'status' => $m->status,
+                            'progress' => $m->progress,
+                        ];
+                    }),
+                ];
+            });
+
+        return Inertia::render('project-reports/MilestoneReport', [
+            'projects' => $projects,
+            'filters' => $request->only(['project_id', 'milestone_id', 'report_date']),
+        ]);
+    }
+
+    public function exportMilestone(Request $request, ProjectMilestone $milestone)
+    {
+        $this->authorizePermission('project_report_view_any');
+
+        $user = Auth::user();
+        $workspace = $user->currentWorkspace;
+        $ownerId = $workspace->owner_id ?? $user->id;
+
+        $milestone->load(['project', 'creator']);
+        $project = $milestone->project;
+
+        $reportDate = $request->query('date');
+
+        // Load tasks for this milestone
+        $tasksQuery = Task::where('milestone_id', $milestone->id)
+            ->with(['taskStage', 'members.user', 'assignedUser']);
+
+        if ($reportDate) {
+            $tasksQuery->where(function ($q) use ($reportDate) {
+                $q->whereDate('start_date', '<=', $reportDate)
+                  ->where(function ($q2) use ($reportDate) {
+                      $q2->whereDate('due_date', '>=', $reportDate)
+                         ->orWhereDate('end_date', '>=', $reportDate)
+                         ->orWhereNull('due_date');
+                  });
+            });
+        }
+
+        $tasks = $tasksQuery->get();
+
+        // Calculate stats
+        $totalTasks = $tasks->count();
+        $completedTasks = $tasks->where('progress', 100)->count();
+        $inProgressTasks = $tasks->where('progress', '>', 0)->where('progress', '<', 100)->count();
+        $totalLoggedHours = round(TimesheetEntry::whereIn('task_id', $tasks->pluck('id'))->sum('hours'), 2);
+
+        $priorityStats = $tasks->groupBy('priority')->map->count()->toArray();
+        $statusStats = [];
+        foreach ($tasks as $task) {
+            $stageName = $task->taskStage ? $task->taskStage->name : 'To Do';
+            $statusStats[$stageName] = ($statusStats[$stageName] ?? 0) + 1;
+        }
+
+        $stats = [
+            'total_tasks' => $totalTasks,
+            'completed_tasks' => $completedTasks,
+            'in_progress_tasks' => $inProgressTasks,
+            'total_logged_hours' => $totalLoggedHours,
+            'completion_percentage' => $milestone->progress ?? 0,
+        ];
+
+        // Team stats
+        $teamStats = [];
+        $taskUsers = $tasks->whereNotNull('assigned_to')->groupBy('assigned_to');
+        $doneStageId = DB::table('task_stages')
+            ->where('workspace_id', $project->workspace_id)
+            ->where('name', 'Done')
+            ->value('id');
+
+        foreach ($taskUsers as $userId => $userTasks) {
+            $userName = $userTasks->first()->assignedUser?->name ?? 'Unknown';
+            $assigned = $userTasks->count();
+            $completed = $doneStageId ? $userTasks->where('task_stage_id', $doneStageId)->count() : 0;
+            $hours = round(TimesheetEntry::whereIn('task_id', $userTasks->pluck('id'))->sum('hours'), 2);
+
+            $teamStats[] = [
+                'name' => $userName,
+                'assigned' => $assigned,
+                'completed' => $completed,
+                'hours' => $hours,
+            ];
+        }
+
+        // Resolve theme color
+        $themeColorMap = [
+            'blue'   => '#3b82f6',
+            'green'  => '#10B77F',
+            'purple' => '#8b5cf6',
+            'orange' => '#f97316',
+            'red'    => '#ef4444',
+        ];
+        $themeColor  = \App\Models\Setting::where('user_id', $ownerId)->where('workspace_id', $workspace->id)->where('key', 'themeColor')->value('value') ?? 'green';
+        $customColor = \App\Models\Setting::where('user_id', $ownerId)->where('workspace_id', $workspace->id)->where('key', 'customColor')->value('value') ?? '#10B77F';
+        $primaryColor = $themeColor === 'custom' ? $customColor : ($themeColorMap[$themeColor] ?? '#10B77F');
+        $primaryHex = ltrim($primaryColor, '#');
+        $pr = hexdec(substr($primaryHex, 0, 2));
+        $pg = hexdec(substr($primaryHex, 2, 2));
+        $pb = hexdec(substr($primaryHex, 4, 2));
+
+        // Company info
+        $companyName = \App\Models\Setting::where('user_id', $ownerId)->where('workspace_id', $workspace->id)->where('key', 'titleText')->value('value') ?? $workspace->name;
+        $logoPath = \App\Models\Setting::where('user_id', $ownerId)->where('workspace_id', $workspace->id)->where('key', 'logoLight')->value('value');
+        $companyLogo = null;
+        if ($logoPath) {
+            $fullPath = storage_path('app/public/' . $logoPath);
+            if (file_exists($fullPath)) {
+                $ext = pathinfo($fullPath, PATHINFO_EXTENSION);
+                $companyLogo = 'data:image/' . $ext . ';base64,' . base64_encode(file_get_contents($fullPath));
+            }
+        }
+        $workspaceName = $workspace->name;
+
+        // Generate progress donut chart
+        $progressChartImage = $this->generateProgressDonut($stats['completion_percentage'], $pr, $pg, $pb);
+
+        // Generate priority bar chart
+        $priorityChartImage = $this->generatePriorityChart($priorityStats, $pr, $pg, $pb);
+
+        // Generate status pie chart
+        $statusChartImage = $this->generateStatusPieChart($statusStats);
+
+        // Generate hours bar chart
+        $hoursData = [];
+        foreach ($tasks as $task) {
+            $h = round(TimesheetEntry::where('task_id', $task->id)->sum('hours'), 2);
+            if ($h > 0) {
+                $hoursData[] = ['task_name' => $task->title, 'logged_hours' => $h];
+            }
+        }
+        $hoursChartImage = $this->generateHoursChart($hoursData, $pr, $pg, $pb);
+
+        $html = view('pdf.milestone-report', compact(
+            'milestone',
+            'project',
+            'tasks',
+            'stats',
+            'teamStats',
+            'reportDate',
+            'companyName',
+            'companyLogo',
+            'workspaceName',
+            'primaryColor',
+            'progressChartImage',
+            'priorityChartImage',
+            'statusChartImage',
+            'hoursChartImage'
+        ))->render();
+
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadHTML($html)
+            ->setPaper('a4', 'portrait')
+            ->setOptions([
+                'dpi'                    => 96,
+                'defaultFont'            => 'DejaVu Sans',
+                'isHtml5ParserEnabled'   => true,
+                'isRemoteEnabled'        => true,
+                'isFontSubsettingEnabled'=> true,
+            ]);
+
+        $filename = 'milestone_report_' . str_replace(' ', '_', $milestone->title) . '_' . date('Y-m-d') . '.pdf';
+        return $pdf->download($filename);
+    }
+
+    private function generateProgressDonut($percentage, $pr, $pg, $pb)
+    {
+        $size = 400;
+        $centerX = $size / 2;
+        $centerY = $size / 2;
+        $outerRadius = 130;
+        $innerRadius = 110;
+
+        $image = imagecreatetruecolor($size, $size);
+        imageantialias($image, true);
+        imagesavealpha($image, true);
+        $transparent = imagecolorallocatealpha($image, 0, 0, 0, 127);
+        imagefill($image, 0, 0, $transparent);
+
+        $gray = imagecolorallocate($image, 229, 231, 235);
+        $primary = imagecolorallocate($image, $pr, $pg, $pb);
+        $black = imagecolorallocate($image, 31, 41, 55);
+        $white = imagecolorallocate($image, 255, 255, 255);
+
+        imagefilledellipse($image, $centerX, $centerY, $outerRadius * 2, $outerRadius * 2, $gray);
+        imagefilledellipse($image, $centerX, $centerY, $innerRadius * 2, $innerRadius * 2, $white);
+
+        if ($percentage > 0) {
+            $endAngle = ($percentage / 100) * 360;
+            imagefilledarc($image, $centerX, $centerY, $outerRadius * 2, $outerRadius * 2, -90, -90 + $endAngle, $primary, IMG_ARC_PIE);
+            imagefilledellipse($image, $centerX, $centerY, $innerRadius * 2, $innerRadius * 2, $white);
+
+            $capRadius = ($outerRadius - $innerRadius) / 2;
+            $ringRadius = ($outerRadius + $innerRadius) / 2;
+            imagefilledellipse($image, $centerX, $centerY - $ringRadius, $capRadius * 2, $capRadius * 2, $primary);
+
+            $endAngleRad = deg2rad(-90 + $endAngle);
+            $endX = $centerX + ($ringRadius * cos($endAngleRad));
+            $endY = $centerY + ($ringRadius * sin($endAngleRad));
+            imagefilledellipse($image, $endX, $endY, $capRadius * 2, $capRadius * 2, $primary);
+        }
+
+        $fontPath = '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf';
+        $text = $percentage . '%';
+        if (file_exists($fontPath)) {
+            $bbox = imagettfbbox(36, 0, $fontPath, $text);
+            $textWidth = $bbox[2] - $bbox[0];
+            $textHeight = $bbox[1] - $bbox[7];
+            imagettftext($image, 36, 0, $centerX - ($textWidth / 2), $centerY + ($textHeight / 2), $black, $fontPath, $text);
+        } else {
+            $font = 5;
+            $tw = strlen($text) * imagefontwidth($font);
+            imagestring($image, $font, $centerX - ($tw / 2), $centerY - (imagefontheight($font) / 2), $text, $black);
+        }
+
+        ob_start();
+        imagepng($image);
+        $data = ob_get_clean();
+        imagedestroy($image);
+
+        return base64_encode($data);
+    }
+
+    private function generatePriorityChart($priorityStats, $pr, $pg, $pb)
+    {
+        $imgW = 450;
+        $imgH = 180;
+        $image = imagecreatetruecolor($imgW, $imgH);
+        $white = imagecolorallocate($image, 255, 255, 255);
+        imagefill($image, 0, 0, $white);
+
+        $priorityColors = [
+            'critical' => imagecolorallocate($image, 220, 38, 38),
+            'high'     => imagecolorallocate($image, 234, 88, 12),
+            'medium'   => imagecolorallocate($image, 202, 138, 4),
+            'low'      => imagecolorallocate($image, $pr, $pg, $pb),
+        ];
+        $textColor = imagecolorallocate($image, 55, 65, 81);
+        $axisColor = imagecolorallocate($image, 209, 213, 219);
+
+        $fontPath = '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf';
+        $maxValue = max(array_merge([1], array_values($priorityStats)));
+        $barWidth = 50;
+        $barSpacing = 25;
+        $startX = 60;
+        $chartHeight = 110;
+        $baseY = 150;
+
+        imageline($image, 45, $baseY, 340, $baseY, $axisColor);
+        imageline($image, 45, 30, 45, $baseY, $axisColor);
+
+        if (file_exists($fontPath)) {
+            for ($i = 0; $i <= $maxValue; $i++) {
+                $y = $baseY - (($i / $maxValue) * $chartHeight);
+                imagettftext($image, 9, 0, 25, $y + 4, $textColor, $fontPath, (string)$i);
+                imageline($image, 43, (int)$y, 47, (int)$y, $axisColor);
+            }
+        }
+
+        $idx = 0;
+        foreach (['critical', 'high', 'medium', 'low'] as $priority) {
+            $value = $priorityStats[$priority] ?? 0;
+            $barHeight = $maxValue > 0 ? ($value / $maxValue) * $chartHeight : 0;
+            $x = $startX + ($idx * ($barWidth + $barSpacing));
+            $y = $baseY - $barHeight;
+
+            imagefilledrectangle($image, $x, (int)$y, $x + $barWidth, $baseY, $priorityColors[$priority]);
+
+            if (file_exists($fontPath) && $value > 0) {
+                imagettftext($image, 10, 0, $x + 18, (int)$y - 6, $textColor, $fontPath, (string)$value);
+            }
+            $idx++;
+        }
+
+        if (file_exists($fontPath)) {
+            $legendX = 370;
+            $legendY = 45;
+            foreach (['critical', 'high', 'medium', 'low'] as $priority) {
+                imagefilledrectangle($image, $legendX, $legendY, $legendX + 10, $legendY + 10, $priorityColors[$priority]);
+                imagettftext($image, 9, 0, $legendX + 16, $legendY + 9, $textColor, $fontPath, ucfirst($priority));
+                $legendY += 24;
+            }
+        }
+
+        ob_start();
+        imagepng($image);
+        $data = ob_get_clean();
+        imagedestroy($image);
+
+        return base64_encode($data);
+    }
+
+    private function generateStatusPieChart($statusStats)
+    {
+        $imgW = 450;
+        $imgH = 220;
+        $image = imagecreatetruecolor($imgW, $imgH);
+        $white = imagecolorallocate($image, 255, 255, 255);
+        imagefill($image, 0, 0, $white);
+
+        $statusColorMap = [
+            'To Do'       => imagecolorallocate($image, 107, 114, 128),
+            'In Progress' => imagecolorallocate($image, 59, 130, 246),
+            'Review'      => imagecolorallocate($image, 168, 85, 247),
+            'Done'        => imagecolorallocate($image, 34, 197, 94),
+            'Blocked'     => imagecolorallocate($image, 239, 68, 68),
+        ];
+        $textColor = imagecolorallocate($image, 55, 65, 81);
+        $whiteColor = imagecolorallocate($image, 255, 255, 255);
+        $fontPath = '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf';
+
+        $total = array_sum($statusStats);
+        if ($total > 0) {
+            $startAngle = 0;
+            $centerX = 110;
+            $centerY = 110;
+            $radius = 85;
+
+            foreach ($statusStats as $status => $count) {
+                $angle = ($count / $total) * 360;
+                $color = $statusColorMap[$status] ?? imagecolorallocate($image, 150, 150, 150);
+                imagefilledarc($image, $centerX, $centerY, $radius * 2, $radius * 2, $startAngle, $startAngle + $angle, $color, IMG_ARC_PIE);
+
+                if ($angle > 15 && file_exists($fontPath)) {
+                    $percentage = round(($count / $total) * 100);
+                    $labelAngle = deg2rad($startAngle + ($angle / 2));
+                    $labelX = $centerX + (cos($labelAngle) * $radius * 0.6);
+                    $labelY = $centerY + (sin($labelAngle) * $radius * 0.6);
+                    imagettftext($image, 10, 0, (int)$labelX - 10, (int)$labelY + 4, $whiteColor, $fontPath, $percentage . '%');
+                }
+
+                $startAngle += $angle;
+            }
+
+            if (file_exists($fontPath)) {
+                $legendX = 240;
+                $legendY = 40;
+                foreach ($statusStats as $status => $count) {
+                    $color = $statusColorMap[$status] ?? imagecolorallocate($image, 150, 150, 150);
+                    imagefilledellipse($image, $legendX, $legendY, 10, 10, $color);
+                    imagettftext($image, 10, 0, $legendX + 14, $legendY + 4, $textColor, $fontPath, $status . ' (' . $count . ')');
+                    $legendY += 26;
+                }
+            }
+        } else {
+            if (file_exists($fontPath)) {
+                $grayColor = imagecolorallocate($image, 156, 163, 175);
+                imagettftext($image, 12, 0, 140, 115, $grayColor, $fontPath, 'No tasks');
+            }
+        }
+
+        ob_start();
+        imagepng($image);
+        $data = ob_get_clean();
+        imagedestroy($image);
+
+        return base64_encode($data);
+    }
+
+    private function generateHoursChart($hoursData, $pr, $pg, $pb)
+    {
+        $imgW = 700;
+        $imgH = 250;
+        $marginLeft = 60;
+        $marginRight = 20;
+        $marginTop = 25;
+        $marginBottom = 70;
+        $chartW = $imgW - $marginLeft - $marginRight;
+        $chartH = $imgH - $marginTop - $marginBottom;
+        $baseY = $marginTop + $chartH;
+
+        $image = imagecreatetruecolor($imgW, $imgH);
+        $white = imagecolorallocate($image, 255, 255, 255);
+        imagefill($image, 0, 0, $white);
+
+        $primary = imagecolorallocate($image, $pr, $pg, $pb);
+        $textColor = imagecolorallocate($image, 55, 65, 81);
+        $axisColor = imagecolorallocate($image, 209, 213, 219);
+        $gridColor = imagecolorallocate($image, 240, 240, 240);
+
+        $fontPath = '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf';
+
+        if (count($hoursData) === 0 || max(array_column($hoursData, 'logged_hours')) == 0) {
+            $grayColor = imagecolorallocate($image, 156, 163, 175);
+            imageline($image, $marginLeft, $baseY, $imgW - $marginRight, $baseY, $axisColor);
+            if (file_exists($fontPath)) {
+                imagettftext($image, 11, 0, (int)($imgW / 2 - 80), (int)($imgH / 2), $grayColor, $fontPath, 'No hours logged');
+            }
+            ob_start();
+            imagepng($image);
+            $data = ob_get_clean();
+            imagedestroy($image);
+            return base64_encode($data);
+        }
+
+        $displayTasks = array_slice($hoursData, 0, 8);
+        $count = count($displayTasks);
+        $maxHours = max(array_column($displayTasks, 'logged_hours'));
+        $step = max(1, ceil($maxHours / 5));
+        $maxHours = $step * ceil($maxHours / $step);
+
+        if (file_exists($fontPath)) {
+            for ($i = 0; $i <= $maxHours; $i += $step) {
+                $y = $baseY - (($i / $maxHours) * $chartH);
+                imageline($image, $marginLeft, (int)$y, $imgW - $marginRight, (int)$y, $i === 0 ? $axisColor : $gridColor);
+                $bbox = imagettfbbox(8, 0, $fontPath, (string)$i);
+                $lw = $bbox[2] - $bbox[0];
+                imagettftext($image, 8, 0, $marginLeft - $lw - 6, (int)$y + 3, $textColor, $fontPath, (string)$i);
+            }
+        }
+
+        imageline($image, $marginLeft, $marginTop, $marginLeft, $baseY, $axisColor);
+
+        $totalBarArea = $chartW / $count;
+        $barWidth = (int)($totalBarArea * 0.6);
+
+        foreach ($displayTasks as $index => $taskData) {
+            $hours = $taskData['logged_hours'];
+            $barH = $maxHours > 0 ? ($hours / $maxHours) * $chartH : 0;
+            $x = $marginLeft + ($index * $totalBarArea) + (($totalBarArea - $barWidth) / 2);
+            $y = $baseY - $barH;
+
+            imagefilledrectangle($image, (int)$x, (int)$y, (int)($x + $barWidth), $baseY, $primary);
+
+            if (file_exists($fontPath) && $hours > 0) {
+                $valLabel = $hours . 'h';
+                $bbox = imagettfbbox(8, 0, $fontPath, $valLabel);
+                $lw = $bbox[2] - $bbox[0];
+                imagettftext($image, 8, 0, (int)($x + $barWidth / 2 - $lw / 2), (int)$y - 5, $textColor, $fontPath, $valLabel);
+            }
+
+            if (file_exists($fontPath)) {
+                $taskName = mb_strlen($taskData['task_name']) > 14 ? mb_substr($taskData['task_name'], 0, 12) . '..' : $taskData['task_name'];
+                $bbox = imagettfbbox(7, 0, $fontPath, $taskName);
+                $lw = $bbox[2] - $bbox[0];
+                imagettftext($image, 7, 25, (int)($x + $barWidth / 2 - 2), $baseY + 14, $textColor, $fontPath, $taskName);
+            }
+        }
+
+        ob_start();
+        imagepng($image);
+        $data = ob_get_clean();
+        imagedestroy($image);
+
+        return base64_encode($data);
+    }
+
     private function calculateUserStats($project)
     {
         $this->authorizePermission('project_report_view_any');

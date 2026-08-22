@@ -145,6 +145,7 @@ export function AppSidebar() {
         
         if (hasPermission(permissions, 'project_report_view_any')) {
             items.push({ title: t('Project Reports'), href: route('project-reports.index'), icon: TrendingUp, group: t('Project Management') });
+            items.push({ title: t('Milestone Report'), href: route('project-reports.milestone'), icon: BarChart, group: t('Project Management') });
         }
 
         // Time Tracking
