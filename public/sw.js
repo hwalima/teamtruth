@@ -1,4 +1,4 @@
-const CACHE_NAME = 'taskly-v1';
+const CACHE_NAME = 'teamtruth-v2';
 const OFFLINE_URL = '/offline.html';
 
 const PRECACHE_ASSETS = [

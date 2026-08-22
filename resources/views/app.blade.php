@@ -63,7 +63,7 @@
     <meta name="twitter:card" content="summary_large_image">    
 
     <link rel="icon" type="image/png" href="{{ asset('images/logos/favicon.png') }}">
-    <link rel="manifest" href="{{ asset('manifest.json') }}">
+    <link rel="manifest" href="/manifest.json" crossorigin="use-credentials">
     <meta name="theme-color" content="#E3B448">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
