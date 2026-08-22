@@ -40,7 +40,7 @@ jobs:
         run: npm ci && npm run build
 
       - name: Deploy to server via SSH
-        uses: appleboy/ssh-action@v1.2.1
+        uses: appleboy/ssh-action@v1.2.5
         with:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}
@@ -48,6 +48,7 @@ jobs:
           passphrase: ${{ secrets.DEPLOY_SSH_PASSPHRASE }}
           port: 22000
           script_stop: true
+          debug: true
           script: |
             set -e
             cd ~/teamtruth
