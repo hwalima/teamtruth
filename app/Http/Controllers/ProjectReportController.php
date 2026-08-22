@@ -970,6 +970,69 @@ class ProjectReportController extends Controller
         ]);
     }
 
+    public function milestoneStats(Request $request, ProjectMilestone $milestone)
+    {
+        $this->authorizePermission('project_report_view_any');
+
+        $milestone->load(['project']);
+        $project = $milestone->project;
+
+        $dateFrom = $request->query('date_from');
+        $dateTo = $request->query('date_to');
+
+        $tasksQuery = Task::where('milestone_id', $milestone->id)
+            ->with(['taskStage', 'assignedUser']);
+
+        if ($dateFrom) {
+            $tasksQuery->where(function ($q) use ($dateFrom) {
+                $q->whereDate('end_date', '>=', $dateFrom)
+                  ->orWhere(function ($q2) use ($dateFrom) {
+                      $q2->whereNull('end_date')->whereDate('start_date', '>=', $dateFrom);
+                  });
+            });
+        }
+        if ($dateTo) {
+            $tasksQuery->where(function ($q) use ($dateTo) {
+                $q->whereDate('start_date', '<=', $dateTo)
+                  ->orWhere(function ($q2) use ($dateTo) {
+                      $q2->whereNull('start_date')->whereDate('end_date', '<=', $dateTo);
+                  });
+            });
+        }
+
+        $tasks = $tasksQuery->get();
+
+        $totalTasks = $tasks->count();
+        $completedTasks = $tasks->where('progress', 100)->count();
+        $inProgressTasks = $tasks->where('progress', '>', 0)->where('progress', '<', 100)->count();
+        $totalLoggedHours = round(TimesheetEntry::whereIn('task_id', $tasks->pluck('id'))->sum('hours'), 2);
+
+        $priorityStats = $tasks->groupBy('priority')->map->count()->toArray();
+        $statusStats = [];
+        foreach ($tasks as $task) {
+            $stageName = $task->taskStage ? $task->taskStage->name : 'To Do';
+            $statusStats[$stageName] = ($statusStats[$stageName] ?? 0) + 1;
+        }
+
+        $hoursData = [];
+        foreach ($tasks as $task) {
+            $h = round(TimesheetEntry::where('task_id', $task->id)->sum('hours'), 2);
+            $hoursData[] = ['task_name' => $task->title, 'logged_hours' => $h];
+        }
+
+        return response()->json([
+            'total_tasks' => $totalTasks,
+            'completed_tasks' => $completedTasks,
+            'in_progress_tasks' => $inProgressTasks,
+            'pending_tasks' => $totalTasks - $completedTasks - $inProgressTasks,
+            'total_logged_hours' => $totalLoggedHours,
+            'completion_percentage' => $milestone->progress ?? 0,
+            'priority_stats' => $priorityStats,
+            'status_stats' => $statusStats,
+            'hours_data' => $hoursData,
+        ]);
+    }
+
     public function exportMilestone(Request $request, ProjectMilestone $milestone)
     {
         $this->authorizePermission('project_report_view_any');

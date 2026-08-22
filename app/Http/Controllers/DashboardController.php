@@ -117,6 +117,8 @@ class DashboardController extends Controller
                 'projects' => $this->checkPermission('project_view_any') ? $this->getProjectStats($workspace, $user, $role) : null,
                 'tasks' => $this->checkPermission('task_view_any') ? $this->getTaskStats($workspace, $user, $role) : null,
                 'taskStages' => $this->checkPermission('task_view_any') ? $this->getTaskStages($workspace, $user, $role) : null,
+                'tasksByPriority' => $this->checkPermission('task_view_any') ? $this->getTasksByPriority($workspace, $user, $role) : null,
+                'projectsByStatus' => $this->checkPermission('project_view_any') ? $this->getProjectsByStatus($workspace, $user, $role) : null,
                 'timesheets' => $this->checkPermission('timesheet_view_any') ? $this->getTimesheetStats($workspace, $user, $role) : null,
                 'budgets' => $this->checkPermission('budget_view_any') ? $this->getBudgetStats($workspace, $user, $role) : null,
                 'expenses' => $this->checkPermission('expense_view_any') ? $this->getExpenseStats($workspace, $user, $role) : null,
@@ -447,6 +449,68 @@ class DashboardController extends Controller
         }
     }
     
+    private function getTasksByPriority($workspace, $user, $role)
+    {
+        try {
+            if (!class_exists('\App\Models\Task') || !$workspace) {
+                return [];
+            }
+
+            $query = \App\Models\Task::whereHas('project', function($q) use ($workspace) {
+                $q->where('workspace_id', $workspace->id);
+            });
+
+            if ($role === 'client') {
+                $query->where(function($q) use ($user) {
+                    $q->where('assigned_to', $user->id)
+                      ->orWhereHas('project.clients', fn($pm) => $pm->where('user_id', $user->id));
+                });
+            } elseif ($role !== 'company') {
+                $query->where(function($q) use ($user) {
+                    $q->where('assigned_to', $user->id)
+                      ->orWhereHas('project.members', fn($pm) => $pm->where('user_id', $user->id));
+                });
+            }
+
+            return $query->selectRaw("priority, count(*) as count")
+                ->groupBy('priority')
+                ->pluck('count', 'priority')
+                ->toArray();
+        } catch (\Exception $e) {
+            return [];
+        }
+    }
+
+    private function getProjectsByStatus($workspace, $user, $role)
+    {
+        try {
+            if (!class_exists('\App\Models\Project') || !$workspace) {
+                return [];
+            }
+
+            $query = \App\Models\Project::where('workspace_id', $workspace->id);
+
+            if ($role === 'client') {
+                $query->where(function($q) use ($user) {
+                    $q->whereHas('clients', fn($cq) => $cq->where('user_id', $user->id))
+                      ->orWhere('created_by', $user->id);
+                });
+            } elseif ($role !== 'company') {
+                $query->where(function($q) use ($user) {
+                    $q->whereHas('members', fn($mq) => $mq->where('user_id', $user->id))
+                      ->orWhere('created_by', $user->id);
+                });
+            }
+
+            return $query->selectRaw("status, count(*) as count")
+                ->groupBy('status')
+                ->pluck('count', 'status')
+                ->toArray();
+        } catch (\Exception $e) {
+            return [];
+        }
+    }
+
     private function getTimesheetStats($workspace, $user, $role)
     {
         try {

@@ -94,6 +94,8 @@ interface DashboardData {
     resolved: number;
     critical: number;
   };
+  tasksByPriority?: Record<string, number>;
+  projectsByStatus?: Record<string, number>;
   monthlyTimesheetHours?: Array<{ month: string; short: string; hours: number }>;
   monthlyTaskCompletion?: Array<{ month: string; short: string; created: number; completed: number }>;
   monthlyInvoiceRevenue?: Array<{ month: string; short: string; revenue: number }>;
@@ -1216,6 +1218,147 @@ export default function Dashboard({ dashboardData, isSuperAdmin, isSaasMode = tr
             </Card>
           )}
         </div>
+
+        {/* ── Task Status & Priority Charts ── */}
+        {(dashboardData?.taskStages || dashboardData?.tasksByPriority || dashboardData?.projectsByStatus) && (
+          <div className="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+
+            {/* Task Status Donut */}
+            {dashboardData?.taskStages && dashboardData.taskStages.length > 0 && (
+              <Card className="border border-border shadow-sm bg-card overflow-hidden">
+                <CardHeader className="pb-2 pt-5 px-5 border-b">
+                  <CardTitle className="text-base font-semibold">{t('Task Status')}</CardTitle>
+                  <p className="text-xs text-muted-foreground mt-0.5">{t('Distribution across stages')}</p>
+                </CardHeader>
+                <CardContent className="p-4 pt-4">
+                  <ResponsiveContainer width="100%" height={200}>
+                    <PieChart>
+                      <Pie
+                        data={dashboardData.taskStages.filter((s: any) => s.count > 0).map((s: any, i: number) => ({
+                          name: s.name,
+                          value: s.count,
+                          fill: ['#94a3b8', '#3b82f6', '#8b5cf6', '#22c55e', '#ef4444', '#f59e0b', '#06b6d4'][i % 7]
+                        }))}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={50}
+                        outerRadius={75}
+                        dataKey="value"
+                        label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                        labelLine={false}
+                        fontSize={10}
+                      >
+                        {dashboardData.taskStages.filter((s: any) => s.count > 0).map((_: any, i: number) => (
+                          <Cell key={i} fill={['#94a3b8', '#3b82f6', '#8b5cf6', '#22c55e', '#ef4444', '#f59e0b', '#06b6d4'][i % 7]} />
+                        ))}
+                      </Pie>
+                      <Tooltip
+                        contentStyle={{ fontSize: 12, borderRadius: 8, border: '1px solid hsl(var(--border))', background: 'hsl(var(--popover))', color: 'hsl(var(--popover-foreground))' }}
+                        formatter={(v: any, name: any) => [`${v} tasks`, name]}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+                  <div className="flex flex-wrap items-center justify-center gap-3 mt-2">
+                    {dashboardData.taskStages.filter((s: any) => s.count > 0).map((s: any, i: number) => (
+                      <span key={s.name} className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                        <span className="w-2.5 h-2.5 rounded-full inline-block" style={{ background: ['#94a3b8', '#3b82f6', '#8b5cf6', '#22c55e', '#ef4444', '#f59e0b', '#06b6d4'][i % 7] }} />
+                        {s.name} ({s.count})
+                      </span>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Task Priority Bar Chart */}
+            {dashboardData?.tasksByPriority && Object.keys(dashboardData.tasksByPriority).length > 0 && (() => {
+              const priorityColors: Record<string, string> = { low: '#22c55e', medium: '#eab308', high: '#f97316', critical: '#ef4444' };
+              const priorityData = Object.entries(dashboardData.tasksByPriority).map(([name, value]) => ({
+                name: name.charAt(0).toUpperCase() + name.slice(1),
+                value: value as number,
+                fill: priorityColors[name] || '#6b7280'
+              }));
+              return (
+                <Card className="border border-border shadow-sm bg-card overflow-hidden">
+                  <CardHeader className="pb-2 pt-5 px-5 border-b">
+                    <CardTitle className="text-base font-semibold">{t('Task Priority')}</CardTitle>
+                    <p className="text-xs text-muted-foreground mt-0.5">{t('Tasks by priority level')}</p>
+                  </CardHeader>
+                  <CardContent className="p-4 pt-4">
+                    <ResponsiveContainer width="100%" height={200}>
+                      <BarChart data={priorityData} margin={{ top: 15, right: 5, bottom: 5, left: -20 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+                        <XAxis dataKey="name" tick={{ fontSize: 11, fill: 'currentColor' }} axisLine={false} tickLine={false} />
+                        <YAxis tick={{ fontSize: 11, fill: 'currentColor' }} axisLine={false} tickLine={false} allowDecimals={false} />
+                        <Tooltip
+                          contentStyle={{ fontSize: 12, borderRadius: 8, border: '1px solid hsl(var(--border))', background: 'hsl(var(--popover))', color: 'hsl(var(--popover-foreground))' }}
+                          formatter={(v: any) => [`${v} tasks`]}
+                        />
+                        <Bar dataKey="value" radius={[6, 6, 0, 0]} maxBarSize={40}>
+                          {priorityData.map((entry, i) => (
+                            <Cell key={i} fill={entry.fill} />
+                          ))}
+                          <LabelList dataKey="value" position="top" style={{ fontSize: 10, fontWeight: 600, fill: 'currentColor' }} formatter={(v: number) => v > 0 ? v : ''} />
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </CardContent>
+                </Card>
+              );
+            })()}
+
+            {/* Project Status Donut */}
+            {dashboardData?.projectsByStatus && Object.keys(dashboardData.projectsByStatus).length > 0 && (() => {
+              const statusColors: Record<string, string> = { planning: '#3b82f6', in_progress: '#f97316', on_hold: '#eab308', completed: '#22c55e', cancelled: '#ef4444' };
+              const statusData = Object.entries(dashboardData.projectsByStatus).map(([status, count]) => ({
+                name: status.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
+                value: count as number,
+                fill: statusColors[status] || '#6b7280'
+              }));
+              return (
+                <Card className="border border-border shadow-sm bg-card overflow-hidden">
+                  <CardHeader className="pb-2 pt-5 px-5 border-b">
+                    <CardTitle className="text-base font-semibold">{t('Project Status')}</CardTitle>
+                    <p className="text-xs text-muted-foreground mt-0.5">{t('Projects by current status')}</p>
+                  </CardHeader>
+                  <CardContent className="p-4 pt-4">
+                    <ResponsiveContainer width="100%" height={200}>
+                      <PieChart>
+                        <Pie
+                          data={statusData}
+                          cx="50%"
+                          cy="50%"
+                          innerRadius={50}
+                          outerRadius={75}
+                          dataKey="value"
+                          label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                          labelLine={false}
+                          fontSize={10}
+                        >
+                          {statusData.map((entry, i) => (
+                            <Cell key={i} fill={entry.fill} />
+                          ))}
+                        </Pie>
+                        <Tooltip
+                          contentStyle={{ fontSize: 12, borderRadius: 8, border: '1px solid hsl(var(--border))', background: 'hsl(var(--popover))', color: 'hsl(var(--popover-foreground))' }}
+                          formatter={(v: any, name: any) => [`${v} projects`, name]}
+                        />
+                      </PieChart>
+                    </ResponsiveContainer>
+                    <div className="flex flex-wrap items-center justify-center gap-3 mt-2">
+                      {statusData.map((s) => (
+                        <span key={s.name} className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                          <span className="w-2.5 h-2.5 rounded-full inline-block" style={{ background: s.fill }} />
+                          {s.name} ({s.value})
+                        </span>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })()}
+          </div>
+        )}
 
         {/* ── COMPANY CHARTS: Timesheet Hours, Task Completion & Invoice Revenue ── */}
         {(dashboardData?.monthlyTimesheetHours || dashboardData?.monthlyTaskCompletion || dashboardData?.monthlyInvoiceRevenue) && (
