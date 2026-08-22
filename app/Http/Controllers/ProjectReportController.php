@@ -990,14 +990,18 @@ class ProjectReportController extends Controller
 
         if ($dateFrom) {
             $tasksQuery->where(function ($q) use ($dateFrom) {
-                $q->whereDate('start_date', '>=', $dateFrom)
-                  ->orWhereDate('due_date', '>=', $dateFrom)
-                  ->orWhereDate('end_date', '>=', $dateFrom);
+                $q->whereDate('end_date', '>=', $dateFrom)
+                  ->orWhere(function ($q2) use ($dateFrom) {
+                      $q2->whereNull('end_date')->whereDate('start_date', '>=', $dateFrom);
+                  });
             });
         }
         if ($dateTo) {
             $tasksQuery->where(function ($q) use ($dateTo) {
-                $q->whereDate('start_date', '<=', $dateTo);
+                $q->whereDate('start_date', '<=', $dateTo)
+                  ->orWhere(function ($q2) use ($dateTo) {
+                      $q2->whereNull('start_date')->whereDate('end_date', '<=', $dateTo);
+                  });
             });
         }
 

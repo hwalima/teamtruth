@@ -368,9 +368,10 @@
                     if ($task->members) $assignedUsers = $assignedUsers->merge($task->members->pluck('user')->filter());
                     $assignedUsers = $assignedUsers->unique('id');
                     $priority = $task->priority ?? 'medium';
-                    $stageColor = $task->taskStage->color ?? '#64748b';
+                    $stageColor = $task->taskStage?->color ?? '#64748b';
                     $statusName = $task->taskStage ? $task->taskStage->name : 'To Do';
                     $hex = ltrim($stageColor, '#');
+                    if (strlen($hex) < 6) $hex = '64748b';
                     $r = hexdec(substr($hex,0,2)); $g = hexdec(substr($hex,2,2)); $b = hexdec(substr($hex,4,2));
                 @endphp
                 <tr>
