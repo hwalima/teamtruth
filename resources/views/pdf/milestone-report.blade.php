@@ -379,7 +379,7 @@
                     <td>
                         <strong>{{ $task->title }}</strong>
                         @if($task->description)
-                            <div class="task-desc">{{ \Illuminate\Support\Str::limit(strip_tags($task->description), 120) }}</div>
+                            <div class="task-desc">{{ strip_tags($task->description) }}</div>
                         @endif
                     </td>
                     <td>{{ $task->start_date ? \Carbon\Carbon::parse($task->start_date)->format('M j, Y') : '—' }}</td>
