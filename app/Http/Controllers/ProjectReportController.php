@@ -1298,389 +1298,147 @@ class ProjectReportController extends Controller
 
     private function generateProgressDonut($percentage, $pr, $pg, $pb)
     {
-        $size = 400;
-        $centerX = $size / 2;
-        $centerY = $size / 2;
-        $outerRadius = 140;
-        $innerRadius = 105;
+        $color = "rgb($pr, $pg, $pb)";
 
-        $image = imagecreatetruecolor($size, $size);
-        imageantialias($image, true);
-        imagesavealpha($image, true);
-        $transparent = imagecolorallocatealpha($image, 0, 0, 0, 127);
-        imagefill($image, 0, 0, $transparent);
-
-        $trackColor = imagecolorallocate($image, 241, 245, 249);
-        $primary = imagecolorallocate($image, $pr, $pg, $pb);
-        $darkText = imagecolorallocate($image, 15, 23, 42);
-        $white = imagecolorallocate($image, 255, 255, 255);
-        $subText = imagecolorallocate($image, 100, 116, 139);
-
-        imagefilledellipse($image, $centerX, $centerY, $outerRadius * 2, $outerRadius * 2, $trackColor);
-        imagefilledellipse($image, $centerX, $centerY, $innerRadius * 2, $innerRadius * 2, $white);
-
-        if ($percentage > 0) {
-            $endAngle = ($percentage / 100) * 360;
-            imagefilledarc($image, $centerX, $centerY, $outerRadius * 2, $outerRadius * 2, -90, -90 + $endAngle, $primary, IMG_ARC_PIE);
-            imagefilledellipse($image, $centerX, $centerY, $innerRadius * 2, $innerRadius * 2, $white);
-
-            $capRadius = ($outerRadius - $innerRadius) / 2;
-            $ringRadius = ($outerRadius + $innerRadius) / 2;
-            imagefilledellipse($image, $centerX, (int)($centerY - $ringRadius), (int)($capRadius * 2), (int)($capRadius * 2), $primary);
-
-            $endAngleRad = deg2rad(-90 + $endAngle);
-            $endX = (int)($centerX + ($ringRadius * cos($endAngleRad)));
-            $endY = (int)($centerY + ($ringRadius * sin($endAngleRad)));
-            imagefilledellipse($image, $endX, $endY, (int)($capRadius * 2), (int)($capRadius * 2), $primary);
-        }
-
-        $fontPath = $this->resolveFont(true);
-        $fontPathRegular = $this->resolveFont(false);
-        $text = $percentage . '%';
-        if ($fontPath) {
-            $bbox = imagettfbbox(40, 0, $fontPath, $text);
-            $textWidth = $bbox[2] - $bbox[0];
-            $textHeight = $bbox[1] - $bbox[7];
-            imagettftext($image, 40, 0, (int)($centerX - ($textWidth / 2)), (int)($centerY + ($textHeight / 2) - 8), $darkText, $fontPath, $text);
-
-            $label = 'Complete';
-            $labelFont = $fontPathRegular ?: $fontPath;
-            $lbbox = imagettfbbox(12, 0, $labelFont, $label);
-            $lw = $lbbox[2] - $lbbox[0];
-            imagettftext($image, 12, 0, (int)($centerX - ($lw / 2)), (int)($centerY + $textHeight / 2 + 18), $subText, $labelFont, $label);
-        } else {
-            $this->gdTextCentered($image, $centerX, $centerY - 8, $text, $darkText, 5);
-            $this->gdTextCentered($image, $centerX, $centerY + 12, 'Complete', $subText, 3);
-        }
-
-        ob_start();
-        imagepng($image);
-        $data = ob_get_clean();
-        imagedestroy($image);
-
-        return base64_encode($data);
+        return '<div style="text-align:center;">
+            <div style="font-size:28px;font-weight:bold;color:#0f172a;margin-bottom:2px;">' . $percentage . '%</div>
+            <div style="font-size:9px;color:#64748b;margin-bottom:8px;">Complete</div>
+            <div style="width:100px;height:8px;background:#e2e8f0;border-radius:4px;margin:0 auto;overflow:hidden;">
+                <div style="width:' . max(2, $percentage) . '%;height:8px;background:' . $color . ';border-radius:4px;"></div>
+            </div>
+            <div style="font-size:8px;color:#94a3b8;margin-top:4px;">' . $percentage . ' of 100</div>
+        </div>';
     }
 
     private function generatePriorityChart($priorityStats, $pr, $pg, $pb)
     {
-        $imgW = 500;
-        $imgH = 200;
-        $image = imagecreatetruecolor($imgW, $imgH);
-        $white = imagecolorallocate($image, 255, 255, 255);
-        imagefill($image, 0, 0, $white);
-
         $priorityColors = [
-            'critical' => imagecolorallocate($image, 239, 68, 68),
-            'high'     => imagecolorallocate($image, 249, 115, 22),
-            'medium'   => imagecolorallocate($image, 234, 179, 8),
-            'low'      => imagecolorallocate($image, 34, 197, 94),
+            'critical' => '#ef4444',
+            'high'     => '#f97316',
+            'medium'   => '#eab308',
+            'low'      => '#22c55e',
         ];
-        $textColor = imagecolorallocate($image, 71, 85, 105);
-        $darkText = imagecolorallocate($image, 15, 23, 42);
-        $gridColor = imagecolorallocate($image, 241, 245, 249);
-        $axisColor = imagecolorallocate($image, 226, 232, 240);
-
-        $fontPath = $this->resolveFont(true);
-        $labelFont = $this->resolveFont(false) ?: $fontPath;
-        $hasTTF = $fontPath !== null;
-
-        $maxValue = max(array_merge([1], array_values($priorityStats)));
-        $step = max(1, ceil($maxValue / 4));
-        $maxValue = $step * ceil($maxValue / $step);
-
-        $marginLeft = 40;
-        $marginRight = 120;
-        $marginTop = 20;
-        $marginBottom = 35;
-        $chartW = $imgW - $marginLeft - $marginRight;
-        $chartH = $imgH - $marginTop - $marginBottom;
-        $baseY = $marginTop + $chartH;
-
-        // Grid lines & Y-axis labels
-        for ($i = 0; $i <= $maxValue; $i += $step) {
-            $y = (int)($baseY - (($i / $maxValue) * $chartH));
-            imageline($image, $marginLeft, $y, $marginLeft + $chartW, $y, $i === 0 ? $axisColor : $gridColor);
-            if ($hasTTF) {
-                $bbox = imagettfbbox(8, 0, $labelFont, (string)$i);
-                $lw = $bbox[2] - $bbox[0];
-                imagettftext($image, 8, 0, $marginLeft - $lw - 6, $y + 3, $textColor, $labelFont, (string)$i);
-            } else {
-                $label = (string)$i;
-                $lw = strlen($label) * imagefontwidth(2);
-                imagestring($image, 2, $marginLeft - $lw - 4, $y - 6, $label, $textColor);
-            }
-        }
-
         $priorities = ['critical', 'high', 'medium', 'low'];
-        $count = count($priorities);
-        $totalBarArea = $chartW / $count;
-        $barWidth = (int)($totalBarArea * 0.6);
+        $maxValue = max(array_merge([1], array_values($priorityStats)));
+        $total = array_sum($priorityStats);
 
-        $idx = 0;
+        $html = '';
+
+        // Horizontal bar chart - each priority as a row
         foreach ($priorities as $priority) {
             $value = $priorityStats[$priority] ?? 0;
-            $barH = $maxValue > 0 ? ($value / $maxValue) * $chartH : 0;
-            $x = (int)($marginLeft + ($idx * $totalBarArea) + (($totalBarArea - $barWidth) / 2));
-            $y = (int)($baseY - $barH);
-
-            if ($barH > 0) {
-                imagefilledrectangle($image, $x, $y, $x + $barWidth, $baseY, $priorityColors[$priority]);
-                imagefilledellipse($image, (int)($x + $barWidth / 2), $y, $barWidth, 8, $priorityColors[$priority]);
+            $widthPct = $maxValue > 0 ? round(($value / $maxValue) * 100) : 0;
+            $color = $priorityColors[$priority];
+            $html .= '<table style="width:100%;border-collapse:collapse;margin-bottom:6px;"><tr>';
+            $html .= '<td style="width:60px;font-size:9px;color:#475569;padding-right:8px;text-align:right;">' . ucfirst($priority) . '</td>';
+            $html .= '<td style="vertical-align:middle;">';
+            $html .= '<div style="width:100%;background:#f1f5f9;border-radius:4px;height:16px;overflow:hidden;">';
+            if ($widthPct > 0) {
+                $html .= '<div style="width:' . max(3, $widthPct) . '%;height:16px;background:' . $color . ';border-radius:4px;"></div>';
             }
-
-            // Value above bar
-            if ($value > 0) {
-                $valStr = (string)$value;
-                if ($hasTTF) {
-                    $bbox = imagettfbbox(9, 0, $fontPath, $valStr);
-                    $lw = $bbox[2] - $bbox[0];
-                    imagettftext($image, 9, 0, (int)($x + $barWidth / 2 - $lw / 2), $y - 6, $darkText, $fontPath, $valStr);
-                } else {
-                    $lw = strlen($valStr) * imagefontwidth(3);
-                    imagestring($image, 3, (int)($x + $barWidth / 2 - $lw / 2), $y - 14, $valStr, $darkText);
-                }
-            }
-
-            // Label below bar
-            $lbl = ucfirst($priority);
-            if ($hasTTF) {
-                $bbox = imagettfbbox(8, 0, $labelFont, $lbl);
-                $lw = $bbox[2] - $bbox[0];
-                imagettftext($image, 8, 0, (int)($x + $barWidth / 2 - $lw / 2), $baseY + 16, $textColor, $labelFont, $lbl);
-            } else {
-                $lw = strlen($lbl) * imagefontwidth(2);
-                imagestring($image, 2, (int)($x + $barWidth / 2 - $lw / 2), $baseY + 4, $lbl, $textColor);
-            }
-            $idx++;
+            $html .= '</div>';
+            $html .= '</td>';
+            $html .= '<td style="width:40px;font-size:10px;font-weight:700;color:#0f172a;padding-left:8px;text-align:center;">' . $value . '</td>';
+            $html .= '</tr></table>';
         }
 
-        // Legend
-        $legendX = $imgW - 105;
-        $legendY = $marginTop + 10;
-        foreach ($priorities as $priority) {
-            imagefilledrectangle($image, $legendX, $legendY, $legendX + 10, $legendY + 10, $priorityColors[$priority]);
-            $legendLabel = ucfirst($priority) . ' (' . ($priorityStats[$priority] ?? 0) . ')';
-            if ($hasTTF) {
-                imagettftext($image, 8, 0, $legendX + 15, $legendY + 9, $textColor, $labelFont, $legendLabel);
-            } else {
-                imagestring($image, 2, $legendX + 14, $legendY, $legendLabel, $textColor);
-            }
-            $legendY += 22;
-        }
+        $html .= '<div style="text-align:right;font-size:8px;color:#94a3b8;margin-top:4px;">Total: ' . $total . ' tasks</div>';
 
-        ob_start();
-        imagepng($image);
-        $data = ob_get_clean();
-        imagedestroy($image);
-
-        return base64_encode($data);
+        return $html;
     }
 
     private function generateStatusPieChart($statusStats)
     {
-        $imgW = 500;
-        $imgH = 240;
-        $image = imagecreatetruecolor($imgW, $imgH);
-        $white = imagecolorallocate($image, 255, 255, 255);
-        imagefill($image, 0, 0, $white);
-
         $statusColorMap = [
-            'To Do'       => imagecolorallocate($image, 148, 163, 184),
-            'In Progress' => imagecolorallocate($image, 59, 130, 246),
-            'Review'      => imagecolorallocate($image, 139, 92, 246),
-            'Done'        => imagecolorallocate($image, 34, 197, 94),
-            'Blocked'     => imagecolorallocate($image, 239, 68, 68),
+            'To Do'       => '#94a3b8',
+            'In Progress' => '#3b82f6',
+            'Review'      => '#8b5cf6',
+            'Done'        => '#22c55e',
+            'Blocked'     => '#ef4444',
         ];
-        $textColor = imagecolorallocate($image, 71, 85, 105);
-        $darkText = imagecolorallocate($image, 15, 23, 42);
-        $whiteColor = imagecolorallocate($image, 255, 255, 255);
-        $fontPath = $this->resolveFont(true);
-        $labelFont = $this->resolveFont(false) ?: $fontPath;
-        $hasTTF = $fontPath !== null;
+        $defaultColors = ['#6366f1', '#ec4899', '#14b8a6', '#f59e0b', '#64748b'];
 
         $total = array_sum($statusStats);
-        if ($total > 0) {
-            $startAngle = -90;
-            $centerX = 120;
-            $centerY = 120;
-            $outerRadius = 95;
-            $innerRadius = 55;
-
-            foreach ($statusStats as $status => $count) {
-                $angle = ($count / $total) * 360;
-                $color = $statusColorMap[$status] ?? imagecolorallocate($image, 180, 180, 180);
-                imagefilledarc($image, $centerX, $centerY, $outerRadius * 2, $outerRadius * 2, (int)$startAngle, (int)($startAngle + $angle), $color, IMG_ARC_PIE);
-                $startAngle += $angle;
-            }
-            imagefilledellipse($image, $centerX, $centerY, $innerRadius * 2, $innerRadius * 2, $white);
-
-            // Center total text
-            $totalStr = (string)$total;
-            if ($hasTTF) {
-                $bbox = imagettfbbox(22, 0, $fontPath, $totalStr);
-                $lw = $bbox[2] - $bbox[0];
-                imagettftext($image, 22, 0, (int)($centerX - $lw / 2), $centerY + 4, $darkText, $fontPath, $totalStr);
-
-                $sublabel = 'tasks';
-                $bbox2 = imagettfbbox(9, 0, $labelFont, $sublabel);
-                $lw2 = $bbox2[2] - $bbox2[0];
-                imagettftext($image, 9, 0, (int)($centerX - $lw2 / 2), $centerY + 20, $textColor, $labelFont, $sublabel);
-            } else {
-                $this->gdTextCentered($image, $centerX, $centerY - 6, $totalStr, $darkText, 5);
-                $this->gdTextCentered($image, $centerX, $centerY + 8, 'tasks', $textColor, 2);
-            }
-
-            // Legend on right
-            $legendX = 260;
-            $legendY = 35;
-            foreach ($statusStats as $status => $count) {
-                $color = $statusColorMap[$status] ?? imagecolorallocate($image, 180, 180, 180);
-                $pct = round(($count / $total) * 100);
-
-                imagefilledrectangle($image, $legendX, $legendY, $legendX + 12, $legendY + 12, $color);
-                if ($hasTTF) {
-                    imagettftext($image, 9, 0, $legendX + 18, $legendY + 10, $darkText, $labelFont, $status);
-                    imagettftext($image, 9, 0, $legendX + 18, $legendY + 26, $textColor, $labelFont, $count . ' (' . $pct . '%)');
-                } else {
-                    imagestring($image, 2, $legendX + 16, $legendY, $status, $darkText);
-                    imagestring($image, 2, $legendX + 16, $legendY + 14, $count . ' (' . $pct . '%)', $textColor);
-                }
-                $legendY += 38;
-            }
-        } else {
-            $grayColor = imagecolorallocate($image, 156, 163, 175);
-            if ($hasTTF) {
-                imagettftext($image, 12, 0, 180, 120, $grayColor, $fontPath, 'No tasks');
-            } else {
-                imagestring($image, 4, 180, 110, 'No tasks', $grayColor);
-            }
+        if ($total === 0) {
+            return '<div style="text-align:center;padding:40px;color:#94a3b8;font-size:11px;">No tasks</div>';
         }
 
-        ob_start();
-        imagepng($image);
-        $data = ob_get_clean();
-        imagedestroy($image);
+        $html = '<div style="text-align:center;margin-bottom:10px;">';
+        $html .= '<span style="font-size:20px;font-weight:bold;color:#0f172a;">' . $total . '</span>';
+        $html .= ' <span style="font-size:10px;color:#64748b;">total tasks</span>';
+        $html .= '</div>';
 
-        return base64_encode($data);
+        // Stacked horizontal bar using table cells
+        $html .= '<table style="width:100%;border-collapse:collapse;height:14px;border-radius:7px;overflow:hidden;"><tr>';
+        $colorIdx = 0;
+        foreach ($statusStats as $status => $count) {
+            $pct = round(($count / $total) * 100, 1);
+            $color = $statusColorMap[$status] ?? ($defaultColors[$colorIdx % 5] ?? '#64748b');
+            if ($pct > 0) {
+                $html .= '<td style="width:' . $pct . '%;background:' . $color . ';height:14px;padding:0;"></td>';
+            }
+            $colorIdx++;
+        }
+        $html .= '</tr></table>';
+
+        // Legend items
+        $html .= '<table style="width:100%;border-collapse:collapse;margin-top:10px;"><tr>';
+        $colorIdx = 0;
+        $perRow = min(count($statusStats), 3);
+        $current = 0;
+        foreach ($statusStats as $status => $count) {
+            if ($current > 0 && $current % $perRow === 0) {
+                $html .= '</tr><tr>';
+            }
+            $color = $statusColorMap[$status] ?? ($defaultColors[$colorIdx % 5] ?? '#64748b');
+            $pct = round(($count / $total) * 100);
+            $html .= '<td style="padding:3px 4px;font-size:9px;color:#334155;">';
+            $html .= '<span style="display:inline-block;width:8px;height:8px;background:' . $color . ';border-radius:2px;margin-right:4px;vertical-align:middle;"></span>';
+            $html .= htmlspecialchars($status) . ' <span style="color:#64748b;">' . $count . ' (' . $pct . '%)</span>';
+            $html .= '</td>';
+            $colorIdx++;
+            $current++;
+        }
+        $html .= '</tr></table>';
+
+        return $html;
     }
 
     private function generateHoursChart($hoursData, $pr, $pg, $pb)
     {
-        $imgW = 700;
-        $imgH = 260;
-        $marginLeft = 55;
-        $marginRight = 20;
-        $marginTop = 25;
-        $marginBottom = 75;
-        $chartW = $imgW - $marginLeft - $marginRight;
-        $chartH = $imgH - $marginTop - $marginBottom;
-        $baseY = $marginTop + $chartH;
-
-        $image = imagecreatetruecolor($imgW, $imgH);
-        $white = imagecolorallocate($image, 255, 255, 255);
-        imagefill($image, 0, 0, $white);
-
-        $primary = imagecolorallocate($image, $pr, $pg, $pb);
-        $textColor = imagecolorallocate($image, 71, 85, 105);
-        $darkText = imagecolorallocate($image, 15, 23, 42);
-        $axisColor = imagecolorallocate($image, 226, 232, 240);
-        $gridColor = imagecolorallocate($image, 241, 245, 249);
-
-        $fontPath = $this->resolveFont(true);
-        $labelFont = $this->resolveFont(false) ?: $fontPath;
-        $hasTTF = $fontPath !== null;
+        $color = "rgb($pr, $pg, $pb)";
+        $lightColor = "rgba($pr, $pg, $pb, 0.12)";
 
         if (count($hoursData) === 0 || max(array_column($hoursData, 'logged_hours')) == 0) {
-            $grayColor = imagecolorallocate($image, 156, 163, 175);
-            imageline($image, $marginLeft, $baseY, $imgW - $marginRight, $baseY, $axisColor);
-            if ($hasTTF) {
-                imagettftext($image, 11, 0, (int)($imgW / 2 - 60), (int)($imgH / 2), $grayColor, $labelFont, 'No hours logged');
-            } else {
-                imagestring($image, 4, (int)($imgW / 2 - 50), (int)($imgH / 2 - 8), 'No hours logged', $grayColor);
-            }
-            ob_start();
-            imagepng($image);
-            $data = ob_get_clean();
-            imagedestroy($image);
-            return base64_encode($data);
+            return '<div style="text-align:center;padding:30px;color:#94a3b8;font-size:11px;">No hours logged for this project yet.</div>';
         }
 
         $displayTasks = array_slice($hoursData, 0, 8);
-        $count = count($displayTasks);
         $maxHours = max(array_column($displayTasks, 'logged_hours'));
-        $step = max(1, ceil($maxHours / 5));
-        $maxHours = $step * ceil($maxHours / $step);
+        $totalHours = round(array_sum(array_column($hoursData, 'logged_hours')), 1);
 
-        // Grid lines & Y-axis labels
-        for ($i = 0; $i <= $maxHours; $i += $step) {
-            $y = (int)($baseY - (($i / $maxHours) * $chartH));
-            imageline($image, $marginLeft, $y, $imgW - $marginRight, $y, $i === 0 ? $axisColor : $gridColor);
-            $label = $i . 'h';
-            if ($hasTTF) {
-                $bbox = imagettfbbox(8, 0, $labelFont, $label);
-                $lw = $bbox[2] - $bbox[0];
-                imagettftext($image, 8, 0, $marginLeft - $lw - 6, $y + 3, $textColor, $labelFont, $label);
-            } else {
-                $lw = strlen($label) * imagefontwidth(2);
-                imagestring($image, 2, $marginLeft - $lw - 4, $y - 6, $label, $textColor);
-            }
-        }
-
-        $totalBarArea = $chartW / $count;
-        $barWidth = min(55, (int)($totalBarArea * 0.6));
-
-        foreach ($displayTasks as $index => $taskData) {
+        $html = '';
+        foreach ($displayTasks as $taskData) {
             $hours = $taskData['logged_hours'];
-            $barH = $maxHours > 0 ? ($hours / $maxHours) * $chartH : 0;
-            $x = (int)($marginLeft + ($index * $totalBarArea) + (($totalBarArea - $barWidth) / 2));
-            $y = (int)($baseY - $barH);
+            $widthPct = $maxHours > 0 ? round(($hours / $maxHours) * 100) : 0;
+            $name = mb_strlen($taskData['task_name']) > 28 ? mb_substr($taskData['task_name'], 0, 26) . '..' : $taskData['task_name'];
 
-            if ($barH > 0) {
-                imagefilledrectangle($image, $x, $y, $x + $barWidth, $baseY, $primary);
-                imagefilledellipse($image, (int)($x + $barWidth / 2), $y, $barWidth, 8, $primary);
+            $html .= '<table style="width:100%;border-collapse:collapse;margin-bottom:5px;"><tr>';
+            $html .= '<td style="width:35%;font-size:9px;color:#334155;padding-right:8px;overflow:hidden;">' . htmlspecialchars($name) . '</td>';
+            $html .= '<td style="vertical-align:middle;">';
+            $html .= '<div style="width:100%;background:#f1f5f9;border-radius:3px;height:12px;overflow:hidden;">';
+            if ($widthPct > 0) {
+                $html .= '<div style="width:' . max(3, $widthPct) . '%;height:12px;background:' . $color . ';border-radius:3px;"></div>';
             }
-
-            // Value above bar
-            if ($hours > 0) {
-                $valLabel = $hours . 'h';
-                if ($hasTTF) {
-                    $bbox = imagettfbbox(9, 0, $fontPath, $valLabel);
-                    $lw = $bbox[2] - $bbox[0];
-                    imagettftext($image, 9, 0, (int)($x + $barWidth / 2 - $lw / 2), $y - 7, $darkText, $fontPath, $valLabel);
-                } else {
-                    $lw = strlen($valLabel) * imagefontwidth(2);
-                    imagestring($image, 2, (int)($x + $barWidth / 2 - $lw / 2), $y - 14, $valLabel, $darkText);
-                }
-            }
-
-            // Task name below
-            $taskName = mb_strlen($taskData['task_name']) > 16 ? mb_substr($taskData['task_name'], 0, 14) . '..' : $taskData['task_name'];
-            if ($hasTTF) {
-                imagettftext($image, 7, 30, (int)($x + $barWidth / 2 - 2), $baseY + 16, $textColor, $labelFont, $taskName);
-            } else {
-                $shortName = strlen($taskName) > 10 ? substr($taskName, 0, 8) . '..' : $taskName;
-                imagestring($image, 1, (int)($x), $baseY + 4, $shortName, $textColor);
-            }
+            $html .= '</div>';
+            $html .= '</td>';
+            $html .= '<td style="width:38px;font-size:9px;font-weight:700;color:#0f172a;padding-left:6px;text-align:right;">' . $hours . 'h</td>';
+            $html .= '</tr></table>';
         }
 
-        // Total label at bottom-right
-        $totalHours = array_sum(array_column($hoursData, 'logged_hours'));
-        $totalLabel = 'Total: ' . round($totalHours, 1) . 'h';
-        if ($hasTTF) {
-            $bbox = imagettfbbox(9, 0, $fontPath, $totalLabel);
-            $lw = $bbox[2] - $bbox[0];
-            imagettftext($image, 9, 0, $imgW - $marginRight - $lw, $imgH - 10, $darkText, $fontPath, $totalLabel);
-        } else {
-            $lw = strlen($totalLabel) * imagefontwidth(3);
-            imagestring($image, 3, $imgW - $marginRight - $lw, $imgH - 18, $totalLabel, $darkText);
-        }
+        $html .= '<div style="text-align:right;font-size:9px;font-weight:600;color:#0f172a;margin-top:6px;padding-top:6px;border-top:1px solid #e2e8f0;">Total: ' . $totalHours . 'h</div>';
 
-        ob_start();
-        imagepng($image);
-        $data = ob_get_clean();
-        imagedestroy($image);
-
-        return base64_encode($data);
+        return $html;
     }
 
     private function calculateUserStats($project)

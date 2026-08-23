@@ -309,7 +309,7 @@
                     </table>
                 </td>
                 <td style="width:42%;text-align:center;vertical-align:middle;">
-                    <img src="data:image/png;base64,{{ $progressChartImage }}" style="width:140px;height:140px;" alt="Progress"/>
+                    {!! $progressChartImage !!}
                     <div style="font-size:9px;color:#64748b;margin-top:4px;">Milestone Progress</div>
                 </td>
             </tr>
@@ -320,15 +320,15 @@
     <table class="charts-table">
         <tr>
             <td style="width:50%;">
-                <div class="card" style="text-align:center;">
-                    <div class="section-title" style="text-align:left;">Task Priority Distribution</div>
-                    <img src="data:image/png;base64,{{ $priorityChartImage }}" style="width:100%;max-width:300px;height:auto;" alt="Priority"/>
+                <div class="card">
+                    <div class="section-title">Task Priority Distribution</div>
+                    {!! $priorityChartImage !!}
                 </div>
             </td>
             <td style="width:50%;">
-                <div class="card" style="text-align:center;">
-                    <div class="section-title" style="text-align:left;">Task Status Breakdown</div>
-                    <img src="data:image/png;base64,{{ $statusChartImage }}" style="width:100%;max-width:300px;height:auto;" alt="Status"/>
+                <div class="card">
+                    <div class="section-title">Task Status Breakdown</div>
+                    {!! $statusChartImage !!}
                 </div>
             </td>
         </tr>
@@ -338,7 +338,7 @@
     @if($stats['total_logged_hours'] > 0)
     <div class="card">
         <div class="section-title">Hours Logged per Task</div>
-        <img src="data:image/png;base64,{{ $hoursChartImage }}" style="width:100%;height:auto;display:block;" alt="Hours"/>
+        {!! $hoursChartImage !!}
     </div>
     @endif
 
