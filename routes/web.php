@@ -518,6 +518,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('api/mzitshwa/chat',     [\App\Http\Controllers\MzitshwaController::class, 'chat'])->name('mzitshwa.chat');
         Route::post('api/mzitshwa/complete', [\App\Http\Controllers\MzitshwaController::class, 'complete'])->name('mzitshwa.complete');
         Route::post('api/mzitshwa/analyze',  [\App\Http\Controllers\MzitshwaController::class, 'analyze'])->name('mzitshwa.analyze');
+        Route::post('api/mzitshwa/action',   [\App\Http\Controllers\MzitshwaController::class, 'executeAction'])->name('mzitshwa.action');
+        Route::post('api/mzitshwa/parse-action', [\App\Http\Controllers\MzitshwaController::class, 'parseAction'])->name('mzitshwa.parseAction');
+        Route::get('api/mzitshwa/insights',  [\App\Http\Controllers\MzitshwaController::class, 'insights'])->name('mzitshwa.insights');
+        Route::get('api/mzitshwa/conversations', [\App\Http\Controllers\MzitshwaController::class, 'conversations'])->name('mzitshwa.conversations');
+        Route::get('api/mzitshwa/conversations/{conversation}', [\App\Http\Controllers\MzitshwaController::class, 'conversationMessages'])->name('mzitshwa.conversation.messages');
+        Route::delete('api/mzitshwa/conversations/{conversation}', [\App\Http\Controllers\MzitshwaController::class, 'deleteConversation'])->name('mzitshwa.conversation.delete');
 
         // Media Library API routes
         Route::get('api/media', [MediaController::class, 'index'])->middleware('permission:media_view_any')->name('api.media.index');
