@@ -7,7 +7,7 @@
         * { box-sizing: border-box; margin: 0; padding: 0; }
 
         @page {
-            margin: 18mm 14mm 16mm 14mm;
+            margin: 20mm 18mm 18mm 18mm;
         }
 
         body {

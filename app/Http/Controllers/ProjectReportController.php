@@ -415,8 +415,8 @@ class ProjectReportController extends Controller
         $text = $completionPercentage . '%';
 
         // Try to use TrueType font if available
-        $fontPath = '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf';
-        if (file_exists($fontPath)) {
+        $fontPath = $this->resolveFont(true);
+        if ($fontPath) {
             $fontSize = 48;
             $bbox = imagettfbbox($fontSize, 0, $fontPath, $text);
             $textWidth = $bbox[2] - $bbox[0];
@@ -499,8 +499,8 @@ class ProjectReportController extends Controller
         }
 
         // Add text in center
-        $fontPath = '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf';
-        if (file_exists($fontPath)) {
+        $fontPath = $this->resolveFont(true);
+        if ($fontPath) {
             // Percentage text
             $percentText = $milestonePercentage . '%';
             $bbox = imagettfbbox(32, 0, $fontPath, $percentText);
@@ -512,6 +512,10 @@ class ProjectReportController extends Controller
             $bbox2 = imagettfbbox(18, 0, $fontPath, $progressText);
             $textWidth2 = $bbox2[2] - $bbox2[0];
             imagettftext($arcImage, 18, 0, $arcCenterX - ($textWidth2 / 2), $arcCenterY - 15, $arcGreen, $fontPath, $progressText);
+        } else {
+            $percentText = $milestonePercentage . '%';
+            $this->gdTextCentered($arcImage, $arcCenterX, $arcCenterY - 60, $percentText, $arcBlack, 5);
+            $this->gdTextCentered($arcImage, $arcCenterX, $arcCenterY - 35, 'Progress', $arcGreen, 3);
         }
 
         ob_start();
@@ -549,11 +553,13 @@ class ProjectReportController extends Controller
         imageline($priorityImage, 45, 30, 45, $baseY, $axisColor);
 
         // Draw Y-axis labels
-        if (file_exists($fontPath)) {
-            for ($i = 0; $i <= $maxValue; $i++) {
-                $y = $baseY - (($i / $maxValue) * $chartHeight);
+        for ($i = 0; $i <= $maxValue; $i++) {
+            $y = $baseY - (($i / $maxValue) * $chartHeight);
+            imageline($priorityImage, 43, $y, 47, $y, $axisColor);
+            if ($fontPath) {
                 imagettftext($priorityImage, 10, 0, 25, $y + 4, $textColor, $fontPath, $i);
-                imageline($priorityImage, 43, $y, 47, $y, $axisColor);
+            } else {
+                imagestring($priorityImage, 2, 28, (int)$y - 6, (string)$i, $textColor);
             }
         }
 
@@ -566,21 +572,37 @@ class ProjectReportController extends Controller
 
             imagefilledrectangle($priorityImage, $x, $y, $x + $barWidth, $baseY, $priorityColors[$priority]);
 
-            if (file_exists($fontPath)) {
+            if ($fontPath) {
                 imagettftext($priorityImage, 12, 0, $x + 18, $y - 8, $textColor, $fontPath, $value);
+            } else {
+                imagestring($priorityImage, 3, $x + 18, (int)$y - 16, (string)$value, $textColor);
+            }
+
+            // Label below bar
+            $lbl = ucfirst($priority);
+            if ($fontPath) {
+                $bbox = imagettfbbox(8, 0, $fontPath, $lbl);
+                $lw = $bbox[2] - $bbox[0];
+                imagettftext($priorityImage, 8, 0, (int)($x + $barWidth / 2 - $lw / 2), $baseY + 14, $textColor, $fontPath, $lbl);
+            } else {
+                $lw = strlen($lbl) * imagefontwidth(2);
+                imagestring($priorityImage, 2, (int)($x + $barWidth / 2 - $lw / 2), $baseY + 4, $lbl, $textColor);
             }
             $i++;
         }
 
-        // Add legend on right side with space
-        if (file_exists($fontPath)) {
-            $legendX = 370;
-            $legendY = 50;
-            foreach (['critical', 'high', 'medium', 'low'] as $priority) {
-                imagefilledrectangle($priorityImage, $legendX, $legendY, $legendX + 12, $legendY + 12, $priorityColors[$priority]);
-                imagettftext($priorityImage, 11, 0, $legendX + 20, $legendY + 10, $textColor, $fontPath, ucfirst($priority));
-                $legendY += 26;
+        // Add legend on right side
+        $legendX = 370;
+        $legendY = 50;
+        foreach (['critical', 'high', 'medium', 'low'] as $priority) {
+            imagefilledrectangle($priorityImage, $legendX, $legendY, $legendX + 12, $legendY + 12, $priorityColors[$priority]);
+            $legendLabel = ucfirst($priority);
+            if ($fontPath) {
+                imagettftext($priorityImage, 11, 0, $legendX + 20, $legendY + 10, $textColor, $fontPath, $legendLabel);
+            } else {
+                imagestring($priorityImage, 2, $legendX + 16, $legendY, $legendLabel, $textColor);
             }
+            $legendY += 26;
         }
 
         ob_start();
@@ -619,28 +641,34 @@ class ProjectReportController extends Controller
                 imagefilledarc($statusImage, $centerX, $centerY, $radius * 2, $radius * 2, $startAngle, $startAngle + $angle, $color, IMG_ARC_PIE);
 
                 // Add percentage on slice
-                if ($angle > 10 && file_exists($fontPath)) {
+                if ($angle > 10) {
                     $percentage = round(($count / $total) * 100);
                     $labelAngle = deg2rad($startAngle + ($angle / 2));
                     $labelX = $centerX + (cos($labelAngle) * $radius * 0.65);
                     $labelY = $centerY + (sin($labelAngle) * $radius * 0.65);
-                    imagettftext($statusImage, 11, 0, $labelX - 12, $labelY + 5, $whiteColor, $fontPath, $percentage . '%');
+                    if ($fontPath) {
+                        imagettftext($statusImage, 11, 0, (int)$labelX - 12, (int)$labelY + 5, $whiteColor, $fontPath, $percentage . '%');
+                    } else {
+                        imagestring($statusImage, 2, (int)$labelX - 8, (int)$labelY - 4, $percentage . '%', $whiteColor);
+                    }
                 }
 
                 $startAngle += $angle;
             }
 
-            // Add legend on right side with space (status names only)
-            if (file_exists($fontPath)) {
-                $legendX = 250;
-                $legendY = 40;
-                foreach ($statusStats as $status => $count) {
-                    $color = $statusColorMap[$status] ?? imagecolorallocate($statusImage, 150, 150, 150);
+            // Add legend on right side
+            $legendX = 250;
+            $legendY = 40;
+            foreach ($statusStats as $status => $count) {
+                $color = $statusColorMap[$status] ?? imagecolorallocate($statusImage, 150, 150, 150);
 
-                    imagefilledellipse($statusImage, $legendX, $legendY, 12, 12, $color);
+                imagefilledellipse($statusImage, $legendX, $legendY, 12, 12, $color);
+                if ($fontPath) {
                     imagettftext($statusImage, 11, 0, $legendX + 20, $legendY + 5, $textColor, $fontPath, $status);
-                    $legendY += 28;
+                } else {
+                    imagestring($statusImage, 2, $legendX + 16, $legendY - 4, $status, $textColor);
                 }
+                $legendY += 28;
             }
         }
 
@@ -687,16 +715,17 @@ class ProjectReportController extends Controller
             $maxHours = $step * ceil($maxHours / $step);
 
             // Draw horizontal grid lines + Y-axis labels
-            if (file_exists($fontPath)) {
-                for ($i = 0; $i <= $maxHours; $i += $step) {
-                    $y = $baseY - (($i / $maxHours) * $chartH);
-                    // Grid line
-                    imageline($hoursImage, $marginLeft, (int)$y, $imgW - $marginRight, (int)$y, $i === 0 ? $axisColor : $gridColor);
-                    // Label — right-aligned before the axis
-                    $label = (string)$i;
+            for ($i = 0; $i <= $maxHours; $i += $step) {
+                $y = $baseY - (($i / $maxHours) * $chartH);
+                imageline($hoursImage, $marginLeft, (int)$y, $imgW - $marginRight, (int)$y, $i === 0 ? $axisColor : $gridColor);
+                $label = (string)$i;
+                if ($fontPath) {
                     $bbox = imagettfbbox(9, 0, $fontPath, $label);
                     $lw = $bbox[2] - $bbox[0];
                     imagettftext($hoursImage, 9, 0, $marginLeft - $lw - 6, (int)$y + 4, $textColor, $fontPath, $label);
+                } else {
+                    $lw = strlen($label) * imagefontwidth(3);
+                    imagestring($hoursImage, 3, (int)($marginLeft - $lw - 6), (int)$y - (int)(imagefontheight(3) / 2), $label, $textColor);
                 }
             }
 
@@ -718,16 +747,21 @@ class ProjectReportController extends Controller
                 imagefilledrectangle($hoursImage, (int)$x, (int)$y, (int)($x + $barWidth), $baseY, $primaryColor);
 
                 // Value label above bar
-                if (file_exists($fontPath) && $hours > 0) {
+                if ($hours > 0) {
                     $valLabel = $hours . 'h';
-                    $bbox = imagettfbbox(9, 0, $fontPath, $valLabel);
-                    $lw = $bbox[2] - $bbox[0];
-                    imagettftext($hoursImage, 9, 0, (int)($x + $barWidth / 2 - $lw / 2), (int)$y - 5, $textColor, $fontPath, $valLabel);
+                    if ($fontPath) {
+                        $bbox = imagettfbbox(9, 0, $fontPath, $valLabel);
+                        $lw = $bbox[2] - $bbox[0];
+                        imagettftext($hoursImage, 9, 0, (int)($x + $barWidth / 2 - $lw / 2), (int)$y - 5, $textColor, $fontPath, $valLabel);
+                    } else {
+                        $lw = strlen($valLabel) * imagefontwidth(3);
+                        imagestring($hoursImage, 3, (int)($x + $barWidth / 2 - $lw / 2), (int)$y - imagefontheight(3) - 2, $valLabel, $textColor);
+                    }
                 }
 
                 // X-axis task name (word-wrapped)
-                if (file_exists($fontPath)) {
-                    $taskName = $taskData['task_name'];
+                $taskName = $taskData['task_name'];
+                if ($fontPath) {
                     $words = explode(' ', $taskName);
                     $lines = [];
                     $currentLine = '';
@@ -750,30 +784,43 @@ class ProjectReportController extends Controller
                         $lw = $bbox[2] - $bbox[0];
                         imagettftext($hoursImage, 8, 0, (int)($x + $barWidth / 2 - $lw / 2), $startLabelY + ($li * $lineH), $textColor, $fontPath, $line);
                     }
+                } else {
+                    $maxChars = (int)(($barWidth + 20) / imagefontwidth(2));
+                    $truncated = strlen($taskName) > $maxChars ? substr($taskName, 0, $maxChars - 1) . '..' : $taskName;
+                    $lw = strlen($truncated) * imagefontwidth(2);
+                    imagestring($hoursImage, 2, (int)($x + $barWidth / 2 - $lw / 2), $baseY + 8, $truncated, $textColor);
                 }
             }
 
             // Legend + total
-            if (file_exists($fontPath)) {
-                $legendY = $imgH - 18;
-                imagefilledrectangle($hoursImage, $marginLeft, $legendY - 8, $marginLeft + 12, $legendY, $primaryColor);
+            $legendY = $imgH - 18;
+            imagefilledrectangle($hoursImage, $marginLeft, $legendY - 8, $marginLeft + 12, $legendY, $primaryColor);
+            if ($fontPath) {
                 imagettftext($hoursImage, 9, 0, $marginLeft + 18, $legendY, $textColor, $fontPath, 'Logged Hours');
                 $totalLabel = 'Total: ' . $totalLoggedHours . 'h';
                 $bbox = imagettfbbox(9, 0, $fontPath, $totalLabel);
                 $lw = $bbox[2] - $bbox[0];
                 imagettftext($hoursImage, 9, 0, $imgW - $marginRight - $lw, $legendY, $textColor, $fontPath, $totalLabel);
+            } else {
+                imagestring($hoursImage, 3, $marginLeft + 18, $legendY - 8, 'Logged Hours', $textColor);
+                $totalLabel = 'Total: ' . $totalLoggedHours . 'h';
+                $lw = strlen($totalLabel) * imagefontwidth(3);
+                imagestring($hoursImage, 3, $imgW - $marginRight - $lw, $legendY - 8, $totalLabel, $textColor);
             }
         } else {
             // No hours data — render a simple "No hours logged" placeholder
             $grayColor = imagecolorallocate($hoursImage, 156, 163, 175);
             imageline($hoursImage, $marginLeft, $baseY, $imgW - $marginRight, $baseY, $axisColor);
             imageline($hoursImage, $marginLeft, $marginTop, $marginLeft, $baseY, $axisColor);
-            if (file_exists($fontPath)) {
-                $msg = 'No hours logged for this project yet.';
+            $msg = 'No hours logged for this project yet.';
+            if ($fontPath) {
                 $bbox = imagettfbbox(13, 0, $fontPath, $msg);
                 $mx = (int)(($imgW - ($bbox[2] - $bbox[0])) / 2);
                 $my = (int)($marginTop + $chartH / 2);
                 imagettftext($hoursImage, 13, 0, $mx, $my, $grayColor, $fontPath, $msg);
+            } else {
+                $lw = strlen($msg) * imagefontwidth(4);
+                imagestring($hoursImage, 4, (int)(($imgW - $lw) / 2), (int)($marginTop + $chartH / 2 - imagefontheight(4) / 2), $msg, $grayColor);
             }
         }
 
@@ -1215,6 +1262,40 @@ class ProjectReportController extends Controller
         return $pdf->download($filename);
     }
 
+    private function resolveFont($bold = true)
+    {
+        $candidates = $bold ? [
+            '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf',
+            '/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf',
+            '/usr/share/fonts/truetype/freefont/FreeSansBold.ttf',
+            '/usr/share/fonts/TTF/DejaVuSans-Bold.ttf',
+            '/usr/local/share/fonts/DejaVuSans-Bold.ttf',
+        ] : [
+            '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf',
+            '/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf',
+            '/usr/share/fonts/truetype/freefont/FreeSans.ttf',
+            '/usr/share/fonts/TTF/DejaVuSans.ttf',
+            '/usr/local/share/fonts/DejaVuSans.ttf',
+        ];
+        foreach ($candidates as $path) {
+            if (file_exists($path)) return $path;
+        }
+        return null;
+    }
+
+    private function gdText($image, $x, $y, $text, $color, $fontSize = 3)
+    {
+        $font = min(5, max(1, $fontSize));
+        imagestring($image, $font, (int)$x, (int)$y - (int)(imagefontheight($font) / 2), $text, $color);
+    }
+
+    private function gdTextCentered($image, $centerX, $y, $text, $color, $fontSize = 3)
+    {
+        $font = min(5, max(1, $fontSize));
+        $tw = strlen($text) * imagefontwidth($font);
+        imagestring($image, $font, (int)($centerX - $tw / 2), (int)$y, $text, $color);
+    }
+
     private function generateProgressDonut($percentage, $pr, $pg, $pb)
     {
         $size = 400;
@@ -1253,24 +1334,23 @@ class ProjectReportController extends Controller
             imagefilledellipse($image, $endX, $endY, (int)($capRadius * 2), (int)($capRadius * 2), $primary);
         }
 
-        $fontPath = '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf';
-        $fontPathRegular = '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf';
+        $fontPath = $this->resolveFont(true);
+        $fontPathRegular = $this->resolveFont(false);
         $text = $percentage . '%';
-        if (file_exists($fontPath)) {
+        if ($fontPath) {
             $bbox = imagettfbbox(40, 0, $fontPath, $text);
             $textWidth = $bbox[2] - $bbox[0];
             $textHeight = $bbox[1] - $bbox[7];
             imagettftext($image, 40, 0, (int)($centerX - ($textWidth / 2)), (int)($centerY + ($textHeight / 2) - 8), $darkText, $fontPath, $text);
 
             $label = 'Complete';
-            $labelFont = file_exists($fontPathRegular) ? $fontPathRegular : $fontPath;
+            $labelFont = $fontPathRegular ?: $fontPath;
             $lbbox = imagettfbbox(12, 0, $labelFont, $label);
             $lw = $lbbox[2] - $lbbox[0];
             imagettftext($image, 12, 0, (int)($centerX - ($lw / 2)), (int)($centerY + $textHeight / 2 + 18), $subText, $labelFont, $label);
         } else {
-            $font = 5;
-            $tw = strlen($text) * imagefontwidth($font);
-            imagestring($image, $font, (int)($centerX - ($tw / 2)), (int)($centerY - (imagefontheight($font) / 2)), $text, $darkText);
+            $this->gdTextCentered($image, $centerX, $centerY - 8, $text, $darkText, 5);
+            $this->gdTextCentered($image, $centerX, $centerY + 12, 'Complete', $subText, 3);
         }
 
         ob_start();
@@ -1300,9 +1380,9 @@ class ProjectReportController extends Controller
         $gridColor = imagecolorallocate($image, 241, 245, 249);
         $axisColor = imagecolorallocate($image, 226, 232, 240);
 
-        $fontPath = '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf';
-        $fontPathRegular = '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf';
-        $labelFont = file_exists($fontPathRegular) ? $fontPathRegular : $fontPath;
+        $fontPath = $this->resolveFont(true);
+        $labelFont = $this->resolveFont(false) ?: $fontPath;
+        $hasTTF = $fontPath !== null;
 
         $maxValue = max(array_merge([1], array_values($priorityStats)));
         $step = max(1, ceil($maxValue / 4));
@@ -1316,14 +1396,18 @@ class ProjectReportController extends Controller
         $chartH = $imgH - $marginTop - $marginBottom;
         $baseY = $marginTop + $chartH;
 
-        // Grid lines
-        if (file_exists($fontPath)) {
-            for ($i = 0; $i <= $maxValue; $i += $step) {
-                $y = (int)($baseY - (($i / $maxValue) * $chartH));
-                imageline($image, $marginLeft, $y, $marginLeft + $chartW, $y, $i === 0 ? $axisColor : $gridColor);
+        // Grid lines & Y-axis labels
+        for ($i = 0; $i <= $maxValue; $i += $step) {
+            $y = (int)($baseY - (($i / $maxValue) * $chartH));
+            imageline($image, $marginLeft, $y, $marginLeft + $chartW, $y, $i === 0 ? $axisColor : $gridColor);
+            if ($hasTTF) {
                 $bbox = imagettfbbox(8, 0, $labelFont, (string)$i);
                 $lw = $bbox[2] - $bbox[0];
                 imagettftext($image, 8, 0, $marginLeft - $lw - 6, $y + 3, $textColor, $labelFont, (string)$i);
+            } else {
+                $label = (string)$i;
+                $lw = strlen($label) * imagefontwidth(2);
+                imagestring($image, 2, $marginLeft - $lw - 4, $y - 6, $label, $textColor);
             }
         }
 
@@ -1341,36 +1425,47 @@ class ProjectReportController extends Controller
 
             if ($barH > 0) {
                 imagefilledrectangle($image, $x, $y, $x + $barWidth, $baseY, $priorityColors[$priority]);
-                // Rounded top
                 imagefilledellipse($image, (int)($x + $barWidth / 2), $y, $barWidth, 8, $priorityColors[$priority]);
             }
 
-            if (file_exists($fontPath) && $value > 0) {
+            // Value above bar
+            if ($value > 0) {
                 $valStr = (string)$value;
-                $bbox = imagettfbbox(9, 0, $fontPath, $valStr);
-                $lw = $bbox[2] - $bbox[0];
-                imagettftext($image, 9, 0, (int)($x + $barWidth / 2 - $lw / 2), $y - 6, $darkText, $fontPath, $valStr);
+                if ($hasTTF) {
+                    $bbox = imagettfbbox(9, 0, $fontPath, $valStr);
+                    $lw = $bbox[2] - $bbox[0];
+                    imagettftext($image, 9, 0, (int)($x + $barWidth / 2 - $lw / 2), $y - 6, $darkText, $fontPath, $valStr);
+                } else {
+                    $lw = strlen($valStr) * imagefontwidth(3);
+                    imagestring($image, 3, (int)($x + $barWidth / 2 - $lw / 2), $y - 14, $valStr, $darkText);
+                }
             }
 
             // Label below bar
-            if (file_exists($labelFont)) {
-                $lbl = ucfirst($priority);
+            $lbl = ucfirst($priority);
+            if ($hasTTF) {
                 $bbox = imagettfbbox(8, 0, $labelFont, $lbl);
                 $lw = $bbox[2] - $bbox[0];
                 imagettftext($image, 8, 0, (int)($x + $barWidth / 2 - $lw / 2), $baseY + 16, $textColor, $labelFont, $lbl);
+            } else {
+                $lw = strlen($lbl) * imagefontwidth(2);
+                imagestring($image, 2, (int)($x + $barWidth / 2 - $lw / 2), $baseY + 4, $lbl, $textColor);
             }
             $idx++;
         }
 
         // Legend
-        if (file_exists($labelFont)) {
-            $legendX = $imgW - 105;
-            $legendY = $marginTop + 10;
-            foreach ($priorities as $priority) {
-                imagefilledrectangle($image, $legendX, $legendY, $legendX + 10, $legendY + 10, $priorityColors[$priority]);
-                imagettftext($image, 8, 0, $legendX + 15, $legendY + 9, $textColor, $labelFont, ucfirst($priority) . ' (' . ($priorityStats[$priority] ?? 0) . ')');
-                $legendY += 22;
+        $legendX = $imgW - 105;
+        $legendY = $marginTop + 10;
+        foreach ($priorities as $priority) {
+            imagefilledrectangle($image, $legendX, $legendY, $legendX + 10, $legendY + 10, $priorityColors[$priority]);
+            $legendLabel = ucfirst($priority) . ' (' . ($priorityStats[$priority] ?? 0) . ')';
+            if ($hasTTF) {
+                imagettftext($image, 8, 0, $legendX + 15, $legendY + 9, $textColor, $labelFont, $legendLabel);
+            } else {
+                imagestring($image, 2, $legendX + 14, $legendY, $legendLabel, $textColor);
             }
+            $legendY += 22;
         }
 
         ob_start();
@@ -1399,9 +1494,9 @@ class ProjectReportController extends Controller
         $textColor = imagecolorallocate($image, 71, 85, 105);
         $darkText = imagecolorallocate($image, 15, 23, 42);
         $whiteColor = imagecolorallocate($image, 255, 255, 255);
-        $fontPath = '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf';
-        $fontPathRegular = '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf';
-        $labelFont = file_exists($fontPathRegular) ? $fontPathRegular : $fontPath;
+        $fontPath = $this->resolveFont(true);
+        $labelFont = $this->resolveFont(false) ?: $fontPath;
+        $hasTTF = $fontPath !== null;
 
         $total = array_sum($statusStats);
         if ($total > 0) {
@@ -1411,19 +1506,17 @@ class ProjectReportController extends Controller
             $outerRadius = 95;
             $innerRadius = 55;
 
-            // Draw donut (modern pie = donut)
             foreach ($statusStats as $status => $count) {
                 $angle = ($count / $total) * 360;
                 $color = $statusColorMap[$status] ?? imagecolorallocate($image, 180, 180, 180);
                 imagefilledarc($image, $centerX, $centerY, $outerRadius * 2, $outerRadius * 2, (int)$startAngle, (int)($startAngle + $angle), $color, IMG_ARC_PIE);
                 $startAngle += $angle;
             }
-            // Cut out center for donut effect
             imagefilledellipse($image, $centerX, $centerY, $innerRadius * 2, $innerRadius * 2, $white);
 
             // Center total text
-            if (file_exists($fontPath)) {
-                $totalStr = (string)$total;
+            $totalStr = (string)$total;
+            if ($hasTTF) {
                 $bbox = imagettfbbox(22, 0, $fontPath, $totalStr);
                 $lw = $bbox[2] - $bbox[0];
                 imagettftext($image, 22, 0, (int)($centerX - $lw / 2), $centerY + 4, $darkText, $fontPath, $totalStr);
@@ -1432,26 +1525,34 @@ class ProjectReportController extends Controller
                 $bbox2 = imagettfbbox(9, 0, $labelFont, $sublabel);
                 $lw2 = $bbox2[2] - $bbox2[0];
                 imagettftext($image, 9, 0, (int)($centerX - $lw2 / 2), $centerY + 20, $textColor, $labelFont, $sublabel);
+            } else {
+                $this->gdTextCentered($image, $centerX, $centerY - 6, $totalStr, $darkText, 5);
+                $this->gdTextCentered($image, $centerX, $centerY + 8, 'tasks', $textColor, 2);
             }
 
             // Legend on right
-            if (file_exists($labelFont)) {
-                $legendX = 260;
-                $legendY = 35;
-                foreach ($statusStats as $status => $count) {
-                    $color = $statusColorMap[$status] ?? imagecolorallocate($image, 180, 180, 180);
-                    $pct = round(($count / $total) * 100);
+            $legendX = 260;
+            $legendY = 35;
+            foreach ($statusStats as $status => $count) {
+                $color = $statusColorMap[$status] ?? imagecolorallocate($image, 180, 180, 180);
+                $pct = round(($count / $total) * 100);
 
-                    imagefilledrectangle($image, $legendX, $legendY, $legendX + 12, $legendY + 12, $color);
+                imagefilledrectangle($image, $legendX, $legendY, $legendX + 12, $legendY + 12, $color);
+                if ($hasTTF) {
                     imagettftext($image, 9, 0, $legendX + 18, $legendY + 10, $darkText, $labelFont, $status);
                     imagettftext($image, 9, 0, $legendX + 18, $legendY + 26, $textColor, $labelFont, $count . ' (' . $pct . '%)');
-                    $legendY += 38;
+                } else {
+                    imagestring($image, 2, $legendX + 16, $legendY, $status, $darkText);
+                    imagestring($image, 2, $legendX + 16, $legendY + 14, $count . ' (' . $pct . '%)', $textColor);
                 }
+                $legendY += 38;
             }
         } else {
-            if (file_exists($fontPath)) {
-                $grayColor = imagecolorallocate($image, 156, 163, 175);
+            $grayColor = imagecolorallocate($image, 156, 163, 175);
+            if ($hasTTF) {
                 imagettftext($image, 12, 0, 180, 120, $grayColor, $fontPath, 'No tasks');
+            } else {
+                imagestring($image, 4, 180, 110, 'No tasks', $grayColor);
             }
         }
 
@@ -1480,21 +1581,22 @@ class ProjectReportController extends Controller
         imagefill($image, 0, 0, $white);
 
         $primary = imagecolorallocate($image, $pr, $pg, $pb);
-        $primaryLight = imagecolorallocate($image, (int)($pr + (255 - $pr) * 0.3), (int)($pg + (255 - $pg) * 0.3), (int)($pb + (255 - $pb) * 0.3));
         $textColor = imagecolorallocate($image, 71, 85, 105);
         $darkText = imagecolorallocate($image, 15, 23, 42);
         $axisColor = imagecolorallocate($image, 226, 232, 240);
         $gridColor = imagecolorallocate($image, 241, 245, 249);
 
-        $fontPath = '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf';
-        $fontPathRegular = '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf';
-        $labelFont = file_exists($fontPathRegular) ? $fontPathRegular : $fontPath;
+        $fontPath = $this->resolveFont(true);
+        $labelFont = $this->resolveFont(false) ?: $fontPath;
+        $hasTTF = $fontPath !== null;
 
         if (count($hoursData) === 0 || max(array_column($hoursData, 'logged_hours')) == 0) {
             $grayColor = imagecolorallocate($image, 156, 163, 175);
             imageline($image, $marginLeft, $baseY, $imgW - $marginRight, $baseY, $axisColor);
-            if (file_exists($fontPath)) {
+            if ($hasTTF) {
                 imagettftext($image, 11, 0, (int)($imgW / 2 - 60), (int)($imgH / 2), $grayColor, $labelFont, 'No hours logged');
+            } else {
+                imagestring($image, 4, (int)($imgW / 2 - 50), (int)($imgH / 2 - 8), 'No hours logged', $grayColor);
             }
             ob_start();
             imagepng($image);
@@ -1509,15 +1611,18 @@ class ProjectReportController extends Controller
         $step = max(1, ceil($maxHours / 5));
         $maxHours = $step * ceil($maxHours / $step);
 
-        // Grid lines
-        if (file_exists($labelFont)) {
-            for ($i = 0; $i <= $maxHours; $i += $step) {
-                $y = (int)($baseY - (($i / $maxHours) * $chartH));
-                imageline($image, $marginLeft, $y, $imgW - $marginRight, $y, $i === 0 ? $axisColor : $gridColor);
-                $label = $i . 'h';
+        // Grid lines & Y-axis labels
+        for ($i = 0; $i <= $maxHours; $i += $step) {
+            $y = (int)($baseY - (($i / $maxHours) * $chartH));
+            imageline($image, $marginLeft, $y, $imgW - $marginRight, $y, $i === 0 ? $axisColor : $gridColor);
+            $label = $i . 'h';
+            if ($hasTTF) {
                 $bbox = imagettfbbox(8, 0, $labelFont, $label);
                 $lw = $bbox[2] - $bbox[0];
                 imagettftext($image, 8, 0, $marginLeft - $lw - 6, $y + 3, $textColor, $labelFont, $label);
+            } else {
+                $lw = strlen($label) * imagefontwidth(2);
+                imagestring($image, 2, $marginLeft - $lw - 4, $y - 6, $label, $textColor);
             }
         }
 
@@ -1536,27 +1641,38 @@ class ProjectReportController extends Controller
             }
 
             // Value above bar
-            if (file_exists($fontPath) && $hours > 0) {
+            if ($hours > 0) {
                 $valLabel = $hours . 'h';
-                $bbox = imagettfbbox(9, 0, $fontPath, $valLabel);
-                $lw = $bbox[2] - $bbox[0];
-                imagettftext($image, 9, 0, (int)($x + $barWidth / 2 - $lw / 2), $y - 7, $darkText, $fontPath, $valLabel);
+                if ($hasTTF) {
+                    $bbox = imagettfbbox(9, 0, $fontPath, $valLabel);
+                    $lw = $bbox[2] - $bbox[0];
+                    imagettftext($image, 9, 0, (int)($x + $barWidth / 2 - $lw / 2), $y - 7, $darkText, $fontPath, $valLabel);
+                } else {
+                    $lw = strlen($valLabel) * imagefontwidth(2);
+                    imagestring($image, 2, (int)($x + $barWidth / 2 - $lw / 2), $y - 14, $valLabel, $darkText);
+                }
             }
 
-            // Task name below (angled for readability)
-            if (file_exists($labelFont)) {
-                $taskName = mb_strlen($taskData['task_name']) > 16 ? mb_substr($taskData['task_name'], 0, 14) . '..' : $taskData['task_name'];
+            // Task name below
+            $taskName = mb_strlen($taskData['task_name']) > 16 ? mb_substr($taskData['task_name'], 0, 14) . '..' : $taskData['task_name'];
+            if ($hasTTF) {
                 imagettftext($image, 7, 30, (int)($x + $barWidth / 2 - 2), $baseY + 16, $textColor, $labelFont, $taskName);
+            } else {
+                $shortName = strlen($taskName) > 10 ? substr($taskName, 0, 8) . '..' : $taskName;
+                imagestring($image, 1, (int)($x), $baseY + 4, $shortName, $textColor);
             }
         }
 
         // Total label at bottom-right
-        if (file_exists($labelFont)) {
-            $totalHours = array_sum(array_column($hoursData, 'logged_hours'));
-            $totalLabel = 'Total: ' . round($totalHours, 1) . 'h';
+        $totalHours = array_sum(array_column($hoursData, 'logged_hours'));
+        $totalLabel = 'Total: ' . round($totalHours, 1) . 'h';
+        if ($hasTTF) {
             $bbox = imagettfbbox(9, 0, $fontPath, $totalLabel);
             $lw = $bbox[2] - $bbox[0];
             imagettftext($image, 9, 0, $imgW - $marginRight - $lw, $imgH - 10, $darkText, $fontPath, $totalLabel);
+        } else {
+            $lw = strlen($totalLabel) * imagefontwidth(3);
+            imagestring($image, 3, $imgW - $marginRight - $lw, $imgH - 18, $totalLabel, $darkText);
         }
 
         ob_start();
