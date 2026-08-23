@@ -287,7 +287,9 @@ export default function TaskFormModal({ isOpen, onClose, task, projects, members
                                 value={formData.start_date}
                                 required
                                 onChange={(e) => setFormData({...formData, start_date: e.target.value})}
+                                className={errors.start_date ? 'border-red-500' : ''}
                             />
+                            {errors.start_date && <p className="text-red-500 text-xs mt-1">{errors.start_date}</p>}
                         </div>
 
                         <div>
@@ -300,7 +302,9 @@ export default function TaskFormModal({ isOpen, onClose, task, projects, members
                                 value={formData.end_date}
                                 min={formData.start_date}
                                 onChange={(e) => setFormData({...formData, end_date: e.target.value})}
+                                className={errors.end_date ? 'border-red-500' : ''}
                             />
+                            {errors.end_date && <p className="text-red-500 text-xs mt-1">{errors.end_date}</p>}
                         </div>
                     </div>
 
