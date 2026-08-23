@@ -906,8 +906,12 @@ function FileCard({ file, viewMode, onView, onDownload, onLock, onMove, onDelete
         <div className="group relative flex flex-col rounded-lg border overflow-hidden hover:border-primary/50 transition-colors cursor-pointer" onClick={onView}>
             <div className="relative bg-muted h-24 flex items-center justify-center overflow-hidden">
                 {isImage ? (
-                    <img src={file.thumb_url} alt={file.name} className="w-full h-full object-cover" loading="lazy"
-                        onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; (e.target as HTMLImageElement).nextElementSibling?.removeAttribute('hidden'); }} />
+                    <img src={file.thumb_url || file.url} alt={file.name} className="w-full h-full object-cover" loading="lazy"
+                        onError={(e) => {
+                            const img = e.target as HTMLImageElement;
+                            if (img.src !== file.url) { img.src = file.url; }
+                            else { img.style.display = 'none'; img.nextElementSibling?.removeAttribute('hidden'); }
+                        }} />
                 ) : null}
                 <div className={`flex flex-col items-center gap-1 ${isImage ? 'hidden' : ''}`}>
                     <FileIcon mimeType={file.mime_type} className="w-8 h-8 text-muted-foreground/50" />
