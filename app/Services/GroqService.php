@@ -93,17 +93,15 @@ class GroqService
         $workspace = $user->currentWorkspace;
         $wsName    = $workspace ? $workspace->name : 'your workspace';
 
-        // Keep base prompt minimal to stay within token-per-minute limits
-        $base = "You are Mzitshwa, an AI assistant for Team Truth (workspace: {$wsName}, user: {$user->name}). "
-              . "Help with projects, tasks, timesheets, invoices, expenses, and ICT tickets. "
-              . "Be concise. Use markdown. Quote numbers when available.";
+        $base = "You are Mzitshwa, the built-in AI assistant for the Team Truth project management platform. "
+              . "You are PART of this system — you have direct access to workspace data below. "
+              . "Workspace: {$wsName}. User: {$user->name}. "
+              . "Answer questions using the data provided. Never say you don't have access. "
+              . "Be concise. Use markdown formatting. Quote specific numbers and task names.";
 
-        // Only inject live workspace data when a specific context tab is selected
-        if ($contextType !== 'general') {
-            $contextData = $this->fetchContextData($user, $contextType);
-            if ($contextData) {
-                $base .= "\n\n--- {$contextType} data ---\n" . $contextData;
-            }
+        $contextData = $this->fetchContextData($user, $contextType);
+        if ($contextData) {
+            $base .= "\n\n--- LIVE WORKSPACE DATA ({$contextType}) ---\n" . $contextData;
         }
 
         return $base;
@@ -136,22 +134,44 @@ class GroqService
     private function generalContext($user, $workspaceId): string
     {
         $projects = Project::where('workspace_id', $workspaceId)->get();
-        $tasks    = Task::whereHas('project', fn($q) => $q->where('workspace_id', $workspaceId))->get();
-        $bugs     = Bug::whereHas('project', fn($q) => $q->where('workspace_id', $workspaceId))->get();
+        $tasks    = Task::whereHas('project', fn($q) => $q->where('workspace_id', $workspaceId))
+            ->with(['project', 'assignedTo'])
+            ->get();
+        $bugs     = Bug::whereHas('project', fn($q) => $q->where('workspace_id', $workspaceId))
+            ->with('project')
+            ->get();
 
         $projectStats = $projects->groupBy('status')->map->count();
         $taskStats    = $tasks->groupBy('status')->map->count();
 
         $overdueTasks = $tasks->filter(fn($t) =>
             $t->due_date && $t->due_date < now() && $t->status !== 'completed'
-        )->count();
+        );
 
-        return "Projects: {$projects->count()} total | " .
-            $projectStats->map(fn($c, $s) => "$s: $c")->implode(', ') . "\n" .
-            "Tasks: {$tasks->count()} total | " .
-            $taskStats->map(fn($c, $s) => "$s: $c")->implode(', ') . "\n" .
-            "Overdue tasks: {$overdueTasks}\n" .
-            "Open bugs: " . $bugs->whereNotIn('status', ['resolved', 'closed'])->count();
+        $lines = [
+            "Projects: {$projects->count()} total | " . $projectStats->map(fn($c, $s) => "$s: $c")->implode(', '),
+            "Tasks: {$tasks->count()} total | " . $taskStats->map(fn($c, $s) => "$s: $c")->implode(', '),
+            "Overdue tasks: {$overdueTasks->count()}",
+        ];
+
+        if ($overdueTasks->count()) {
+            $lines[] = "Overdue task details:";
+            foreach ($overdueTasks->take(15) as $t) {
+                $assignee = $t->assignedTo ? $t->assignedTo->name : 'Unassigned';
+                $project  = $t->project ? $t->project->title : 'No project';
+                $lines[]  = "  - \"{$t->title}\" | Project: {$project} | Assigned: {$assignee} | Due: {$t->due_date} | Priority: {$t->priority}";
+            }
+        }
+
+        $openBugs = $bugs->whereNotIn('status', ['resolved', 'closed']);
+        $lines[] = "Open bugs: {$openBugs->count()}";
+        if ($openBugs->count()) {
+            foreach ($openBugs->take(10) as $b) {
+                $lines[] = "  - \"{$b->title}\" | Project: {$b->project->title} | Severity: {$b->severity} | Status: {$b->status}";
+            }
+        }
+
+        return implode("\n", $lines);
     }
 
     private function projectsContext($workspaceId): string
@@ -185,8 +205,9 @@ class GroqService
     {
         $tasks = Task::whereHas('project', fn($q) => $q->where('workspace_id', $workspaceId))
             ->with(['project', 'assignedTo'])
-            ->where(fn($q) => $q->where('assigned_to', $user->id)->orWhere('created_by', $user->id))
             ->get();
+
+        $myTasks = $tasks->filter(fn($t) => $t->assigned_to == $user->id || $t->created_by == $user->id);
 
         $byStatus   = $tasks->groupBy('status')->map->count();
         $byPriority = $tasks->groupBy('priority')->map->count();
@@ -195,14 +216,28 @@ class GroqService
         );
 
         $lines = [
-            "My Tasks: {$tasks->count()} total",
+            "All workspace tasks: {$tasks->count()} total",
+            "My tasks: {$myTasks->count()}",
             "By status: " . $byStatus->map(fn($c, $s) => "$s=$c")->implode(', '),
             "By priority: " . $byPriority->map(fn($c, $p) => "$p=$c")->implode(', '),
             "Overdue: {$overdue->count()}",
         ];
 
         if ($overdue->count()) {
-            $lines[] = "Overdue task titles: " . $overdue->pluck('title')->take(5)->implode(', ');
+            $lines[] = "\nOverdue tasks:";
+            foreach ($overdue->take(15) as $t) {
+                $assignee = $t->assignedTo ? $t->assignedTo->name : 'Unassigned';
+                $lines[]  = "  - \"{$t->title}\" | Project: {$t->project->title} | Assigned: {$assignee} | Due: {$t->due_date} | Priority: {$t->priority}";
+            }
+        }
+
+        $inProgress = $tasks->where('status', 'in_progress')->take(10);
+        if ($inProgress->count()) {
+            $lines[] = "\nIn-progress tasks:";
+            foreach ($inProgress as $t) {
+                $assignee = $t->assignedTo ? $t->assignedTo->name : 'Unassigned';
+                $lines[]  = "  - \"{$t->title}\" | Project: {$t->project->title} | Assigned: {$assignee}" . ($t->due_date ? " | Due: {$t->due_date}" : '');
+            }
         }
 
         return implode("\n", $lines);
