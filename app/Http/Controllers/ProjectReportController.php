@@ -380,9 +380,9 @@ class ProjectReportController extends Controller
         $pg = hexdec(substr($primaryHex, 2, 2));
         $pb = hexdec(substr($primaryHex, 4, 2));
 
-        $gray = imagecolorallocate($image, 229, 231, 235);
+        $gray = imagecolorallocate($image, 241, 245, 249);
         $orange = imagecolorallocate($image, $pr, $pg, $pb);
-        $black = imagecolorallocate($image, 31, 41, 55);
+        $black = imagecolorallocate($image, 15, 23, 42);
         $white = imagecolorallocate($image, 255, 255, 255);
 
         // Draw background donut (gray) - full circle
@@ -466,9 +466,9 @@ class ProjectReportController extends Controller
         $arcTransparent = imagecolorallocatealpha($arcImage, 0, 0, 0, 127);
         imagefill($arcImage, 0, 0, $arcTransparent);
 
-        $arcGray = imagecolorallocate($arcImage, 229, 231, 235);
+        $arcGray = imagecolorallocate($arcImage, 241, 245, 249);
         $arcGreen = imagecolorallocate($arcImage, $pr, $pg, $pb);
-        $arcBlack = imagecolorallocate($arcImage, 31, 41, 55);
+        $arcBlack = imagecolorallocate($arcImage, 15, 23, 42);
         $arcWhite = imagecolorallocate($arcImage, 255, 255, 255);
 
         $arcCenterX = $arcSize / 2;
@@ -525,84 +525,61 @@ class ProjectReportController extends Controller
 
         $base64ArcImage = base64_encode($arcImageData);
 
-        // Generate Task Priority bar chart
+        // Generate Task Priority horizontal bar chart (modern style)
         $priorityStats = $stats['priority_stats'] ?? [];
-        $priorityImage = imagecreatetruecolor(450, 180);
-        imagesavealpha($priorityImage, true);
-        $priorityTransparent = imagecolorallocatealpha($priorityImage, 0, 0, 0, 127);
-        imagefill($priorityImage, 0, 0, $priorityTransparent);
+        $priorityImage = imagecreatetruecolor(420, 160);
+        $priorityWhite = imagecolorallocate($priorityImage, 255, 255, 255);
+        imagefill($priorityImage, 0, 0, $priorityWhite);
 
         $priorityColors = [
             'critical' => imagecolorallocate($priorityImage, 220, 38, 38),
-            'high' => imagecolorallocate($priorityImage, 234, 88, 12),
-            'medium' => imagecolorallocate($priorityImage, 202, 138, 4),
-            'low' => imagecolorallocate($priorityImage, $pr, $pg, $pb)
+            'high' => imagecolorallocate($priorityImage, 249, 115, 22),
+            'medium' => imagecolorallocate($priorityImage, 245, 158, 11),
+            'low' => imagecolorallocate($priorityImage, 16, 185, 129)
         ];
-        $textColor = imagecolorallocate($priorityImage, 0, 0, 0);
-        $axisColor = imagecolorallocate($priorityImage, 200, 200, 200);
+        $trackColor = imagecolorallocate($priorityImage, 241, 245, 249);
+        $textColor = imagecolorallocate($priorityImage, 51, 65, 85);
+        $valueColor = imagecolorallocate($priorityImage, 15, 23, 42);
 
         $maxValue = max(array_merge([1], array_values($priorityStats)));
-        $barWidth = 50;
-        $barSpacing = 25;
-        $startX = 60;
-        $chartHeight = 110;
-        $baseY = 140;
-
-        // Draw axis
-        imageline($priorityImage, 45, $baseY, 300, $baseY, $axisColor);
-        imageline($priorityImage, 45, 30, 45, $baseY, $axisColor);
-
-        // Draw Y-axis labels
-        for ($i = 0; $i <= $maxValue; $i++) {
-            $y = $baseY - (($i / $maxValue) * $chartHeight);
-            imageline($priorityImage, 43, $y, 47, $y, $axisColor);
-            if ($fontPath) {
-                imagettftext($priorityImage, 10, 0, 25, $y + 4, $textColor, $fontPath, $i);
-            } else {
-                imagestring($priorityImage, 2, 28, (int)$y - 6, (string)$i, $textColor);
-            }
-        }
+        $barHeight = 18;
+        $barSpacing = 36;
+        $labelX = 10;
+        $barStartX = 85;
+        $barMaxWidth = 260;
+        $startY = 14;
 
         $i = 0;
         foreach (['critical', 'high', 'medium', 'low'] as $priority) {
             $value = $priorityStats[$priority] ?? 0;
-            $barHeight = $maxValue > 0 ? ($value / $maxValue) * $chartHeight : 0;
-            $x = $startX + ($i * ($barWidth + $barSpacing));
-            $y = $baseY - $barHeight;
+            $barW = $maxValue > 0 ? ($value / $maxValue) * $barMaxWidth : 0;
+            $y = $startY + ($i * $barSpacing);
 
-            imagefilledrectangle($priorityImage, $x, $y, $x + $barWidth, $baseY, $priorityColors[$priority]);
-
-            if ($fontPath) {
-                imagettftext($priorityImage, 12, 0, $x + 18, $y - 8, $textColor, $fontPath, $value);
-            } else {
-                imagestring($priorityImage, 3, $x + 18, (int)$y - 16, (string)$value, $textColor);
-            }
-
-            // Label below bar
+            // Label
             $lbl = ucfirst($priority);
             if ($fontPath) {
-                $bbox = imagettfbbox(8, 0, $fontPath, $lbl);
-                $lw = $bbox[2] - $bbox[0];
-                imagettftext($priorityImage, 8, 0, (int)($x + $barWidth / 2 - $lw / 2), $baseY + 14, $textColor, $fontPath, $lbl);
+                imagettftext($priorityImage, 10, 0, $labelX, $y + 13, $textColor, $fontPath, $lbl);
             } else {
-                $lw = strlen($lbl) * imagefontwidth(2);
-                imagestring($priorityImage, 2, (int)($x + $barWidth / 2 - $lw / 2), $baseY + 4, $lbl, $textColor);
+                imagestring($priorityImage, 3, $labelX, (int)$y + 2, $lbl, $textColor);
             }
-            $i++;
-        }
 
-        // Add legend on right side
-        $legendX = 370;
-        $legendY = 50;
-        foreach (['critical', 'high', 'medium', 'low'] as $priority) {
-            imagefilledrectangle($priorityImage, $legendX, $legendY, $legendX + 12, $legendY + 12, $priorityColors[$priority]);
-            $legendLabel = ucfirst($priority);
-            if ($fontPath) {
-                imagettftext($priorityImage, 11, 0, $legendX + 20, $legendY + 10, $textColor, $fontPath, $legendLabel);
-            } else {
-                imagestring($priorityImage, 2, $legendX + 16, $legendY, $legendLabel, $textColor);
+            // Track (rounded background)
+            imagefilledrectangle($priorityImage, $barStartX, $y + 2, $barStartX + $barMaxWidth, $y + $barHeight + 2, $trackColor);
+
+            // Filled bar
+            if ($barW > 0) {
+                imagefilledrectangle($priorityImage, $barStartX, $y + 2, (int)($barStartX + $barW), $y + $barHeight + 2, $priorityColors[$priority]);
             }
-            $legendY += 26;
+
+            // Value at end
+            $valText = (string)$value;
+            if ($fontPath) {
+                imagettftext($priorityImage, 11, 0, $barStartX + $barMaxWidth + 12, $y + 14, $valueColor, $fontPath, $valText);
+            } else {
+                imagestring($priorityImage, 3, $barStartX + $barMaxWidth + 10, (int)$y + 2, $valText, $valueColor);
+            }
+
+            $i++;
         }
 
         ob_start();
@@ -611,64 +588,71 @@ class ProjectReportController extends Controller
         imagedestroy($priorityImage);
         $base64PriorityImage = base64_encode($priorityImageData);
 
-        // Generate Task Status pie chart
+        // Generate Task Status donut chart (modern style)
         $statusStats = $stats['status_stats'] ?? [];
-        $statusImage = imagecreatetruecolor(450, 220);
-        imagesavealpha($statusImage, true);
-        $statusTransparent = imagecolorallocatealpha($statusImage, 0, 0, 0, 127);
-        imagefill($statusImage, 0, 0, $statusTransparent);
+        $statusImage = imagecreatetruecolor(420, 200);
+        $statusWhite = imagecolorallocate($statusImage, 255, 255, 255);
+        imagefill($statusImage, 0, 0, $statusWhite);
 
         $statusColorMap = [
-            'To Do' => imagecolorallocate($statusImage, 107, 114, 128),
+            'To Do' => imagecolorallocate($statusImage, 100, 116, 139),
             'In Progress' => imagecolorallocate($statusImage, 59, 130, 246),
-            'Review' => imagecolorallocate($statusImage, 168, 85, 247),
-            'Done' => imagecolorallocate($statusImage, 34, 197, 94),
+            'Review' => imagecolorallocate($statusImage, 139, 92, 246),
+            'Done' => imagecolorallocate($statusImage, 16, 185, 129),
             'Blocked' => imagecolorallocate($statusImage, 239, 68, 68)
         ];
-        $textColor = imagecolorallocate($statusImage, 0, 0, 0);
+        $textColor = imagecolorallocate($statusImage, 51, 65, 85);
         $whiteColor = imagecolorallocate($statusImage, 255, 255, 255);
+        $centerTextColor = imagecolorallocate($statusImage, 15, 23, 42);
 
         $total = array_sum($statusStats);
         if ($total > 0) {
-            $startAngle = 0;
-            $centerX = 110;
-            $centerY = 110;
-            $radius = 85;
+            $startAngle = -90;
+            $centerX = 100;
+            $centerY = 100;
+            $outerRadius = 80;
+            $innerRadius = 50;
 
+            // Draw donut slices
             foreach ($statusStats as $status => $count) {
                 $angle = ($count / $total) * 360;
                 $color = $statusColorMap[$status] ?? imagecolorallocate($statusImage, 150, 150, 150);
-                imagefilledarc($statusImage, $centerX, $centerY, $radius * 2, $radius * 2, $startAngle, $startAngle + $angle, $color, IMG_ARC_PIE);
-
-                // Add percentage on slice
-                if ($angle > 10) {
-                    $percentage = round(($count / $total) * 100);
-                    $labelAngle = deg2rad($startAngle + ($angle / 2));
-                    $labelX = $centerX + (cos($labelAngle) * $radius * 0.65);
-                    $labelY = $centerY + (sin($labelAngle) * $radius * 0.65);
-                    if ($fontPath) {
-                        imagettftext($statusImage, 11, 0, (int)$labelX - 12, (int)$labelY + 5, $whiteColor, $fontPath, $percentage . '%');
-                    } else {
-                        imagestring($statusImage, 2, (int)$labelX - 8, (int)$labelY - 4, $percentage . '%', $whiteColor);
-                    }
-                }
-
+                imagefilledarc($statusImage, $centerX, $centerY, $outerRadius * 2, $outerRadius * 2, $startAngle, $startAngle + $angle, $color, IMG_ARC_PIE);
                 $startAngle += $angle;
             }
 
-            // Add legend on right side
-            $legendX = 250;
-            $legendY = 40;
+            // Cut out center to make donut
+            imagefilledellipse($statusImage, $centerX, $centerY, $innerRadius * 2, $innerRadius * 2, $whiteColor);
+
+            // Center total text
+            $totalText = (string)$total;
+            if ($fontPath) {
+                $bbox = imagettfbbox(18, 0, $fontPath, $totalText);
+                $tw = $bbox[2] - $bbox[0];
+                imagettftext($statusImage, 18, 0, $centerX - (int)($tw / 2), $centerY + 7, $centerTextColor, $fontPath, $totalText);
+            } else {
+                $tw = strlen($totalText) * imagefontwidth(5);
+                imagestring($statusImage, 5, $centerX - (int)($tw / 2), $centerY - (int)(imagefontheight(5) / 2), $totalText, $centerTextColor);
+            }
+
+            // Legend on right side
+            $legendX = 210;
+            $legendY = 30;
             foreach ($statusStats as $status => $count) {
                 $color = $statusColorMap[$status] ?? imagecolorallocate($statusImage, 150, 150, 150);
+                $pct = round(($count / $total) * 100);
 
-                imagefilledellipse($statusImage, $legendX, $legendY, 12, 12, $color);
+                // Color dot
+                imagefilledellipse($statusImage, $legendX + 6, $legendY + 6, 12, 12, $color);
+
+                // Status name and count
+                $legendText = $status . ' (' . $count . ')';
                 if ($fontPath) {
-                    imagettftext($statusImage, 11, 0, $legendX + 20, $legendY + 5, $textColor, $fontPath, $status);
+                    imagettftext($statusImage, 10, 0, $legendX + 18, $legendY + 10, $textColor, $fontPath, $legendText);
                 } else {
-                    imagestring($statusImage, 2, $legendX + 16, $legendY - 4, $status, $textColor);
+                    imagestring($statusImage, 2, $legendX + 16, $legendY, $legendText, $textColor);
                 }
-                $legendY += 28;
+                $legendY += 30;
             }
         }
 

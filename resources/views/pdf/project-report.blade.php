@@ -8,173 +8,206 @@
 
         body {
             font-family: DejaVu Sans, Arial, sans-serif;
-            font-size: 14px;
-            color: #1f2937;
+            font-size: 13px;
+            color: #1e293b;
             background: #fff;
         }
 
-        .container { padding: 24px 28px 32px; }
+        .container { padding: 0; }
 
-        /* ── Report title ── */
-        .report-heading {
-            margin-bottom: 22px;
-            padding-bottom: 14px;
-            border-bottom: 2px solid {{ $primaryColor }};
+        /* ── Modern header band ── */
+        .report-header {
+            background: #0f172a;
+            color: #fff;
+            padding: 28px 32px 24px;
+            margin-bottom: 24px;
         }
-        .report-heading .project-title {
-            font-size: 26px;
+        .report-header .project-title {
+            font-size: 28px;
             font-weight: bold;
-            color: #0f172a;
-            margin-bottom: 4px;
+            color: #ffffff;
+            margin-bottom: 6px;
+            letter-spacing: -0.5px;
         }
-        .report-heading .report-meta {
-            font-size: 12px;
-            color: #6b7280;
+        .report-header .report-meta {
+            font-size: 11px;
+            color: #94a3b8;
+            letter-spacing: 0.3px;
         }
+        .report-header .report-meta strong {
+            color: #e2e8f0;
+        }
+
+        .content { padding: 0 28px 32px; }
 
         /* ── Section title ── */
         .section-title {
-            font-size: 15px;
+            font-size: 13px;
             font-weight: bold;
             color: #0f172a;
-            border-left: 4px solid {{ $primaryColor }};
-            padding-left: 8px;
-            margin-bottom: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            padding-bottom: 8px;
+            margin-bottom: 14px;
+            border-bottom: 2px solid {{ $primaryColor }};
         }
 
         /* ── Card ── */
         .card {
             background: #fff;
             border: 1px solid #e2e8f0;
-            border-radius: 8px;
-            padding: 16px 18px;
-            margin-bottom: 18px;
+            border-radius: 10px;
+            padding: 18px 20px;
+            margin-bottom: 20px;
         }
 
-        /* ── Info grid ── */
-        .info-grid { width: 100%; border-collapse: collapse; }
-        .info-grid td { padding: 5px 10px 5px 0; vertical-align: top; width: 50%; }
-        .info-label { font-size: 11px; color: #6b7280; letter-spacing: 0.3px; margin-bottom: 3px; }
-        .info-value { font-size: 13px; font-weight: 600; color: #1f2937; }
+        /* ── Overview section ── */
+        .overview-grid { width: 100%; border-collapse: collapse; }
+        .overview-grid td { padding: 5px 10px 5px 0; vertical-align: top; }
+        .info-label { font-size: 10px; color: #94a3b8; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 3px; }
+        .info-value { font-size: 14px; font-weight: 700; color: #1e293b; }
 
         /* ── Stat boxes ── */
-        .stat-boxes { width: 100%; border-collapse: collapse; margin-top: 12px; }
-        .stat-boxes td { width: 25%; padding: 3px; }
+        .stat-boxes { width: 100%; border-collapse: collapse; margin-top: 14px; }
+        .stat-boxes td { width: 25%; padding: 4px; }
         .stat-box {
             background: #f8fafc;
             border: 1px solid #e2e8f0;
-            border-radius: 6px;
-            padding: 10px 8px;
+            border-radius: 8px;
+            padding: 12px 8px;
             text-align: center;
         }
-        .stat-box .stat-num { font-size: 22px; font-weight: bold; color: {{ $primaryColor }}; }
-        .stat-box .stat-lbl { font-size: 11px; color: #6b7280; letter-spacing: 0.3px; margin-top: 3px; }
+        .stat-box .stat-num { font-size: 24px; font-weight: 800; color: #0f172a; }
+        .stat-box .stat-lbl { font-size: 10px; color: #64748b; letter-spacing: 0.3px; margin-top: 3px; text-transform: uppercase; }
 
         /* ── Charts row ── */
-        .charts-table { width: 100%; border-collapse: collapse; margin-bottom: 18px; }
+        .charts-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
         .charts-table td { vertical-align: top; padding: 0 6px; }
         .charts-table td:first-child { padding-left: 0; }
         .charts-table td:last-child { padding-right: 0; }
 
         /* ── Data tables ── */
         .data-table { width: 100%; border-collapse: collapse; }
-        .data-table thead tr { background: #f8fafc; }
+        .data-table thead tr { background: #f1f5f9; }
         .data-table th {
-            padding: 9px 12px;
+            padding: 10px 12px;
             text-align: left;
-            font-size: 11px;
+            font-size: 10px;
             font-weight: 700;
             color: #475569;
-            letter-spacing: 0.3px;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
             border-bottom: 2px solid #e2e8f0;
         }
         .data-table td {
             padding: 9px 12px;
-            font-size: 13px;
-            color: #374151;
+            font-size: 12px;
+            color: #334155;
             border-bottom: 1px solid #f1f5f9;
         }
         .data-table tbody tr:last-child td { border-bottom: none; }
-        .data-table tbody tr:nth-child(even) td { background: #fafafa; }
 
-        /* ── Badges — matching app UI exactly ── */
+        /* ── Badges ── */
         .badge {
             display: inline-block;
-            padding: 3px 8px;
-            border-radius: 5px;
-            font-size: 11px;
-            font-weight: 600;
+            padding: 3px 10px;
+            border-radius: 20px;
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 0.3px;
         }
 
         /* Project status */
-        .badge-planning    { background: #eff6ff; color: #1d4ed8; border: 1px solid rgba(37,99,235,0.2); }
-        .badge-active      { background: #f0fdf4; color: #15803d; border: 1px solid rgba(22,163,74,0.2); }
-        .badge-in_progress { background: #fff7ed; color: #c2410c; border: 1px solid rgba(234,88,12,0.2); }
-        .badge-completed   { background: #faf5ff; color: #7e22ce; border: 1px solid rgba(126,34,206,0.2); }
-        .badge-on_hold     { background: #fefce8; color: #a16207; border: 1px solid rgba(202,138,4,0.2); }
-        .badge-cancelled   { background: #fef2f2; color: #dc2626; border: 1px solid rgba(220,38,38,0.2); }
+        .badge-planning    { background: #dbeafe; color: #1e40af; }
+        .badge-active      { background: #dcfce7; color: #15803d; }
+        .badge-in_progress { background: #fed7aa; color: #c2410c; }
+        .badge-completed   { background: #f3e8ff; color: #7e22ce; }
+        .badge-on_hold     { background: #fef3c7; color: #92400e; }
+        .badge-cancelled   { background: #fecaca; color: #dc2626; }
 
         /* Priority */
-        .badge-low      { background: #f0fdf4; color: #15803d; border: 1px solid rgba(22,163,74,0.2); }
-        .badge-medium   { background: #fefce8; color: #a16207; border: 1px solid rgba(202,138,4,0.2); }
-        .badge-high     { background: #fff7ed; color: #c2410c; border: 1px solid rgba(234,88,12,0.2); }
-        .badge-critical { background: #fef2f2; color: #dc2626; border: 1px solid rgba(220,38,38,0.2); }
+        .badge-low      { background: #dcfce7; color: #15803d; }
+        .badge-medium   { background: #fef3c7; color: #a16207; }
+        .badge-high     { background: #ffedd5; color: #c2410c; }
+        .badge-critical { background: #fecaca; color: #dc2626; }
 
         /* Milestone status */
-        .badge-pending  { background: #fff7ed; color: #c2410c; border: 1px solid rgba(234,88,12,0.2); }
+        .badge-pending  { background: #ffedd5; color: #c2410c; }
 
         /* ── Progress bar ── */
         .progress-wrap {
-            background: #e5e7eb;
-            border-radius: 4px;
-            height: 6px;
-            width: 70px;
+            background: #e2e8f0;
+            border-radius: 10px;
+            height: 8px;
+            width: 80px;
             display: inline-block;
             vertical-align: middle;
-            margin-right: 5px;
+            margin-right: 6px;
         }
         .progress-fill {
             background: {{ $primaryColor }};
-            border-radius: 4px;
-            height: 6px;
+            border-radius: 10px;
+            height: 8px;
         }
 
         /* ── Footer ── */
         .page-footer {
-            margin-top: 24px;
-            padding-top: 10px;
+            margin-top: 28px;
+            padding-top: 12px;
             border-top: 1px solid #e2e8f0;
             text-align: center;
+            font-size: 10px;
+            color: #94a3b8;
+        }
+
+        /* ── Chart card ── */
+        .chart-card {
+            background: #fff;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            padding: 14px 16px;
+            text-align: center;
+        }
+        .chart-card .chart-title {
             font-size: 11px;
-            color: #9ca3af;
+            font-weight: 700;
+            color: #475569;
+            text-transform: uppercase;
+            letter-spacing: 0.6px;
+            text-align: left;
+            margin-bottom: 10px;
+            padding-bottom: 6px;
+            border-bottom: 1px solid #f1f5f9;
         }
     </style>
 </head>
 <body>
 <div class="container">
 
-    {{-- REPORT HEADING --}}
-    <div class="report-heading">
+    {{-- MODERN HEADER --}}
+    <div class="report-header">
         <div class="project-title">{{ $project->title ?? $project->name }}</div>
         <div class="report-meta">
-            Project Report &nbsp;·&nbsp; Generated on {{ date('F j, Y') }} at {{ date('H:i') }}
-            &nbsp;·&nbsp; Status: <strong>{{ $projectStatusText }}</strong>
+            Project Report &nbsp;&middot;&nbsp; Generated on <strong>{{ date('F j, Y') }}</strong> at <strong>{{ date('H:i') }}</strong>
+            &nbsp;&middot;&nbsp; Status: <span class="badge badge-{{ $project->status }}" style="font-size:10px;">{{ $projectStatusText }}</span>
         </div>
     </div>
+
+    <div class="content">
 
     {{-- OVERVIEW --}}
     <div class="card">
         <div class="section-title">Project Overview</div>
         <table style="width:100%;border-collapse:collapse;">
             <tr>
-                <td style="width:58%;vertical-align:top;padding-right:18px;">
-                    <table class="info-grid">
+                <td style="width:60%;vertical-align:top;padding-right:20px;">
+                    <table class="overview-grid">
                         <tr>
-                            <td>
+                            <td style="width:50%;">
                                 <div class="info-label">Project Name</div>
                                 <div class="info-value">{{ $project->title ?? $project->name }}</div>
                             </td>
-                            <td>
+                            <td style="width:50%;">
                                 <div class="info-label">Status</div>
                                 <div class="info-value">
                                     <span class="badge badge-{{ $project->status }}">{{ $projectStatusText }}</span>
@@ -202,7 +235,7 @@
                             </td>
                             <td>
                                 <div class="info-label">Overall Completion</div>
-                                <div class="info-value" style="color:{{ $primaryColor }};">{{ $stats['completion_percentage'] }}%</div>
+                                <div class="info-value" style="color:{{ $primaryColor }};font-size:18px;">{{ $stats['completion_percentage'] }}%</div>
                             </td>
                         </tr>
                     </table>
@@ -236,9 +269,9 @@
                         </tr>
                     </table>
                 </td>
-                <td style="width:42%;text-align:center;vertical-align:middle;">
-                    <img src="data:image/png;base64,{{ $base64Image }}" style="width:150px;height:150px;" alt="Progress"/>
-                    <div style="font-size:9px;color:#6b7280;margin-top:5px;">Overall Progress</div>
+                <td style="width:40%;text-align:center;vertical-align:middle;">
+                    <img src="data:image/png;base64,{{ $base64Image }}" style="width:160px;height:160px;" alt="Progress"/>
+                    <div style="font-size:10px;color:#64748b;margin-top:6px;font-weight:600;">Overall Progress</div>
                 </td>
             </tr>
         </table>
@@ -248,23 +281,23 @@
     <table class="charts-table">
         <tr>
             <td style="width:33%;">
-                <div class="card" style="text-align:center;">
-                    <div class="section-title" style="text-align:left;">Milestone Progress</div>
+                <div class="chart-card">
+                    <div class="chart-title">Milestone Progress</div>
                     <img src="data:image/png;base64,{{ $base64ArcImage }}" style="width:200px;height:auto;" alt="Milestone"/>
-                    <div style="font-size:10px;font-weight:bold;color:{{ $primaryColor }};margin-top:4px;">
+                    <div style="font-size:11px;font-weight:700;color:{{ $primaryColor }};margin-top:6px;">
                         {{ $stats['completed_milestones'] }} / {{ $stats['total_milestones'] }} completed
                     </div>
                 </div>
             </td>
             <td style="width:33%;">
-                <div class="card" style="text-align:center;">
-                    <div class="section-title" style="text-align:left;">Task Priority</div>
+                <div class="chart-card">
+                    <div class="chart-title">Task Priority</div>
                     <img src="data:image/png;base64,{{ $base64PriorityImage }}" style="width:100%;max-width:280px;height:auto;" alt="Priority"/>
                 </div>
             </td>
             <td style="width:34%;">
-                <div class="card" style="text-align:center;">
-                    <div class="section-title" style="text-align:left;">Task Status</div>
+                <div class="chart-card">
+                    <div class="chart-title">Task Status</div>
                     <img src="data:image/png;base64,{{ $base64StatusImage }}" style="width:100%;max-width:280px;height:auto;" alt="Status"/>
                 </div>
             </td>
@@ -299,7 +332,7 @@
                     <td>{{ $userStat['done_tasks'] }}</td>
                     <td>
                         <span class="progress-wrap"><span class="progress-fill" style="width:{{ $rate }}%;"></span></span>
-                        {{ $rate }}%
+                        <strong>{{ $rate }}%</strong>
                     </td>
                 </tr>
                 @endforeach
@@ -329,7 +362,7 @@
                         <span class="progress-wrap">
                             <span class="progress-fill" style="width:{{ $milestone->progress ?? 0 }}%;"></span>
                         </span>
-                        {{ $milestone->progress ?? 0 }}%
+                        <strong>{{ $milestone->progress ?? 0 }}%</strong>
                     </td>
                     <td>
                         <span class="badge badge-pending">
@@ -371,7 +404,6 @@
                     $priority = $task->priority ?? 'medium';
                     $stageColor = $task->taskStage->color ?? '#6b7280';
                     $statusName = $task->taskStage ? $task->taskStage->name : 'To Do';
-                    // Convert hex to RGB for 20% opacity background
                     $hex = ltrim($stageColor, '#');
                     $r = hexdec(substr($hex,0,2)); $g = hexdec(substr($hex,2,2)); $b = hexdec(substr($hex,4,2));
                 @endphp
@@ -384,7 +416,7 @@
                     <td>{{ round($loggedHours, 2) }}h</td>
                     <td><span class="badge badge-{{ $priority }}">{{ ucfirst($priority) }}</span></td>
                     <td>
-                        <span class="badge" style="background:rgba({{ $r }},{{ $g }},{{ $b }},0.12);color:{{ $stageColor }};border:1px solid rgba({{ $r }},{{ $g }},{{ $b }},0.25);">
+                        <span class="badge" style="background:rgba({{ $r }},{{ $g }},{{ $b }},0.12);color:{{ $stageColor }};">
                             {{ $statusName }}
                         </span>
                     </td>
@@ -395,9 +427,10 @@
     </div>
 
     <div class="page-footer">
-        {{ $project->title ?? $project->name }} &nbsp;·&nbsp; Project Report &nbsp;·&nbsp; {{ date('F j, Y') }}
+        {{ $project->title ?? $project->name }} &nbsp;&middot;&nbsp; Project Report &nbsp;&middot;&nbsp; {{ date('F j, Y') }}
     </div>
 
+    </div>
 </div>
 </body>
 </html>
