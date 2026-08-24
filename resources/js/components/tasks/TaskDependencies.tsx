@@ -104,13 +104,13 @@ export function TaskDependencies({ taskId, projectTasks = [], isBlocked }: TaskD
 
             {/* Add dependency */}
             {availableTasks.length > 0 && (
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 min-w-0">
                     <select
                         value={selectedTaskId}
                         onChange={e => setSelectedTaskId(Number(e.target.value) || '')}
-                        className="flex-1 h-9 text-sm rounded-md border border-gray-300 dark:border-gray-600 px-3 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                        className="min-w-0 flex-1 h-9 text-sm rounded-md border border-gray-300 dark:border-gray-600 px-3 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 truncate"
                     >
-                        <option value="">{t('Select a task to add as dependency...')}</option>
+                        <option value="">{t('Select a task...')}</option>
                         {availableTasks.map(t => (
                             <option key={t.id} value={t.id}>{t.title}</option>
                         ))}
@@ -120,9 +120,9 @@ export function TaskDependencies({ taskId, projectTasks = [], isBlocked }: TaskD
                         size="sm"
                         onClick={addDependency}
                         disabled={!selectedTaskId || saving}
-                        className="h-9 px-3 shrink-0"
+                        className="h-9 px-2.5 shrink-0"
                     >
-                        {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <><Plus className="w-3.5 h-3.5 mr-1" />{t('Add')}</>}
+                        {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-4 h-4" />}
                     </Button>
                 </div>
             )}
