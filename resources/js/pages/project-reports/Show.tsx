@@ -386,69 +386,125 @@ export default function Show({ project, stats, userStats, users, stages, workspa
 
             {/* ── Charts row ── */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
-                {/* Milestone progress */}
-                <Card className="rounded-2xl border shadow-sm">
-                    <CardContent className="p-5">
-                        <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-4 flex items-center gap-2">
-                            <span className="w-1 h-4 rounded-full inline-block" style={{ background: '#E3B448' }} />
+                {/* Milestone progress - Modern radial gauge */}
+                <Card className="rounded-2xl border-0 shadow-lg overflow-hidden" style={{ background: 'linear-gradient(145deg, #ffffff 0%, #f8fafc 100%)' }}>
+                    <CardContent className="p-6 relative">
+                        <div className="absolute top-0 right-0 w-32 h-32 rounded-full opacity-[0.04]" style={{ background: 'radial-gradient(circle, #E3B448, transparent)', transform: 'translate(30%, -30%)' }} />
+                        <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-5 flex items-center gap-2">
+                            <span className="w-2 h-2 rounded-full inline-block" style={{ background: 'linear-gradient(135deg, #E3B448, #f59e0b)' }} />
                             {t('Milestone Progress')}
                         </h3>
                         <div className="flex flex-col items-center">
-                            <div className="relative w-56 h-36">
-                                <svg className="w-56 h-36" viewBox="0 0 224 144">
-                                    <path d="M 32 136 A 80 80 0 0 1 192 136" stroke="#e5e7eb" strokeWidth="16" fill="none" />
-                                    <path d="M 32 136 A 80 80 0 0 1 192 136" stroke="#E3B448" strokeWidth="16" fill="none"
-                                        strokeDasharray={`${((stats.milestone_completion_percentage || 0) / 100) * 251} 251`}
-                                        strokeLinecap="round" />
+                            <div className="relative w-44 h-44">
+                                <svg className="w-44 h-44 -rotate-90" viewBox="0 0 176 176">
+                                    <defs>
+                                        <linearGradient id="milestoneGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                                            <stop offset="0%" stopColor="#E3B448" />
+                                            <stop offset="100%" stopColor="#f59e0b" />
+                                        </linearGradient>
+                                        <filter id="glow">
+                                            <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+                                            <feMerge><feMergeNode in="coloredBlur"/><feMergeNode in="SourceGraphic"/></feMerge>
+                                        </filter>
+                                    </defs>
+                                    <circle cx="88" cy="88" r="70" stroke="#f1f5f9" strokeWidth="14" fill="none" />
+                                    <circle cx="88" cy="88" r="70" stroke="url(#milestoneGrad)" strokeWidth="14" fill="none"
+                                        strokeDasharray={`${2 * Math.PI * 70}`}
+                                        strokeDashoffset={`${2 * Math.PI * 70 * (1 - (stats.milestone_completion_percentage || 0) / 100)}`}
+                                        strokeLinecap="round"
+                                        filter="url(#glow)"
+                                        style={{ transition: 'stroke-dashoffset 1s ease-in-out' }} />
                                 </svg>
-                                <div className="absolute inset-x-0 bottom-0 flex flex-col items-center pb-2">
-                                    <span className="text-2xl font-bold">{stats.milestone_completion_percentage || 0}%</span>
-                                    <span className="text-xs text-muted-foreground">{stats.completed_milestones || 0}/{stats.total_milestones || 0} {t('completed')}</span>
+                                <div className="absolute inset-0 flex flex-col items-center justify-center">
+                                    <span className="text-4xl font-black bg-clip-text text-transparent" style={{ backgroundImage: 'linear-gradient(135deg, #1e293b, #475569)' }}>{stats.milestone_completion_percentage || 0}%</span>
+                                    <span className="text-xs font-medium text-slate-400 mt-1">{stats.completed_milestones || 0} of {stats.total_milestones || 0}</span>
+                                    <span className="text-[10px] text-slate-300">{t('completed')}</span>
                                 </div>
                             </div>
                         </div>
                     </CardContent>
                 </Card>
 
-                {/* Task Priority */}
-                <Card className="rounded-2xl border shadow-sm">
-                    <CardContent className="p-5">
-                        <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-4 flex items-center gap-2">
-                            <span className="w-1 h-4 rounded-full inline-block" style={{ background: '#E3B448' }} />
+                {/* Task Priority - Modern pill bars */}
+                <Card className="rounded-2xl border-0 shadow-lg overflow-hidden" style={{ background: 'linear-gradient(145deg, #ffffff 0%, #f8fafc 100%)' }}>
+                    <CardContent className="p-6 relative">
+                        <div className="absolute top-0 right-0 w-32 h-32 rounded-full opacity-[0.04]" style={{ background: 'radial-gradient(circle, #3b82f6, transparent)', transform: 'translate(30%, -30%)' }} />
+                        <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-5 flex items-center gap-2">
+                            <span className="w-2 h-2 rounded-full inline-block" style={{ background: 'linear-gradient(135deg, #ef4444, #f97316)' }} />
                             {t('Task Priority')}
                         </h3>
-                        <ResponsiveContainer width="100%" height={140}>
-                            <BarChart data={priorityData} margin={{ top: 5, right: 5, bottom: 5, left: -20 }}>
-                                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                                <XAxis dataKey="name" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
-                                <YAxis tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
-                                <ChartTooltip formatter={(v: any) => [`${v} tasks`]} />
-                                <Bar dataKey="value" radius={[4, 4, 0, 0]}>
-                                    {priorityData.map((entry, i) => (
-                                        <Cell key={i} fill={entry.fill} />
-                                    ))}
-                                </Bar>
-                            </BarChart>
-                        </ResponsiveContainer>
+                        <div className="space-y-3">
+                            {priorityData.map((item) => {
+                                const maxVal = Math.max(...priorityData.map(d => d.value), 1);
+                                const pct = (item.value / maxVal) * 100;
+                                const gradients: Record<string, string> = {
+                                    critical: 'linear-gradient(90deg, #ef4444, #dc2626)',
+                                    high: 'linear-gradient(90deg, #f97316, #ea580c)',
+                                    medium: 'linear-gradient(90deg, #f59e0b, #d97706)',
+                                    low: 'linear-gradient(90deg, #10b981, #059669)'
+                                };
+                                return (
+                                    <div key={item.name} className="group">
+                                        <div className="flex justify-between items-center mb-1">
+                                            <span className="text-xs font-semibold text-slate-600 capitalize">{item.name}</span>
+                                            <span className="text-xs font-bold text-slate-800">{item.value}</span>
+                                        </div>
+                                        <div className="h-3 rounded-full bg-slate-100 overflow-hidden">
+                                            <div
+                                                className="h-full rounded-full transition-all duration-700 ease-out group-hover:opacity-90"
+                                                style={{ width: `${pct}%`, background: gradients[item.name] || '#6b7280', boxShadow: `0 2px 8px ${item.fill}40` }}
+                                            />
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
                     </CardContent>
                 </Card>
 
-                {/* Task Status */}
-                <Card className="rounded-2xl border shadow-sm">
-                    <CardContent className="p-5">
-                        <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-4 flex items-center gap-2">
-                            <span className="w-1 h-4 rounded-full inline-block" style={{ background: '#E3B448' }} />
+                {/* Task Status - Modern donut */}
+                <Card className="rounded-2xl border-0 shadow-lg overflow-hidden" style={{ background: 'linear-gradient(145deg, #ffffff 0%, #f8fafc 100%)' }}>
+                    <CardContent className="p-6 relative">
+                        <div className="absolute top-0 right-0 w-32 h-32 rounded-full opacity-[0.04]" style={{ background: 'radial-gradient(circle, #8b5cf6, transparent)', transform: 'translate(30%, -30%)' }} />
+                        <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-5 flex items-center gap-2">
+                            <span className="w-2 h-2 rounded-full inline-block" style={{ background: 'linear-gradient(135deg, #8b5cf6, #6366f1)' }} />
                             {t('Task Status')}
                         </h3>
                         {statusData.length > 0 ? (
-                            <ResponsiveContainer width="100%" height={140}>
-                                <PieChart>
-                                    <Pie data={statusData} cx="50%" cy="50%" outerRadius={55} dataKey="value" label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`} labelLine={false} fontSize={9}>
-                                        {statusData.map((entry, i) => <Cell key={i} fill={entry.fill} />)}
-                                    </Pie>
-                                    <ChartTooltip formatter={(v: any, n: any) => [`${v} tasks`, n]} />
-                                </PieChart>
-                            </ResponsiveContainer>
+                            <div className="flex items-center gap-3">
+                                <div className="relative w-32 h-32 shrink-0">
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <PieChart>
+                                            <defs>
+                                                <linearGradient id="statusGrad0" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stopColor="#6366f1"/><stop offset="100%" stopColor="#8b5cf6"/></linearGradient>
+                                                <linearGradient id="statusGrad1" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stopColor="#3b82f6"/><stop offset="100%" stopColor="#2563eb"/></linearGradient>
+                                                <linearGradient id="statusGrad2" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stopColor="#10b981"/><stop offset="100%" stopColor="#059669"/></linearGradient>
+                                                <linearGradient id="statusGrad3" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stopColor="#ef4444"/><stop offset="100%" stopColor="#dc2626"/></linearGradient>
+                                                <linearGradient id="statusGrad4" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stopColor="#64748b"/><stop offset="100%" stopColor="#475569"/></linearGradient>
+                                            </defs>
+                                            <Pie data={statusData} cx="50%" cy="50%" innerRadius={36} outerRadius={56} dataKey="value" paddingAngle={3} cornerRadius={4}>
+                                                {statusData.map((_, i) => <Cell key={i} fill={`url(#statusGrad${i % 5})`} stroke="none" />)}
+                                            </Pie>
+                                            <ChartTooltip contentStyle={{ fontSize: 11, borderRadius: 12, border: 'none', boxShadow: '0 10px 40px rgba(0,0,0,0.12)', padding: '8px 12px' }} formatter={(v: any, n: any) => [`${v} tasks`, n]} />
+                                        </PieChart>
+                                    </ResponsiveContainer>
+                                    <div className="absolute inset-0 flex items-center justify-center">
+                                        <span className="text-lg font-black text-slate-700">{stats.total_tasks || 0}</span>
+                                    </div>
+                                </div>
+                                <div className="flex-1 space-y-1.5">
+                                    {statusData.map((item, i) => {
+                                        const colors = ['#6366f1', '#3b82f6', '#10b981', '#ef4444', '#64748b'];
+                                        return (
+                                            <div key={i} className="flex items-center gap-2">
+                                                <span className="w-2.5 h-2.5 rounded-sm shrink-0" style={{ background: colors[i % 5] }} />
+                                                <span className="text-[11px] text-slate-600 flex-1 truncate">{item.name}</span>
+                                                <span className="text-[11px] font-bold text-slate-800">{item.value as number}</span>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
                         ) : (
                             <div className="h-36 flex items-center justify-center text-sm text-muted-foreground">{t('No tasks yet')}</div>
                         )}
@@ -457,14 +513,14 @@ export default function Show({ project, stats, userStats, users, stages, workspa
             </div>
 
             {/* ── Hours Logged ── */}
-            <Card className="rounded-2xl border shadow-sm mb-6">
-                <CardContent className="p-5">
-                    <div className="flex items-center justify-between mb-4">
-                        <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-2">
-                            <span className="w-1 h-4 rounded-full inline-block" style={{ background: '#E3B448' }} />
+            <Card className="rounded-2xl border-0 shadow-lg mb-6 overflow-hidden" style={{ background: 'linear-gradient(145deg, #ffffff 0%, #f8fafc 100%)' }}>
+                <CardContent className="p-6">
+                    <div className="flex items-center justify-between mb-5">
+                        <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2">
+                            <span className="w-2 h-2 rounded-full inline-block" style={{ background: 'linear-gradient(135deg, #E3B448, #f59e0b)' }} />
                             {t('Hours Logged')}
                         </h3>
-                        <span className="text-sm font-semibold" style={{ color: '#E3B448' }}>{t('Total')}: {stats.total_logged_hours || 0}h</span>
+                        <span className="text-sm font-bold px-3 py-1 rounded-full" style={{ background: 'linear-gradient(135deg, #E3B44815, #f59e0b15)', color: '#b8892a' }}>{stats.total_logged_hours || 0}h {t('total')}</span>
                     </div>
                     {(() => {
                         const hoursData = (stats.task_hours_data || [])
@@ -473,36 +529,42 @@ export default function Show({ project, stats, userStats, users, stages, workspa
                             .slice(0, 10)
                             .map((d: any) => ({
                                 ...d,
-                                task_name: d.task_name.length > 28 ? d.task_name.slice(0, 26) + '…' : d.task_name
+                                task_name: d.task_name.length > 28 ? d.task_name.slice(0, 26) + '...' : d.task_name
                             }));
 
                         if (hoursData.length === 0) {
                             return (
-                                <div className="flex flex-col items-center justify-center py-10 text-muted-foreground">
-                                    <Clock className="h-8 w-8 opacity-30 mb-2" />
-                                    <p className="text-sm">{t('No hours logged yet')}</p>
-                                    <p className="text-xs opacity-60 mt-1">{t('Timesheet entries will appear here')}</p>
+                                <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+                                    <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-3" style={{ background: 'linear-gradient(135deg, #f1f5f9, #e2e8f0)' }}>
+                                        <Clock className="h-7 w-7 text-slate-300" />
+                                    </div>
+                                    <p className="text-sm font-medium text-slate-400">{t('No hours logged yet')}</p>
+                                    <p className="text-xs text-slate-300 mt-1">{t('Timesheet entries will appear here')}</p>
                                 </div>
                             );
                         }
 
-                        const chartHeight = Math.max(180, hoursData.length * 36 + 40);
+                        const maxHours = Math.max(...hoursData.map((d: any) => d.logged_hours), 1);
                         return (
-                            <ResponsiveContainer width="100%" height={chartHeight}>
-                                <BarChart data={hoursData} layout="vertical" margin={{ top: 5, right: 40, left: 10, bottom: 5 }}>
-                                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" horizontal={false} />
-                                    <XAxis type="number" tick={{ fontSize: 10, fill: 'currentColor' }} axisLine={false} tickLine={false} tickFormatter={(v) => `${v}h`} />
-                                    <YAxis type="category" dataKey="task_name" tick={{ fontSize: 11, fill: 'currentColor' }} axisLine={false} tickLine={false} width={180} />
-                                    <ChartTooltip
-                                        contentStyle={{ fontSize: 12, borderRadius: 8, border: '1px solid hsl(var(--border))', background: 'hsl(var(--popover))', color: 'hsl(var(--popover-foreground))' }}
-                                        formatter={(v: any) => [`${v}h`, t('Logged')]}
-                                        labelFormatter={(label) => label}
-                                    />
-                                    <Bar dataKey="logged_hours" name={t('Logged Hours')} radius={[0, 6, 6, 0]} fill="#E3B448" maxBarSize={24}>
-                                        <LabelList dataKey="logged_hours" position="right" style={{ fontSize: 10, fontWeight: 600, fill: '#E3B448' }} formatter={(v: number) => `${v}h`} />
-                                    </Bar>
-                                </BarChart>
-                            </ResponsiveContainer>
+                            <div className="space-y-2.5">
+                                {hoursData.map((item: any, i: number) => {
+                                    const pct = (item.logged_hours / maxHours) * 100;
+                                    return (
+                                        <div key={i} className="group">
+                                            <div className="flex justify-between items-center mb-1">
+                                                <span className="text-xs font-medium text-slate-600 truncate max-w-[200px]">{item.task_name}</span>
+                                                <span className="text-xs font-bold text-amber-600">{item.logged_hours}h</span>
+                                            </div>
+                                            <div className="h-2.5 rounded-full bg-slate-100 overflow-hidden">
+                                                <div
+                                                    className="h-full rounded-full transition-all duration-700 ease-out"
+                                                    style={{ width: `${pct}%`, background: 'linear-gradient(90deg, #E3B448, #f59e0b)', boxShadow: '0 2px 8px #E3B44840' }}
+                                                />
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
                         );
                     })()}
                 </CardContent>
@@ -510,77 +572,59 @@ export default function Show({ project, stats, userStats, users, stages, workspa
 
             {/* ── Users & Milestones ── */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
-                <Card className="rounded-2xl border shadow-sm">
-                    <CardContent className="p-5">
-                        <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-4 flex items-center gap-2">
-                            <span className="w-1 h-4 rounded-full inline-block" style={{ background: '#E3B448' }} />
+                <Card className="rounded-2xl border-0 shadow-lg overflow-hidden" style={{ background: 'linear-gradient(145deg, #ffffff 0%, #f8fafc 100%)' }}>
+                    <CardContent className="p-6">
+                        <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-4 flex items-center gap-2">
+                            <span className="w-2 h-2 rounded-full inline-block" style={{ background: 'linear-gradient(135deg, #3b82f6, #2563eb)' }} />
                             {t('Team Members')}
                         </h3>
-                        <div className="overflow-x-auto">
-                            <table className="w-full text-sm">
-                                <thead>
-                                    <tr className="border-b text-xs text-muted-foreground">
-                                        <th className="text-left pb-2 font-medium">{t('Name')}</th>
-                                        <th className="text-center pb-2 font-medium">{t('Assigned')}</th>
-                                        <th className="text-center pb-2 font-medium">{t('Done')}</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {userStats?.length ? userStats.map((user, i) => (
-                                        <tr key={i} className="border-b last:border-0 hover:bg-muted/30 transition-colors">
-                                            <td className="py-2.5 font-medium">{user.name}</td>
-                                            <td className="py-2.5 text-center">{user.assigned_tasks}</td>
-                                            <td className="py-2.5 text-center">
-                                                <span className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold" style={{ background: '#E3B44820', color: '#b8892a' }}>{user.done_tasks}</span>
-                                            </td>
-                                        </tr>
-                                    )) : (
-                                        <tr><td colSpan={3} className="py-8 text-center text-muted-foreground">{t('No users found')}</td></tr>
-                                    )}
-                                </tbody>
-                            </table>
+                        <div className="space-y-2">
+                            {userStats?.length ? userStats.map((user, i) => (
+                                <div key={i} className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-slate-50 transition-colors group">
+                                    <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0" style={{ background: `linear-gradient(135deg, ${['#6366f1','#3b82f6','#10b981','#f59e0b','#ef4444'][i % 5]}, ${['#8b5cf6','#2563eb','#059669','#d97706','#dc2626'][i % 5]})` }}>
+                                        {user.name?.charAt(0)?.toUpperCase()}
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <p className="text-sm font-semibold text-slate-700 truncate">{user.name}</p>
+                                        <p className="text-[10px] text-slate-400">{user.assigned_tasks} {t('assigned')}</p>
+                                    </div>
+                                    <div className="flex items-center gap-1.5">
+                                        <span className="text-xs font-bold px-2 py-0.5 rounded-full" style={{ background: 'linear-gradient(135deg, #10b98115, #05966915)', color: '#059669' }}>{user.done_tasks} {t('done')}</span>
+                                    </div>
+                                </div>
+                            )) : (
+                                <p className="py-8 text-center text-sm text-slate-400">{t('No users found')}</p>
+                            )}
                         </div>
                     </CardContent>
                 </Card>
 
-                <Card className="rounded-2xl border shadow-sm">
-                    <CardContent className="p-5">
-                        <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-4 flex items-center gap-2">
-                            <span className="w-1 h-4 rounded-full inline-block" style={{ background: '#001a4d' }} />
+                <Card className="rounded-2xl border-0 shadow-lg overflow-hidden" style={{ background: 'linear-gradient(145deg, #ffffff 0%, #f8fafc 100%)' }}>
+                    <CardContent className="p-6">
+                        <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-4 flex items-center gap-2">
+                            <span className="w-2 h-2 rounded-full inline-block" style={{ background: 'linear-gradient(135deg, #001a4d, #002d80)' }} />
                             {t('Milestones')}
                         </h3>
-                        <div className="overflow-x-auto">
-                            <table className="w-full text-sm">
-                                <thead>
-                                    <tr className="border-b text-xs text-muted-foreground">
-                                        <th className="text-left pb-2 font-medium">{t('Name')}</th>
-                                        <th className="text-left pb-2 font-medium">{t('Progress')}</th>
-                                        <th className="text-left pb-2 font-medium">{t('Status')}</th>
-                                        <th className="text-left pb-2 font-medium">{t('Due')}</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {project.milestones?.length ? project.milestones.map((milestone) => (
-                                        <tr key={milestone.id} className="border-b last:border-0 hover:bg-muted/30 transition-colors">
-                                            <td className="py-2.5 font-medium max-w-[120px] truncate">{milestone.title}</td>
-                                            <td className="py-2.5">
-                                                <div className="flex items-center gap-2">
-                                                    <Progress value={milestone.progress} className="w-14 h-1.5" />
-                                                    <span className="text-xs">{milestone.progress}%</span>
-                                                </div>
-                                            </td>
-                                            <td className="py-2.5">
-                                                <span className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium bg-orange-50 text-orange-700">{formatText(milestone.status)}</span>
-                                            </td>
-                                            <td className="py-2.5 text-xs text-muted-foreground whitespace-nowrap">
-                                                {formatDate(milestone.due_date) || '—'}
-                                            </td>
-                                        </tr>
-                                    )) : (
-                                        <tr><td colSpan={4} className="py-8 text-center text-muted-foreground">{t('No milestones found')}</td></tr>
+                        <div className="space-y-3">
+                            {project.milestones?.length ? project.milestones.map((milestone) => (
+                                <div key={milestone.id} className="p-3 rounded-xl hover:bg-slate-50 transition-colors border border-slate-100">
+                                    <div className="flex items-center justify-between mb-2">
+                                        <span className="text-sm font-semibold text-slate-700 truncate max-w-[160px]">{milestone.title}</span>
+                                        <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-amber-50 text-amber-700">{formatText(milestone.status)}</span>
+                                    </div>
+                                    <div className="flex items-center gap-3">
+                                        <div className="flex-1 h-2 rounded-full bg-slate-100 overflow-hidden">
+                                            <div className="h-full rounded-full" style={{ width: `${milestone.progress}%`, background: 'linear-gradient(90deg, #001a4d, #002d80)' }} />
+                                        </div>
+                                        <span className="text-xs font-bold text-slate-600 shrink-0">{milestone.progress}%</span>
+                                    </div>
+                                    {milestone.due_date && (
+                                        <p className="text-[10px] text-slate-400 mt-1.5">{t('Due')}: {formatDate(milestone.due_date)}</p>
                                     )}
-                                </tbody>
-                            </table>
+                                </div>
+                            )) : (
+                                <p className="py-8 text-center text-sm text-slate-400">{t('No milestones found')}</p>
+                            )}
                         </div>
                     </CardContent>
                 </Card>
