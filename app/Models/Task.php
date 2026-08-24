@@ -72,6 +72,11 @@ class Task extends Model
         return $this->hasMany(TaskComment::class)->latest();
     }
 
+    public function activities(): HasMany
+    {
+        return $this->hasMany(TaskActivity::class)->latest();
+    }
+
     public function checklists(): HasMany
     {
         return $this->hasMany(TaskChecklist::class)->orderBy('order');

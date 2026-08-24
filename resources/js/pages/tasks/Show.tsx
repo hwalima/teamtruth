@@ -14,6 +14,7 @@ import {
     Plus
 } from 'lucide-react';
 import TaskComments from '@/components/tasks/TaskComments';
+import TaskActivityFeed from '@/components/tasks/TaskActivityFeed';
 import TaskAttachments from '@/components/tasks/TaskAttachments';
 import TaskChecklist from '@/components/tasks/TaskChecklist';
 import TaskFormModal from '@/components/tasks/TaskFormModal';
@@ -412,24 +413,36 @@ export default function TaskShow({ task, members, stages, milestones, project_ta
                         </TabsContent>
                     {/* Comments Tab */}
                     <TabsContent value="comments" className="min-h-[300px]">
-                        <Card>
-                            <CardHeader>
-                                <CardTitle className="text-lg flex items-center gap-2">
-                                    {t('Task Comments')}
-                                </CardTitle>
-                            </CardHeader>
-<CardContent className='border-t p-0'>
-    <div className="h-full p-6">
-                            <TaskComments
-                            task={taskData}
-                            comments={taskData.comments || []}
-                            currentUser={members[0]}
-                            onUpdate={handleUpdate}
-                            canAddComments={workspace_role !== 'client'}
-                        />
+                        <div className="space-y-4">
+                            <Card>
+                                <CardHeader className="pb-2">
+                                    <CardTitle className="text-lg flex items-center gap-2">
+                                        <MessageSquare className="w-4 h-4" />
+                                        {t('Comments')}
+                                    </CardTitle>
+                                </CardHeader>
+                                <CardContent className="border-t p-0">
+                                    <div className="h-full p-6">
+                                        <TaskComments
+                                            task={taskData}
+                                            comments={taskData.comments || []}
+                                            currentUser={members[0]}
+                                            members={members}
+                                            onUpdate={handleUpdate}
+                                            canAddComments={workspace_role !== 'client'}
+                                        />
+                                    </div>
+                                </CardContent>
+                            </Card>
+
+                            {taskData.activities && taskData.activities.length > 0 && (
+                                <Card>
+                                    <CardContent className="p-4">
+                                        <TaskActivityFeed activities={taskData.activities} />
+                                    </CardContent>
+                                </Card>
+                            )}
                         </div>
-                        </CardContent>
-                        </Card>
                     </TabsContent>
 
                     {/* Checklist Tab */}

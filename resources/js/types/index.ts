@@ -96,6 +96,19 @@ export interface TaskComment {
     can_delete?: boolean;
 }
 
+export interface TaskActivity {
+    id: number;
+    task_id: number;
+    user_id: number;
+    type: string;
+    field?: string;
+    old_value?: string;
+    new_value?: string;
+    description?: string;
+    created_at: string;
+    user?: User;
+}
+
 export interface TaskChecklist {
     id: number;
     task_id: number;

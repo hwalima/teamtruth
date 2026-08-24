@@ -187,6 +187,7 @@ class TaskController extends Controller
             'creator',
             'milestone',
             'comments.user',
+            'activities.user',
             'checklists.assignedTo',
             'checklists.creator',
             'attachments.mediaItem',
@@ -405,11 +406,22 @@ class TaskController extends Controller
             'is_googlecalendar_sync' => 'boolean'
         ]);
 
-        // Check if assigned_to changed
+        // Track changes for activity log
         $oldAssignedTo = $task->assigned_to;
         $newAssignedTo = $validated['assigned_to'] ?? null;
+        $trackFields = ['priority', 'title', 'assigned_to'];
+        $oldValues = $task->only($trackFields);
 
         $task->update($validated);
+
+        // Log activity for tracked field changes
+        foreach ($trackFields as $field) {
+            $oldVal = $oldValues[$field] ?? null;
+            $newVal = $task->$field;
+            if ($oldVal != $newVal) {
+                \App\Models\TaskActivity::log($task, $field . '_changed', $field, (string) $oldVal, (string) $newVal);
+            }
+        }
 
         // Sync with Google Calendar if enabled
         if ($validated['is_googlecalendar_sync'] ?? false) {
@@ -510,6 +522,8 @@ class TaskController extends Controller
         $oldStage = $task->taskStage->name ?? 'Unknown';
         $task->update($validated);
         $newStage = TaskStage::find($validated['task_stage_id'])->name ?? 'Unknown';
+
+        \App\Models\TaskActivity::log($task, 'stage_changed', 'stage', $oldStage, $newStage);
 
         // Fire event for Slack notification
         if (!config('app.is_demo', true)) {
