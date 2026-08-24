@@ -65,6 +65,7 @@ use App\Listeners\WebhookProjectCreateListener;
 use App\Listeners\WebhookTaskCreateListener;
 use App\Listeners\WebhookInvoiceCreateListener;
 use App\Listeners\WebhookBudgetCreateListener;
+use App\Listeners\SendInAppTaskNotifications;
 use Illuminate\Foundation\Support\Providers\EventServiceProvider as ServiceProvider;
 
 class EventServiceProvider extends ServiceProvider
@@ -87,6 +88,7 @@ class EventServiceProvider extends ServiceProvider
         ],
         TaskAssigned::class => [
             SendTaskAssignmentEmail::class,
+            [SendInAppTaskNotifications::class, 'handleTaskAssigned'],
         ],
         BugAssigned::class => [
             SendBugAssignmentEmail::class,
@@ -113,10 +115,12 @@ class EventServiceProvider extends ServiceProvider
         TaskStageUpdated::class => [
             SendTaskStageUpdateSlackNotification::class,
             SendTaskStageUpdateTelegramNotification::class,
+            [SendInAppTaskNotifications::class, 'handleTaskStageUpdated'],
         ],
         TaskCommentAdded::class => [
             SendTaskCommentSlackNotification::class,
             SendTaskCommentTelegramNotification::class,
+            [SendInAppTaskNotifications::class, 'handleTaskCommentAdded'],
         ],
         MilestoneCreated::class => [
             SendNewMilestoneSlackNotification::class,

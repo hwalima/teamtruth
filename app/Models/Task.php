@@ -17,6 +17,8 @@ class Task extends Model
         'budget', 'estimated_hours', 'google_calendar_event_id', 'is_googlecalendar_sync'
     ];
 
+    protected $appends = ['is_blocked'];
+
     protected $casts = [
         'start_date' => 'date',
         'end_date' => 'date',
@@ -26,6 +28,14 @@ class Task extends Model
         'estimated_hours' => 'decimal:2',
         'is_googlecalendar_sync' => 'boolean'
     ];
+
+    public function getIsBlockedAttribute(): bool
+    {
+        if (!$this->relationLoaded('dependencies')) {
+            return false;
+        }
+        return $this->dependencies->contains(fn($dep) => $dep->progress < 100);
+    }
 
     public function project(): BelongsTo
     {
@@ -82,6 +92,28 @@ class Task extends Model
     public function timesheetEntries(): HasMany
     {
         return $this->hasMany(TimesheetEntry::class);
+    }
+
+    public function dependencies(): BelongsToMany
+    {
+        return $this->belongsToMany(Task::class, 'task_dependencies', 'task_id', 'depends_on_id')
+            ->withPivot('type')
+            ->withTimestamps();
+    }
+
+    public function dependents(): BelongsToMany
+    {
+        return $this->belongsToMany(Task::class, 'task_dependencies', 'depends_on_id', 'task_id')
+            ->withPivot('type')
+            ->withTimestamps();
+    }
+
+    public function isBlocked(): bool
+    {
+        return $this->dependencies()
+            ->whereHas('taskStage', fn($q) => $q->where('slug', '!=', 'done'))
+            ->where('progress', '<', 100)
+            ->exists();
     }
 
     public function scopeForProject($query, $projectId)

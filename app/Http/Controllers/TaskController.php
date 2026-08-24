@@ -31,7 +31,7 @@ class TaskController extends Controller
         $workspace = $user->currentWorkspace;
         $userWorkspaceRole = $workspace->getMemberRole($user);
 
-        $query = Task::with(['project', 'taskStage', 'assignedTo', 'creator', 'milestone'])
+        $query = Task::with(['project', 'taskStage', 'assignedTo', 'creator', 'milestone', 'dependencies'])
             ->whereHas('project', function ($q) use ($user, $userWorkspaceRole) {
                 $q->forWorkspace($user->current_workspace_id);
 
@@ -189,7 +189,9 @@ class TaskController extends Controller
             'comments.user',
             'checklists.assignedTo',
             'checklists.creator',
-            'attachments.mediaItem'
+            'attachments.mediaItem',
+            'dependencies.taskStage',
+            'dependents.taskStage',
         ]);
 
         // Ensure MediaItem appended attributes are loaded
@@ -276,6 +278,10 @@ class TaskController extends Controller
 
         $stages = TaskStage::forWorkspace($currentUser->current_workspace_id)->ordered()->get();
         $milestones = $task->project->milestones ?? [];
+        $projectTasks = Task::where('project_id', $task->project_id)
+            ->where('id', '!=', $task->id)
+            ->select('id', 'title')
+            ->get();
 
         // Get workspace role for permission check
         $workspace = $currentUser->currentWorkspace;
@@ -286,6 +292,7 @@ class TaskController extends Controller
             'members' => $projectMembers->isNotEmpty() ? $projectMembers : $allMembers,
             'stages' => $stages,
             'milestones' => $milestones,
+            'project_tasks' => $projectTasks,
             'workspace_role' => $workspaceRole,
             'permissions' => [
                 'update' => $this->checkPermission('task_update'),

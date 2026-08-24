@@ -934,23 +934,25 @@ class ProjectController extends Controller
             // }
         }
 
-        $project->load(['tasks.taskStage']);
+        $project->load(['tasks.taskStage', 'tasks.dependencies']);
 
         $tasks = [];
 
-
-
         foreach ($project->tasks as $task) {
+            $dependencyIds = $task->dependencies->map(fn($dep) => 'task_' . $dep->id)->implode(', ');
+
             $tasks[] = [
                 'id' => 'task_' . $task->id,
                 'name' => $task->title,
                 'start' => $task->start_date,
                 'end' => $task->end_date,
+                'dependencies' => $dependencyIds ?: null,
                 'custom_class' => strtolower($task->priority),
                 'progress' => $task->progress ?? 0,
                 'extra' => [
                     'priority' => ucfirst($task->priority),
                     'comments' => $task->comments()->count(),
+                    'is_blocked' => $task->isBlocked(),
                     'duration' => $task->start_date && $task->end_date ?
                         \Carbon\Carbon::parse($task->start_date)->format('M d, Y') . ' - ' .
                         \Carbon\Carbon::parse($task->end_date)->format('M d, Y') : 'No dates set',

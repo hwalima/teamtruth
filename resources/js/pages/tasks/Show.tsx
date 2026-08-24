@@ -18,17 +18,19 @@ import TaskAttachments from '@/components/tasks/TaskAttachments';
 import TaskChecklist from '@/components/tasks/TaskChecklist';
 import TaskFormModal from '@/components/tasks/TaskFormModal';
 import MediaLibraryModal from '@/components/MediaLibraryModal';
+import { TaskDependencies } from '@/components/tasks/TaskDependencies';
 
 interface Props {
     task: any;
     members: any[];
     stages: any[];
     milestones: any[];
+    project_tasks: any[];
     workspace_role: string | null;
     permissions: any;
 }
 
-export default function TaskShow({ task, members, stages, milestones, workspace_role, permissions }: Props) {
+export default function TaskShow({ task, members, stages, milestones, project_tasks, workspace_role, permissions }: Props) {
     const { t } = useTranslation();
     const [activeTab, setActiveTab] = useState('details');
     const [taskData, setTaskData] = useState(task);
@@ -216,6 +218,9 @@ export default function TaskShow({ task, members, stages, milestones, workspace_
                             </TabsTrigger>
                             <TabsTrigger value="checklist" className="flex-1 cursor-pointer">
                                 {t('Checklist')}{taskData.checklists?.length ? ` (${taskData.checklists.length})` : ''}
+                            </TabsTrigger>
+                            <TabsTrigger value="dependencies" className="flex-1 cursor-pointer">
+                                {t('Dependencies')}{taskData.dependencies?.length ? ` (${taskData.dependencies.length})` : ''}
                             </TabsTrigger>
                             <TabsTrigger value="attachments" className="flex-1 cursor-pointer">
                                 {t('Attachments')}{taskData.attachments?.length ? ` (${taskData.attachments.length})` : ''}
@@ -447,6 +452,23 @@ export default function TaskShow({ task, members, stages, milestones, workspace_
                         />
                         </div>
                         </CardContent>
+                        </Card>
+                    </TabsContent>
+                    {/* Dependencies Tab */}
+                    <TabsContent value="dependencies" className="min-h-[300px]">
+                        <Card>
+                            <CardHeader>
+                                <CardTitle className="text-lg flex items-center gap-2">
+                                    {t('Task Dependencies')}
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent className="border-t pt-4">
+                                <TaskDependencies
+                                    taskId={taskData.id}
+                                    projectTasks={project_tasks || []}
+                                    isBlocked={taskData.is_blocked}
+                                />
+                            </CardContent>
                         </Card>
                     </TabsContent>
                     {/* Attachments Tab */}

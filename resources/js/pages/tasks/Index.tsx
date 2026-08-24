@@ -741,9 +741,14 @@ export default function TasksIndex({ tasks, projects, stages, members, filters, 
                                                                         </DropdownMenu>
                                                                     </div>
 
-                                                                    {/* Priority + milestone aligned to dates */}
+                                                                    {/* Priority + blocked + milestone */}
                                                                     <div className="flex items-center justify-between">
-                                                                        <TaskPriority priority={task.priority} />
+                                                                        <div className="flex items-center gap-1.5">
+                                                                            <TaskPriority priority={task.priority} />
+                                                                            {task.is_blocked && (
+                                                                                <span className="inline-flex items-center rounded-md px-1.5 py-0.5 text-[10px] font-semibold bg-red-50 text-red-700 ring-1 ring-inset ring-red-600/20 dark:bg-red-900/20 dark:text-red-400 dark:ring-red-500/30">Blocked</span>
+                                                                            )}
+                                                                        </div>
                                                                         {(task as any).milestone?.title && (
                                                                             <span className="inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium bg-purple-50 text-purple-700 ring-1 ring-inset ring-purple-600/20"><span className="truncate max-w-[100px] block">{(task as any).milestone.title}</span></span>
                                                                         )}

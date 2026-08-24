@@ -525,6 +525,19 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('api/mzitshwa/conversations/{conversation}', [\App\Http\Controllers\MzitshwaController::class, 'conversationMessages'])->name('mzitshwa.conversation.messages');
         Route::delete('api/mzitshwa/conversations/{conversation}', [\App\Http\Controllers\MzitshwaController::class, 'deleteConversation'])->name('mzitshwa.conversation.delete');
 
+        // In-app notifications
+        Route::get('api/notifications/recent', [\App\Http\Controllers\InAppNotificationController::class, 'recent'])->name('notifications.recent');
+        Route::post('api/notifications/{id}/read', [\App\Http\Controllers\InAppNotificationController::class, 'markAsRead'])->name('notifications.markAsRead');
+        Route::post('api/notifications/read-all', [\App\Http\Controllers\InAppNotificationController::class, 'markAllAsRead'])->name('notifications.markAllAsRead');
+        Route::delete('api/notifications/{id}', [\App\Http\Controllers\InAppNotificationController::class, 'destroy'])->name('notifications.destroy');
+        Route::delete('api/notifications', [\App\Http\Controllers\InAppNotificationController::class, 'destroyAll'])->name('notifications.destroyAll');
+        Route::get('notifications', [\App\Http\Controllers\InAppNotificationController::class, 'index'])->name('notifications.index');
+
+        // Task dependencies
+        Route::get('api/tasks/{task}/dependencies', [\App\Http\Controllers\TaskDependencyController::class, 'index'])->name('tasks.dependencies.index');
+        Route::post('api/tasks/{task}/dependencies', [\App\Http\Controllers\TaskDependencyController::class, 'store'])->name('tasks.dependencies.store');
+        Route::delete('api/tasks/{task}/dependencies/{dependsOnId}', [\App\Http\Controllers\TaskDependencyController::class, 'destroy'])->name('tasks.dependencies.destroy');
+
         // Media Library API routes
         Route::get('api/media', [MediaController::class, 'index'])->middleware('permission:media_view_any')->name('api.media.index');
         Route::post('api/media/batch', [MediaController::class, 'batchStore'])->middleware('permission:media_upload')->name('api.media.batch');

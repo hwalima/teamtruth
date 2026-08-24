@@ -6,11 +6,13 @@ interface Task {
     start: string;
     end: string;
     progress: number;
+    dependencies?: string;
     custom_class?: string;
     extra?: {
         priority: string;
         comments: number;
         duration: string;
+        is_blocked?: boolean;
     };
 }
 
@@ -70,13 +72,14 @@ const GanttChart: React.FC<GanttChartProps> = ({ tasks, viewMode = 'Week', onDat
                 let status_class = 'success';
                 if (task.custom_class === 'medium') status_class = 'info';
                 else if (task.custom_class === 'high') status_class = 'danger';
+                const blockedHtml = task.extra?.is_blocked ? '<br><span class="badge badge-danger">⚠ BLOCKED</span>' : '';
                 return `<div class="details-container">
                             <div class="title">${task.name}</div>
                             <div class="subtitle">
                                 <b>${task.progress}%</b> Progress <br>
                                 <b>${task.extra?.comments || 0}</b> Comments <br>
                                 <b>Duration:</b> ${task.extra?.duration || 'No dates set'} <br>
-                                <b>Status:</b><span class="badge badge-${status_class}">${task.extra?.priority || 'Low'}</span>
+                                <b>Priority:</b><span class="badge badge-${status_class}">${task.extra?.priority || 'Low'}</span>${blockedHtml}
                             </div>
                         </div>`;
             },
