@@ -80,7 +80,8 @@ class WorkloadController extends Controller
             })->values()->toArray();
 
             $capacityHours = count($days) * 8;
-            $utilization = $capacityHours > 0 ? round(($totalEstimated / $capacityHours) * 100) : 0;
+            $effectiveHours = $totalEstimated > 0 ? $totalEstimated : $taskCount * 2;
+            $utilization = $capacityHours > 0 ? round(($effectiveHours / $capacityHours) * 100) : 0;
 
             return [
                 'id' => $member->id,

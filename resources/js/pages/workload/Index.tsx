@@ -58,14 +58,16 @@ const STATUS_CONFIG = {
     underutilized: { color: 'text-blue-600 dark:text-blue-400', bg: 'bg-blue-50 dark:bg-blue-950/20', border: 'border-blue-200 dark:border-blue-800/40', icon: <Zap className="w-3.5 h-3.5" />, label: 'Underutilized' },
 };
 
-function getHeatColor(hours: number): string {
-    if (hours === 0) return 'bg-gray-100 dark:bg-gray-800';
-    if (hours <= 2) return 'bg-green-100 dark:bg-green-900/30';
-    if (hours <= 4) return 'bg-green-200 dark:bg-green-800/40';
-    if (hours <= 6) return 'bg-amber-100 dark:bg-amber-900/30';
-    if (hours <= 8) return 'bg-amber-200 dark:bg-amber-800/40';
-    if (hours <= 10) return 'bg-orange-200 dark:bg-orange-800/40';
-    return 'bg-red-300 dark:bg-red-800/50';
+function getHeatColor(tasks: number, hours: number): string {
+    const intensity = hours > 0 ? hours : tasks * 2;
+    if (intensity === 0) return 'bg-slate-50 dark:bg-slate-900/30';
+    if (intensity <= 1) return 'bg-emerald-100 dark:bg-emerald-900/40';
+    if (intensity <= 2) return 'bg-emerald-200 dark:bg-emerald-800/50';
+    if (intensity <= 4) return 'bg-yellow-200 dark:bg-yellow-800/50';
+    if (intensity <= 6) return 'bg-amber-300 dark:bg-amber-700/50';
+    if (intensity <= 8) return 'bg-orange-300 dark:bg-orange-700/50';
+    if (intensity <= 10) return 'bg-red-300 dark:bg-red-700/50';
+    return 'bg-red-500 dark:bg-red-600/70';
 }
 
 function formatDay(dateStr: string): { day: string; weekday: string; isWeekend: boolean } {
@@ -170,20 +172,20 @@ export default function WorkloadIndex() {
                     </CardHeader>
                     <CardContent className="p-0">
                         <div className="overflow-x-auto">
-                            <table className="w-full min-w-[700px]">
+                            <table className="w-full min-w-[600px]">
                                 <thead>
                                     <tr className="border-b bg-muted/30">
-                                        <th className="text-left text-xs font-medium text-muted-foreground p-3 w-[200px] sticky left-0 bg-background z-10">{t('Member')}</th>
+                                        <th className="text-left text-[11px] font-medium text-muted-foreground px-3 py-2 w-[160px] sticky left-0 bg-background z-10">{t('Member')}</th>
                                         {days.map(day => {
                                             const { day: d, weekday, isWeekend } = formatDay(day);
                                             return (
-                                                <th key={day} className={`text-center p-1.5 min-w-[44px] ${isWeekend ? 'opacity-50' : ''}`}>
-                                                    <div className="text-[10px] text-muted-foreground">{weekday}</div>
-                                                    <div className="text-xs font-medium">{d}</div>
+                                                <th key={day} className={`text-center px-0.5 py-1.5 min-w-[32px] ${isWeekend ? 'opacity-40' : ''}`}>
+                                                    <div className="text-[9px] text-muted-foreground leading-tight">{weekday}</div>
+                                                    <div className="text-[10px] font-semibold leading-tight">{d}</div>
                                                 </th>
                                             );
                                         })}
-                                        <th className="text-center text-xs font-medium text-muted-foreground p-3 w-[100px]">{t('Load')}</th>
+                                        <th className="text-center text-[11px] font-medium text-muted-foreground px-2 py-2 w-[70px]">{t('Load')}</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -193,33 +195,34 @@ export default function WorkloadIndex() {
                                         return (
                                             <>
                                                 <tr key={member.id} className={`border-b hover:bg-muted/20 cursor-pointer transition-colors ${expanded ? 'bg-muted/10' : ''}`} onClick={() => setExpandedMember(expanded ? null : member.id)}>
-                                                    <td className="p-3 sticky left-0 bg-background z-10">
-                                                        <div className="flex items-center gap-2.5">
-                                                            <Avatar className="h-8 w-8">
+                                                    <td className="px-3 py-1.5 sticky left-0 bg-background z-10">
+                                                        <div className="flex items-center gap-2">
+                                                            <Avatar className="h-6 w-6">
                                                                 <AvatarImage src={member.avatar} />
-                                                                <AvatarFallback className="text-xs">{member.name.split(' ').map(n => n[0]).join('').toUpperCase()}</AvatarFallback>
+                                                                <AvatarFallback className="text-[9px]">{member.name.split(' ').map(n => n[0]).join('').toUpperCase()}</AvatarFallback>
                                                             </Avatar>
                                                             <div className="min-w-0">
-                                                                <p className="text-sm font-medium truncate">{member.name}</p>
-                                                                <p className="text-[10px] text-muted-foreground">{member.task_count} tasks</p>
+                                                                <p className="text-xs font-medium truncate leading-tight">{member.name}</p>
+                                                                <p className="text-[9px] text-muted-foreground leading-tight">{member.task_count} tasks</p>
                                                             </div>
                                                         </div>
                                                     </td>
                                                     {member.daily_load.map((dl, i) => {
                                                         const { isWeekend } = formatDay(dl.date);
+                                                        const intensity = dl.estimated_hours > 0 ? dl.estimated_hours : dl.tasks * 2;
                                                         return (
-                                                            <td key={i} className={`p-1 ${isWeekend ? 'opacity-40' : ''}`}>
+                                                            <td key={i} className={`px-0.5 py-1 ${isWeekend ? 'opacity-30' : ''}`}>
                                                                 <div
-                                                                    className={`w-full aspect-square rounded-md flex items-center justify-center text-[10px] font-medium ${getHeatColor(dl.estimated_hours)} ${dl.estimated_hours > 8 ? 'text-red-800 dark:text-red-200' : dl.estimated_hours > 0 ? 'text-foreground/70' : 'text-muted-foreground/40'}`}
-                                                                    title={`${dl.date}: ${dl.estimated_hours}h est, ${dl.logged_hours}h logged, ${dl.tasks} tasks`}
+                                                                    className={`w-full h-7 rounded flex items-center justify-center text-[9px] font-bold ${getHeatColor(dl.tasks, dl.estimated_hours)} ${intensity > 8 ? 'text-white dark:text-white' : intensity > 0 ? 'text-foreground/80' : ''}`}
+                                                                    title={`${dl.date}: ${dl.tasks} tasks, ${dl.estimated_hours}h est, ${dl.logged_hours}h logged`}
                                                                 >
-                                                                    {dl.estimated_hours > 0 ? dl.estimated_hours : ''}
+                                                                    {dl.tasks > 0 ? dl.tasks : ''}
                                                                 </div>
                                                             </td>
                                                         );
                                                     })}
-                                                    <td className="p-3 text-center">
-                                                        <div className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold ${cfg.bg} ${cfg.color} border ${cfg.border}`}>
+                                                    <td className="px-2 py-1.5 text-center">
+                                                        <div className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-semibold ${cfg.bg} ${cfg.color} border ${cfg.border}`}>
                                                             {cfg.icon}
                                                             {member.utilization}%
                                                         </div>
@@ -285,19 +288,18 @@ export default function WorkloadIndex() {
                 </Card>
 
                 {/* Legend */}
-                <div className="flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
-                    <span className="font-medium">{t('Hours/day')}:</span>
+                <div className="flex flex-wrap items-center gap-3 text-[11px] text-muted-foreground">
+                    <span className="font-medium">{t('Tasks/day')}:</span>
                     {[
-                        { label: '0', cls: 'bg-gray-100 dark:bg-gray-800' },
-                        { label: '1-2', cls: 'bg-green-100 dark:bg-green-900/30' },
-                        { label: '3-4', cls: 'bg-green-200 dark:bg-green-800/40' },
-                        { label: '5-6', cls: 'bg-amber-100 dark:bg-amber-900/30' },
-                        { label: '7-8', cls: 'bg-amber-200 dark:bg-amber-800/40' },
-                        { label: '9-10', cls: 'bg-orange-200 dark:bg-orange-800/40' },
-                        { label: '10+', cls: 'bg-red-300 dark:bg-red-800/50' },
+                        { label: '0', cls: 'bg-slate-50 dark:bg-slate-900/30' },
+                        { label: '1', cls: 'bg-emerald-200 dark:bg-emerald-800/50' },
+                        { label: '2', cls: 'bg-yellow-200 dark:bg-yellow-800/50' },
+                        { label: '3', cls: 'bg-amber-300 dark:bg-amber-700/50' },
+                        { label: '4', cls: 'bg-orange-300 dark:bg-orange-700/50' },
+                        { label: '5+', cls: 'bg-red-500 dark:bg-red-600/70' },
                     ].map(l => (
-                        <div key={l.label} className="flex items-center gap-1.5">
-                            <span className={`w-4 h-4 rounded ${l.cls}`} />
+                        <div key={l.label} className="flex items-center gap-1">
+                            <span className={`w-3.5 h-3.5 rounded-sm ${l.cls} border border-black/5`} />
                             <span>{l.label}</span>
                         </div>
                     ))}
