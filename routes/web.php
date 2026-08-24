@@ -525,6 +525,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('api/mzitshwa/conversations/{conversation}', [\App\Http\Controllers\MzitshwaController::class, 'conversationMessages'])->name('mzitshwa.conversation.messages');
         Route::delete('api/mzitshwa/conversations/{conversation}', [\App\Http\Controllers\MzitshwaController::class, 'deleteConversation'])->name('mzitshwa.conversation.delete');
 
+        // Workload / capacity view
+        Route::get('workload', [\App\Http\Controllers\WorkloadController::class, 'index'])->name('workload.index');
+
         // In-app notifications
         Route::get('api/notifications/recent', [\App\Http\Controllers\InAppNotificationController::class, 'recent'])->name('notifications.recent');
         Route::post('api/notifications/{id}/read', [\App\Http\Controllers\InAppNotificationController::class, 'markAsRead'])->name('notifications.markAsRead');

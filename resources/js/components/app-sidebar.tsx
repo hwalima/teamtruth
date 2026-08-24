@@ -148,6 +148,10 @@ export function AppSidebar() {
             items.push({ title: t('Milestone Report'), href: route('project-reports.milestone'), icon: BarChart, group: t('Project Management') });
         }
 
+        if (hasPermission(permissions, 'task_view_any')) {
+            items.push({ title: t('Team Workload'), href: route('workload.index'), icon: Activity, group: t('Project Management') });
+        }
+
         // Time Tracking
         if (hasPermission(permissions, 'timesheet_view_any')) {
             const timesheetChildren = [
