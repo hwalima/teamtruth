@@ -160,7 +160,7 @@ export default function TaskFormModal({ isOpen, onClose, task, projects, members
 
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
-            <DialogContent className="max-w-2xl overflow-hidden">
+            <DialogContent className="max-w-2xl">
                 <DialogHeader>
                     <DialogTitle>{isEditing ? t('Edit Task') : t('Create Task')}</DialogTitle>
                 </DialogHeader>

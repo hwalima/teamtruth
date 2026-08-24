@@ -104,26 +104,25 @@ export function TaskDependencies({ taskId, projectTasks = [], isBlocked }: TaskD
 
             {/* Add dependency */}
             {availableTasks.length > 0 && (
-                <div className="flex items-center gap-2 min-w-0">
+                <div className="relative">
                     <select
                         value={selectedTaskId}
                         onChange={e => setSelectedTaskId(Number(e.target.value) || '')}
-                        className="min-w-0 flex-1 h-9 text-sm rounded-md border border-gray-300 dark:border-gray-600 px-3 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 truncate"
+                        className="w-full h-9 text-sm rounded-md border border-gray-300 dark:border-gray-600 pl-3 pr-12 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
                     >
                         <option value="">{t('Select a task...')}</option>
                         {availableTasks.map(t => (
                             <option key={t.id} value={t.id}>{t.title}</option>
                         ))}
                     </select>
-                    <Button
+                    <button
                         type="button"
-                        size="sm"
                         onClick={addDependency}
                         disabled={!selectedTaskId || saving}
-                        className="h-9 px-2.5 shrink-0"
+                        className="absolute right-1 top-1 h-7 w-7 flex items-center justify-center rounded bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                     >
                         {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-4 h-4" />}
-                    </Button>
+                    </button>
                 </div>
             )}
 
