@@ -60,6 +60,7 @@ export default function TasksIndex({ tasks, projects, stages, members, filters, 
     const [viewActiveTab, setViewActiveTab] = useState('details');
     const [isFormModalOpen, setIsFormModalOpen] = useState(false);
     const [editingTask, setEditingTask] = useState<Task | null>(null);
+    const [editingProjectTasks, setEditingProjectTasks] = useState<Array<{ id: number; title: string }>>([]);
     // Map API view values (grid, list) to local UI state values (card, table)
     const initialViewMode = () => {
         if (filters.view === 'grid') return 'card';
@@ -196,6 +197,7 @@ export default function TasksIndex({ tasks, projects, stages, members, filters, 
             };
 
             setEditingTask(taskWithProject);
+            setEditingProjectTasks(data.project_tasks || []);
             setIsFormModalOpen(true);
         } catch (error) {
             console.error('Failed to load task:', error);
@@ -923,6 +925,7 @@ export default function TasksIndex({ tasks, projects, stages, members, filters, 
                 members={members}
                 milestones={editingTask?.project?.milestones || []}
                 googleCalendarEnabled={googleCalendarEnabled}
+                projectTasks={editingProjectTasks}
             />
 
             {/* Delete Modal */}

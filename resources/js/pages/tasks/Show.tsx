@@ -513,6 +513,7 @@ export default function TaskShow({ task, members, stages, milestones, project_ta
                 projects={taskData.project ? [taskData.project] : []}
                 members={members}
                 milestones={milestones}
+                projectTasks={project_tasks}
             />
         </PageTemplate>
     );

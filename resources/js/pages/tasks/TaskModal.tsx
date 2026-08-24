@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { router } from '@inertiajs/react';
 import { useTranslation } from 'react-i18next';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -8,11 +8,12 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Calendar, User, MessageSquare, CheckSquare, Paperclip, Flag, Layers, FolderOpen } from 'lucide-react';
+import { Calendar, User, MessageSquare, CheckSquare, Paperclip, Flag, Layers, FolderOpen, Link2 } from 'lucide-react';
 import { Task, User as UserType, TaskStage, ProjectMilestone } from '@/types';
 import TaskComments from '@/components/tasks/TaskComments';
 import TaskChecklist from '@/components/tasks/TaskChecklist';
 import TaskAttachments from '@/components/tasks/TaskAttachments';
+import { TaskDependencies } from '@/components/tasks/TaskDependencies';
 import { toast } from '@/components/custom-toast';
 
 interface Props {
@@ -32,18 +33,24 @@ export default function TaskModal({ task, isOpen, onClose, members, stages, mile
     const [currentTask, setCurrentTask] = useState(task);
     const [taskPermissions, setTaskPermissions] = useState(permissions);
     const [workspaceRole, setWorkspaceRole] = useState<string | null>(initialWorkspaceRole || null);
+    const [projectTasks, setProjectTasks] = useState<Array<{ id: number; title: string }>>([]);
 
     const refreshTask = async () => {
         try {
-            const response = await fetch(route('tasks.show', task.id));
+            const response = await fetch(route('tasks.show', task.id), {
+                headers: { 'Accept': 'application/json' }
+            });
             const data = await response.json();
             setCurrentTask(data.task);
             setTaskPermissions(data.permissions);
             setWorkspaceRole(data.workspace_role);
+            if (data.project_tasks) setProjectTasks(data.project_tasks);
         } catch (error) {
             console.error('Failed to refresh task:', error);
         }
     };
+
+    useEffect(() => { if (isOpen) refreshTask(); }, [isOpen, task.id]);
 
 
 
@@ -164,6 +171,10 @@ export default function TaskModal({ task, isOpen, onClose, members, stages, mile
                                     <Paperclip className="h-4 w-4" />
                                     <span>{t('Files')} ({currentTask.attachments?.length || 0})</span>
                                 </TabsTrigger>
+                                <TabsTrigger value="dependencies" className="flex items-center space-x-2">
+                                    <Link2 className="h-4 w-4" />
+                                    <span>{t('Dependencies')}</span>
+                                </TabsTrigger>
                             </TabsList>
 
                             <TabsContent value="comments" className="flex-1 flex flex-col overflow-hidden mt-0">
@@ -187,14 +198,24 @@ export default function TaskModal({ task, isOpen, onClose, members, stages, mile
                             </TabsContent>
 
                             <TabsContent value="attachments" className="flex-1 flex flex-col overflow-hidden mt-0">
-                                <TaskAttachments 
-                                    task={currentTask} 
-                                    attachments={currentTask.attachments || []} 
+                                <TaskAttachments
+                                    task={currentTask}
+                                    attachments={currentTask.attachments || []}
                                     availableMedia={currentTask.project?.workspace?.media || []}
                                     onUpdate={refreshTask}
                                     canAddAttachments={workspaceRole !== 'client' && workspaceRole !== 'member'}
                                     canManageAttachments={workspaceRole !== 'client' && workspaceRole !== 'member'}
                                 />
+                            </TabsContent>
+
+                            <TabsContent value="dependencies" className="flex-1 flex flex-col overflow-hidden mt-0">
+                                <div className="p-2">
+                                    <TaskDependencies
+                                        taskId={currentTask.id}
+                                        projectTasks={projectTasks}
+                                        isBlocked={currentTask.is_blocked}
+                                    />
+                                </div>
                             </TabsContent>
                         </Tabs>
                     </div>

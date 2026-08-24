@@ -11,6 +11,7 @@ import { Task, Project, ProjectMilestone, User } from '@/types';
 import { toast } from '@/components/custom-toast';
 import { useTranslation } from 'react-i18next';
 import { Label } from '../ui/label';
+import { TaskDependencies } from './TaskDependencies';
 
 interface Props {
     isOpen: boolean;
@@ -20,9 +21,10 @@ interface Props {
     members: User[];
     milestones?: ProjectMilestone[];
     googleCalendarEnabled?: boolean;
+    projectTasks?: Array<{ id: number; title: string }>;
 }
 
-export default function TaskFormModal({ isOpen, onClose, task, projects, members, milestones = [], googleCalendarEnabled = false }: Props) {
+export default function TaskFormModal({ isOpen, onClose, task, projects, members, milestones = [], googleCalendarEnabled = false, projectTasks = [] }: Props) {
     const { t } = useTranslation();
     const isEditing = !!task;
     const [formData, setFormData] = useState({
@@ -334,6 +336,19 @@ export default function TaskFormModal({ isOpen, onClose, task, projects, members
                             <label htmlFor="google-calendar-sync" className="text-sm font-medium text-gray-700">
                                 {t('Sync with Google Calendar')}
                             </label>
+                        </div>
+                    )}
+
+                    {isEditing && task && (
+                        <div className="border-t pt-4">
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                                {t('Dependencies')}
+                            </label>
+                            <TaskDependencies
+                                taskId={task.id}
+                                projectTasks={projectTasks}
+                                isBlocked={task.is_blocked}
+                            />
                         </div>
                     )}
 
