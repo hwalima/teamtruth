@@ -107,7 +107,7 @@ export function TaskDependencies({ taskId, projectTasks = [], isBlocked }: TaskD
                         <Link2 className="w-3.5 h-3.5" />
                         {t('Depends on')} ({dependencies.length})
                     </h4>
-                    <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => setAdding(!adding)}>
+                    <Button type="button" variant="ghost" size="sm" className="h-7 text-xs" onClick={() => setAdding(!adding)}>
                         {adding ? <X className="w-3 h-3 mr-1" /> : <Plus className="w-3 h-3 mr-1" />}
                         {adding ? t('Cancel') : t('Add')}
                     </Button>
@@ -125,7 +125,7 @@ export function TaskDependencies({ taskId, projectTasks = [], isBlocked }: TaskD
                                 <option key={t.id} value={t.id}>{t.title}</option>
                             ))}
                         </select>
-                        <Button size="sm" onClick={addDependency} disabled={!selectedTaskId || saving} className="h-8">
+                        <Button type="button" size="sm" onClick={addDependency} disabled={!selectedTaskId || saving} className="h-8">
                             {saving ? <Loader2 className="w-3 h-3 animate-spin" /> : t('Add')}
                         </Button>
                     </div>
