@@ -107,6 +107,18 @@ interface DashboardData {
   ongoingProjects?: Array<{ id: number; title: string; priority: string; progress: number; deadline: string; members: number }>;
   recentTasks?: Array<{ id: number; title: string; priority: string; stage: string; project: string; due_date: string; updated_at: string }>;
   pendingExpenses?: Array<{ id: number; title: string; amount: number; submitted_by: string; project: string; expense_date: string; submitted_at: string }>;
+  myTasksDueToday?: Array<{
+    id: number;
+    title: string;
+    project: string;
+    priority: string;
+    stage: string;
+    stage_color: string;
+    due_date: string;
+    is_overdue: boolean;
+  }>;
+  burndownData?: Array<{ week: string; remaining: number; ideal: number }>;
+  teamVelocity?: Array<{ week: string; completed: number }>;
   recentActivities?: Array<{
     id: number;
     type: string;
@@ -967,6 +979,133 @@ export default function Dashboard({ dashboardData, isSuperAdmin, isSaasMode = tr
                 </div>
               );
             })}
+          </div>
+        )}
+
+        {/* ── MY TASKS DUE TODAY + BURNDOWN + VELOCITY ── */}
+        {(dashboardData?.myTasksDueToday || dashboardData?.burndownData || dashboardData?.teamVelocity) && (
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {/* My Tasks Due Today */}
+            {dashboardData?.myTasksDueToday !== undefined && (
+              <Card className="border border-border bg-card hover:shadow-md transition-all duration-300 lg:col-span-1">
+                <CardHeader className="pb-3 pt-5 px-5 border-b">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="p-1.5 rounded-lg bg-rose-50 dark:bg-rose-900/20 border border-rose-200/50 dark:border-rose-800/50">
+                        <AlertCircle className="h-4 w-4 text-rose-500" />
+                      </div>
+                      <div>
+                        <CardTitle className="text-sm font-semibold">{t('Due Today')}</CardTitle>
+                        <p className="text-[11px] text-muted-foreground">{t('Your tasks needing attention')}</p>
+                      </div>
+                    </div>
+                    <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-rose-100 dark:bg-rose-900/30 text-rose-700 dark:text-rose-300">
+                      {dashboardData.myTasksDueToday?.length || 0}
+                    </span>
+                  </div>
+                </CardHeader>
+                <CardContent className="p-0">
+                  {dashboardData.myTasksDueToday && dashboardData.myTasksDueToday.length > 0 ? (
+                    <div className="overflow-y-auto max-h-[280px]">
+                      {dashboardData.myTasksDueToday.map((task: any) => (
+                        <div key={task.id} className="flex items-center justify-between px-4 py-3 hover:bg-muted/50 transition-colors border-b border-border/50 last:border-0">
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm font-medium text-foreground truncate">{task.title}</p>
+                            <p className="text-[11px] text-muted-foreground truncate">{task.project}</p>
+                          </div>
+                          <div className="flex items-center gap-1.5 shrink-0 ml-2">
+                            {task.is_overdue && (
+                              <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-rose-100 dark:bg-rose-900/40 text-rose-600 dark:text-rose-400">{t('Overdue')}</span>
+                            )}
+                            <span className="inline-block w-2 h-2 rounded-full" style={{ background: task.stage_color }} />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-center justify-center py-10 text-muted-foreground">
+                      <Target className="h-8 w-8 opacity-20 mb-2" />
+                      <p className="text-xs font-medium">{t('All caught up!')}</p>
+                      <p className="text-[11px] opacity-60">{t('No tasks due today')}</p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Burndown Chart */}
+            {dashboardData?.burndownData && dashboardData.burndownData.length > 0 && (
+              <Card className="border border-border bg-card hover:shadow-md transition-all duration-300 lg:col-span-1">
+                <CardHeader className="pb-3 pt-5 px-5 border-b">
+                  <div className="flex items-center gap-2">
+                    <div className="p-1.5 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200/50 dark:border-blue-800/50">
+                      <TrendingUp className="h-4 w-4 text-blue-500" />
+                    </div>
+                    <div>
+                      <CardTitle className="text-sm font-semibold">{t('Burndown')}</CardTitle>
+                      <p className="text-[11px] text-muted-foreground">{t('Remaining tasks over time')}</p>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent className="pt-4 px-2 pb-2">
+                  <ResponsiveContainer width="100%" height={200}>
+                    <AreaChart data={dashboardData.burndownData} margin={{ top: 5, right: 10, left: -10, bottom: 5 }}>
+                      <defs>
+                        <linearGradient id="burndownGrad" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.2}/>
+                          <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+                      <XAxis dataKey="week" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
+                      <YAxis tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
+                      <Tooltip contentStyle={{ fontSize: 11, borderRadius: 8, border: '1px solid hsl(var(--border))', background: 'hsl(var(--popover))', color: 'hsl(var(--popover-foreground))' }} />
+                      <Area type="monotone" dataKey="remaining" stroke="#3b82f6" strokeWidth={2} fill="url(#burndownGrad)" name={t('Remaining')} />
+                      <Area type="monotone" dataKey="ideal" stroke="#94a3b8" strokeWidth={1.5} strokeDasharray="4 4" fill="none" name={t('Ideal')} />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Team Velocity */}
+            {dashboardData?.teamVelocity && dashboardData.teamVelocity.length > 0 && (
+              <Card className="border border-border bg-card hover:shadow-md transition-all duration-300 lg:col-span-1">
+                <CardHeader className="pb-3 pt-5 px-5 border-b">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="p-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200/50 dark:border-emerald-800/50">
+                        <Activity className="h-4 w-4 text-emerald-500" />
+                      </div>
+                      <div>
+                        <CardTitle className="text-sm font-semibold">{t('Team Velocity')}</CardTitle>
+                        <p className="text-[11px] text-muted-foreground">{t('Tasks completed per week')}</p>
+                      </div>
+                    </div>
+                    <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400">
+                      {dashboardData.teamVelocity[dashboardData.teamVelocity.length - 1]?.completed || 0} {t('this week')}
+                    </span>
+                  </div>
+                </CardHeader>
+                <CardContent className="pt-4 px-2 pb-2">
+                  <ResponsiveContainer width="100%" height={200}>
+                    <BarChart data={dashboardData.teamVelocity} margin={{ top: 5, right: 10, left: -10, bottom: 5 }}>
+                      <defs>
+                        <linearGradient id="velocityGrad" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor="#10b981" stopOpacity={0.9}/>
+                          <stop offset="100%" stopColor="#059669" stopOpacity={0.7}/>
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+                      <XAxis dataKey="week" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
+                      <YAxis tick={{ fontSize: 10 }} axisLine={false} tickLine={false} allowDecimals={false} />
+                      <Tooltip contentStyle={{ fontSize: 11, borderRadius: 8, border: '1px solid hsl(var(--border))', background: 'hsl(var(--popover))', color: 'hsl(var(--popover-foreground))' }} />
+                      <Bar dataKey="completed" fill="url(#velocityGrad)" radius={[4, 4, 0, 0]} name={t('Completed')} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </CardContent>
+              </Card>
+            )}
           </div>
         )}
 

@@ -137,6 +137,9 @@ class DashboardController extends Controller
                 'ongoingProjects' => $this->checkPermission('project_view_any') ? $this->getOngoingProjects($workspace, $user, $role) : null,
                 'recentTasks' => $this->checkPermission('task_view_any') ? $this->getRecentTasks($workspace, $user, $role) : null,
                 'pendingExpenses' => $this->checkPermission('expense_view_any') ? $this->getPendingExpenses($workspace, $user, $role) : null,
+                'myTasksDueToday' => $this->checkPermission('task_view_any') ? $this->getMyTasksDueToday($workspace, $user, $role) : null,
+                'burndownData' => $this->checkPermission('task_view_any') ? $this->getBurndownData($workspace, $user, $role) : null,
+                'teamVelocity' => $this->checkPermission('task_view_any') ? $this->getTeamVelocity($workspace, $user, $role) : null,
             ];
 
             return Inertia::render('dashboard', [
@@ -1725,6 +1728,117 @@ class DashboardController extends Controller
                 });
             
             return $companies->toArray();
+        } catch (\Exception $e) {
+            return [];
+        }
+    }
+
+    private function getMyTasksDueToday($workspace, $user, $role)
+    {
+        try {
+            if (!class_exists('\App\Models\Task') || !$workspace) return [];
+
+            $today = now()->toDateString();
+
+            return \App\Models\Task::where('project_id', function($query) use ($workspace) {
+                    $query->select('id')->from('projects')->where('workspace_id', $workspace->id);
+                })
+                ->where(function($q) use ($user) {
+                    $q->where('assigned_to', $user->id)
+                      ->orWhereHas('members', function($mq) use ($user) {
+                          $mq->where('user_id', $user->id);
+                      });
+                })
+                ->where(function($q) use ($today) {
+                    $q->whereDate('end_date', '<=', $today)
+                      ->orWhereDate('due_date', '<=', $today);
+                })
+                ->whereHas('taskStage', function($q) {
+                    $q->where('name', '!=', 'Done');
+                })
+                ->with(['taskStage:id,name,color', 'project:id,title'])
+                ->orderBy('end_date')
+                ->limit(10)
+                ->get()
+                ->map(function($task) use ($today) {
+                    $dueDate = $task->due_date ?? $task->end_date;
+                    return [
+                        'id' => $task->id,
+                        'title' => $task->title,
+                        'project' => $task->project->title ?? '',
+                        'priority' => $task->priority ?? 'medium',
+                        'stage' => $task->taskStage->name ?? 'To Do',
+                        'stage_color' => $task->taskStage->color ?? '#6b7280',
+                        'due_date' => $dueDate,
+                        'is_overdue' => $dueDate && $dueDate < $today,
+                    ];
+                })
+                ->toArray();
+        } catch (\Exception $e) {
+            return [];
+        }
+    }
+
+    private function getBurndownData($workspace, $user, $role)
+    {
+        try {
+            if (!class_exists('\App\Models\Task') || !$workspace) return [];
+
+            $projectIds = \App\Models\Project::where('workspace_id', $workspace->id)
+                ->where('status', 'active')
+                ->pluck('id');
+
+            if ($projectIds->isEmpty()) return [];
+
+            $totalTasks = \App\Models\Task::whereIn('project_id', $projectIds)->count();
+            if ($totalTasks === 0) return [];
+
+            $data = [];
+            for ($i = 7; $i >= 0; $i--) {
+                $date = now()->subWeeks($i)->endOfWeek();
+                $completedByDate = \App\Models\Task::whereIn('project_id', $projectIds)
+                    ->where('progress', 100)
+                    ->where('updated_at', '<=', $date)
+                    ->count();
+
+                $data[] = [
+                    'week' => $date->format('M d'),
+                    'remaining' => max(0, $totalTasks - $completedByDate),
+                    'ideal' => (int) round($totalTasks * (1 - (8 - $i) / 8)),
+                ];
+            }
+
+            return $data;
+        } catch (\Exception $e) {
+            return [];
+        }
+    }
+
+    private function getTeamVelocity($workspace, $user, $role)
+    {
+        try {
+            if (!class_exists('\App\Models\Task') || !$workspace) return [];
+
+            $projectIds = \App\Models\Project::where('workspace_id', $workspace->id)->pluck('id');
+            if ($projectIds->isEmpty()) return [];
+
+            $data = [];
+            for ($i = 5; $i >= 0; $i--) {
+                $weekStart = now()->subWeeks($i)->startOfWeek();
+                $weekEnd = now()->subWeeks($i)->endOfWeek();
+
+                $completed = \App\Models\Task::whereIn('project_id', $projectIds)
+                    ->where('progress', 100)
+                    ->whereBetween('updated_at', [$weekStart, $weekEnd])
+                    ->count();
+
+                $data[] = [
+                    'week' => $weekStart->format('M d'),
+                    'completed' => $completed,
+                ];
+            }
+
+            return $data;
         } catch (\Exception $e) {
             return [];
         }
