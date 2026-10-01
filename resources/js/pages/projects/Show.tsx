@@ -650,7 +650,7 @@ export default function ProjectShow() {
         >
             {/* Project Header */}
             <div className="bg-white rounded-lg shadow mb-4">
-                <div className="p-6">
+                <div className="p-4 sm:p-6">
                     <div className="flex justify-between items-start mb-4">
                         <div>
                             <div className="flex gap-2">
@@ -766,81 +766,81 @@ export default function ProjectShow() {
             <div className="bg-white rounded-lg shadow">
                 <Tabs value={activeTab} onValueChange={handleTabChange} className="relative">
                     <div className="border-b bg-gradient-to-r from-gray-50 to-blue-50 dark:from-gray-900 dark:to-gray-800 dark:border-gray-700 relative z-10">
-                        <TabsList className="h-12 bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm border-0 rounded-none p-0 shadow-none relative z-20 flex-wrap w-full justify-center">
+                        <TabsList className="h-auto min-h-12 grid grid-cols-2 sm:flex sm:flex-wrap bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm border-0 rounded-none p-0 shadow-none relative z-20 w-full justify-center">
                             {hasPermission(permissions, 'project_view') && (
-                                <TabsTrigger value="overview" className="px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:scale-105 hover:bg-primary/10 hover:text-primary dark:text-gray-400 dark:hover:text-primary dark:data-[state=active]:text-white">
-                                    <User className="h-4 w-4 mr-2" />
+                                <TabsTrigger value="overview" className="min-w-0 justify-center px-2 py-3 text-xs sm:px-4 sm:py-2 sm:text-sm rounded-lg font-medium transition-all duration-300 data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-lg sm:data-[state=active]:scale-105 hover:bg-primary/10 hover:text-primary dark:text-gray-400 dark:hover:text-primary dark:data-[state=active]:text-white">
+                                    <User className="h-4 w-4 shrink-0 mr-1.5 sm:mr-2" />
                                     {t('Overview')}
                                 </TabsTrigger>
                             )}
                             {hasPermission(permissions, 'project_assign_members') && (
-                                <TabsTrigger value="team" className="px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:scale-105 hover:bg-primary/10 hover:text-primary dark:text-gray-400 dark:hover:text-primary dark:data-[state=active]:text-white">
-                                    <Users className="h-4 w-4 mr-2" />
+                                <TabsTrigger value="team" className="min-w-0 justify-center px-2 py-3 text-xs sm:px-4 sm:py-2 sm:text-sm rounded-lg font-medium transition-all duration-300 data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-lg sm:data-[state=active]:scale-105 hover:bg-primary/10 hover:text-primary dark:text-gray-400 dark:hover:text-primary dark:data-[state=active]:text-white">
+                                    <Users className="h-4 w-4 shrink-0 mr-1.5 sm:mr-2" />
                                     {t('Team')}
                                 </TabsTrigger>
                             )}
                             {hasPermission(permissions, 'project_manage_milestones') && (
-                                <TabsTrigger value="milestones" className="px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:scale-105 hover:bg-primary/10 hover:text-primary dark:text-gray-400 dark:hover:text-primary dark:data-[state=active]:text-white">
-                                    <Calendar className="h-4 w-4 mr-2" />
+                                <TabsTrigger value="milestones" className="min-w-0 justify-center px-2 py-3 text-xs sm:px-4 sm:py-2 sm:text-sm rounded-lg font-medium transition-all duration-300 data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-lg sm:data-[state=active]:scale-105 hover:bg-primary/10 hover:text-primary dark:text-gray-400 dark:hover:text-primary dark:data-[state=active]:text-white">
+                                    <Calendar className="h-4 w-4 shrink-0 mr-1.5 sm:mr-2" />
                                     {t('Milestones')}
                                 </TabsTrigger>
                             )}
                             {hasPermission(permissions, 'project_manage_notes') && (
-                                <TabsTrigger value="notes" className="px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:scale-105 hover:bg-primary/10 hover:text-primary dark:text-gray-400 dark:hover:text-primary dark:data-[state=active]:text-white">
-                                    <Pin className="h-4 w-4 mr-2" />
+                                <TabsTrigger value="notes" className="min-w-0 justify-center px-2 py-3 text-xs sm:px-4 sm:py-2 sm:text-sm rounded-lg font-medium transition-all duration-300 data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-lg sm:data-[state=active]:scale-105 hover:bg-primary/10 hover:text-primary dark:text-gray-400 dark:hover:text-primary dark:data-[state=active]:text-white">
+                                    <Pin className="h-4 w-4 shrink-0 mr-1.5 sm:mr-2" />
                                     {t('Notes')}
                                 </TabsTrigger>
                             )}
                             {hasViewBudgetAccess && (
-                                <TabsTrigger value="budget" className="px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:scale-105 hover:bg-primary/10 hover:text-primary dark:text-gray-400 dark:hover:text-primary dark:data-[state=active]:text-white">
-                                    <DollarSign className="h-4 w-4 mr-2" />
+                                <TabsTrigger value="budget" className="min-w-0 justify-center px-2 py-3 text-xs sm:px-4 sm:py-2 sm:text-sm rounded-lg font-medium transition-all duration-300 data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-lg sm:data-[state=active]:scale-105 hover:bg-primary/10 hover:text-primary dark:text-gray-400 dark:hover:text-primary dark:data-[state=active]:text-white">
+                                    <DollarSign className="h-4 w-4 shrink-0 mr-1.5 sm:mr-2" />
                                     {t('Budget')}
                                 </TabsTrigger>
                             )}
                             {hasPermission(permissions, 'expense_view_any') && (
-                                <TabsTrigger value="expense" className="px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:scale-105 hover:bg-primary/10 hover:text-primary dark:text-gray-400 dark:hover:text-primary dark:data-[state=active]:text-white">
-                                    <CreditCard className="h-4 w-4 mr-2" />
+                                <TabsTrigger value="expense" className="min-w-0 justify-center px-2 py-3 text-xs sm:px-4 sm:py-2 sm:text-sm rounded-lg font-medium transition-all duration-300 data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-lg sm:data-[state=active]:scale-105 hover:bg-primary/10 hover:text-primary dark:text-gray-400 dark:hover:text-primary dark:data-[state=active]:text-white">
+                                    <CreditCard className="h-4 w-4 shrink-0 mr-1.5 sm:mr-2" />
                                     {t('Expense')}
                                 </TabsTrigger>
                             )}
                             {hasPermission(permissions, 'task_view_any') && (
-                                <TabsTrigger value="tasks" className="px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:scale-105 hover:bg-primary/10 hover:text-primary dark:text-gray-400 dark:hover:text-primary dark:data-[state=active]:text-white">
-                                    <CheckSquare className="h-4 w-4 mr-2" />
+                                <TabsTrigger value="tasks" className="min-w-0 justify-center px-2 py-3 text-xs sm:px-4 sm:py-2 sm:text-sm rounded-lg font-medium transition-all duration-300 data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-lg sm:data-[state=active]:scale-105 hover:bg-primary/10 hover:text-primary dark:text-gray-400 dark:hover:text-primary dark:data-[state=active]:text-white">
+                                    <CheckSquare className="h-4 w-4 shrink-0 mr-1.5 sm:mr-2" />
                                     {t('Tasks')}
                                 </TabsTrigger>
                             )}
                             {hasPermission(permissions, 'bug_view_any') && (
-                                <TabsTrigger value="bugs" className="px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:scale-105 hover:bg-primary/10 hover:text-primary dark:text-gray-400 dark:hover:text-primary dark:data-[state=active]:text-white">
-                                    <Bug className="h-4 w-4 mr-2" />
+                                <TabsTrigger value="bugs" className="min-w-0 justify-center px-2 py-3 text-xs sm:px-4 sm:py-2 sm:text-sm rounded-lg font-medium transition-all duration-300 data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-lg sm:data-[state=active]:scale-105 hover:bg-primary/10 hover:text-primary dark:text-gray-400 dark:hover:text-primary dark:data-[state=active]:text-white">
+                                    <Bug className="h-4 w-4 shrink-0 mr-1.5 sm:mr-2" />
                                     {t('Bugs')}
                                 </TabsTrigger>
                             )}
                             {hasPermission(permissions, 'timesheet_view_any') && (
-                                <TabsTrigger value="timesheet" className="px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:scale-105 hover:bg-primary/10 hover:text-primary dark:text-gray-400 dark:hover:text-primary dark:data-[state=active]:text-white">
-                                    <Timer className="h-4 w-4 mr-2" />
+                                <TabsTrigger value="timesheet" className="min-w-0 justify-center px-2 py-3 text-xs sm:px-4 sm:py-2 sm:text-sm rounded-lg font-medium transition-all duration-300 data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-lg sm:data-[state=active]:scale-105 hover:bg-primary/10 hover:text-primary dark:text-gray-400 dark:hover:text-primary dark:data-[state=active]:text-white">
+                                    <Timer className="h-4 w-4 shrink-0 mr-1.5 sm:mr-2" />
                                     {t('Timesheet')}
                                 </TabsTrigger>
                             )}
                             {hasPermission(permissions, 'project_manage_attachments') && (
-                                <TabsTrigger value="attachments" className="px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:scale-105 hover:bg-primary/10 hover:text-primary dark:text-gray-400 dark:hover:text-primary dark:data-[state=active]:text-white">
-                                    <Paperclip className="h-4 w-4 mr-2" />
+                                <TabsTrigger value="attachments" className="min-w-0 justify-center px-2 py-3 text-xs sm:px-4 sm:py-2 sm:text-sm rounded-lg font-medium transition-all duration-300 data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-lg sm:data-[state=active]:scale-105 hover:bg-primary/10 hover:text-primary dark:text-gray-400 dark:hover:text-primary dark:data-[state=active]:text-white">
+                                    <Paperclip className="h-4 w-4 shrink-0 mr-1.5 sm:mr-2" />
                                     {t('Attachments')}
                                 </TabsTrigger>
                             )}
                             {hasPermission(permissions, 'project_view') && (
-                                <TabsTrigger value="activity" className="px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:scale-105 hover:bg-primary/10 hover:text-primary dark:text-gray-400 dark:hover:text-primary dark:data-[state=active]:text-white">
-                                    <Clock className="h-4 w-4 mr-2" />
+                                <TabsTrigger value="activity" className="min-w-0 justify-center px-2 py-3 text-xs sm:px-4 sm:py-2 sm:text-sm rounded-lg font-medium transition-all duration-300 data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-lg sm:data-[state=active]:scale-105 hover:bg-primary/10 hover:text-primary dark:text-gray-400 dark:hover:text-primary dark:data-[state=active]:text-white">
+                                    <Clock className="h-4 w-4 shrink-0 mr-1.5 sm:mr-2" />
                                     {t('Activity')}
                                 </TabsTrigger>
                             )}
                         </TabsList>
                     </div>
 
-                    <div className="p-4 relative overflow-visible z-0">
+                    <div className="p-3 sm:p-4 relative overflow-visible z-0">
                         <TabsContent value="overview" className="space-y-6 mt-0">
                             <Card>
                                 <CardHeader>
-                                    <CardTitle className="text-lg">{t('Project Description')}</CardTitle>
+                                    <CardTitle className="text-lg break-words">{t('Project Description')}</CardTitle>
                                 </CardHeader>
                                 <CardContent>
                                     <p className="text-gray-700 leading-relaxed whitespace-pre-wrap">{project.description || t('No description provided.')}</p>
@@ -856,17 +856,17 @@ export default function ProjectShow() {
                                         </CardTitle>
                                     </CardHeader>
                                     <CardContent className="space-y-3">
-                                        <div className="flex justify-between">
+                                        <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
                                             <span className="text-sm text-gray-600">{t('Start Date')}:</span>
-                                            <span className="font-medium">{project.start_date ? window.appSettings.formatDateTime(new Date(project.start_date),false) : t('Not set')}</span>
+                                            <span className="font-medium text-right break-words">{project.start_date ? window.appSettings.formatDateTime(new Date(project.start_date),false) : t('Not set')}</span>
                                         </div>
-                                        <div className="flex justify-between">
+                                        <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
                                             <span className="text-sm text-gray-600">{t('Deadline')}:</span>
-                                            <span className="font-medium">{project.deadline ? window.appSettings.formatDateTime(new Date(project.deadline),false) : t('Not set')}</span>
+                                            <span className="font-medium text-right break-words">{project.deadline ? window.appSettings.formatDateTime(new Date(project.deadline),false) : t('Not set')}</span>
                                         </div>
-                                        <div className="flex justify-between">
+                                        <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
                                             <span className="text-sm text-gray-600">{t('Estimated Hours')}:</span>
-                                            <span className="font-medium">{project.estimated_hours || 0}h</span>
+                                            <span className="font-medium text-right break-words">{project.estimated_hours || 0}h</span>
                                         </div>
                                     </CardContent>
                                 </Card>
@@ -879,17 +879,17 @@ export default function ProjectShow() {
                                         </CardTitle>
                                     </CardHeader>
                                     <CardContent className="space-y-3">
-                                        <div className="flex justify-between">
+                                        <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
                                             <span className="text-sm text-gray-600">{t('Managers')}:</span>
-                                            <span className="font-medium">{project.members?.filter((member: any) => member.role === 'manager').length || 0}</span>
+                                            <span className="font-medium text-right break-words">{project.members?.filter((member: any) => member.role === 'manager').length || 0}</span>
                                         </div>
-                                        <div className="flex justify-between">
+                                        <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
                                             <span className="text-sm text-gray-600">{t('Team Members')}:</span>
-                                            <span className="font-medium">{project.members?.filter((member: any) => member.role === 'member').length || 0}</span>
+                                            <span className="font-medium text-right break-words">{project.members?.filter((member: any) => member.role === 'member').length || 0}</span>
                                         </div>
-                                        <div className="flex justify-between">
+                                        <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
                                             <span className="text-sm text-gray-600">{t('Clients')}:</span>
-                                            <span className="font-medium">{project.clients?.length || 0}</span>
+                                            <span className="font-medium text-right break-words">{project.clients?.length || 0}</span>
                                         </div>
                                     </CardContent>
                                 </Card>
@@ -1287,10 +1287,10 @@ export default function ProjectShow() {
                         </TabsContent>
 
                         <TabsContent value="milestones" className="space-y-6 mt-0">
-                            <div className="flex justify-between items-center">
+                            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                                 <h3 className="text-lg font-semibold">{t('Milestones')}</h3>
                                 {hasPermission(permissions, 'project_manage_milestones') && (
-                                    <Button size="sm" onClick={() => handleAction('add-milestone')}>
+                                    <Button size="sm" className="w-full sm:w-auto" onClick={() => handleAction('add-milestone')}>
                                         <Plus className="h-4 w-4 mr-2" />
                                         {t('Add Milestone')}
                                     </Button>
@@ -1298,17 +1298,17 @@ export default function ProjectShow() {
                             </div>
 
                             {project.milestones && project.milestones.length > 0 ? (
-                                <div className="grid grid-cols-2 gap-4">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                     {project.milestones.slice((milestonesPage - 1) * itemsPerPage, milestonesPage * itemsPerPage).map((milestone: any) => (
                                         <Card key={milestone.id}>
                                             <CardContent className="p-4">
-                                                <div className="flex justify-between items-start">
-                                                    <div className="flex-1">
-                                                        <h4 className="font-medium">{milestone.title}</h4>
+                                                <div className="flex justify-between items-start gap-2">
+                                                    <div className="flex-1 min-w-0">
+                                                        <h4 className="font-medium break-words">{milestone.title}</h4>
                                                         <p className="text-sm text-gray-600 mt-1 line-clamp-1">{milestone.description}</p>
-                                                        <div className="flex items-center gap-4 mt-2">
+                                                        <div className="flex flex-wrap items-center gap-2 sm:gap-4 mt-2">
                                                             <span className={`inline-flex items-center rounded-md px-2 py-1 text-xs font-medium ${getMilestoneStatusColor(milestone.status)}`}>{formatText(milestone.status)}</span>
-                                                            <span className="text-sm text-gray-500">
+                                                            <span className="text-xs sm:text-sm text-gray-500 break-words">
                                                                 {t('Due')}: {window.appSettings.formatDateTime(new Date(milestone.due_date),false)}
                                                             </span>
                                                         </div>
@@ -1423,7 +1423,7 @@ export default function ProjectShow() {
 
                             {project.notes && project.notes.length > 0 ? (
                                 <>
-                                    <div className="grid grid-cols-2 gap-4">
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                         {[...project.notes].sort((a: any, b: any) => (b.is_pinned ? 1 : 0) - (a.is_pinned ? 1 : 0)).map((note: any) => (
                                             <Card key={note.id}>
                                                 <CardContent className="p-4">
