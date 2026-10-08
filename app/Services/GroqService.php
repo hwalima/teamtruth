@@ -9,6 +9,8 @@ use App\Models\Bug;
 use App\Models\Invoice;
 use App\Models\ProjectExpense;
 use App\Models\Timesheet;
+use Illuminate\Http\Client\Response;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
@@ -17,12 +19,19 @@ class GroqService
     private string $apiKey;
     private string $baseUrl;
     private string $model;
+    private string $configuredModel;
 
     public function __construct()
     {
         $this->apiKey  = config('groq.api_key', '');
         $this->baseUrl = config('groq.base_url', 'https://api.groq.com/openai/v1');
         $this->model   = config('groq.model', 'llama-3.3-70b-versatile');
+        $this->configuredModel = $this->model;
+
+        $cachedFallback = Cache::get($this->fallbackModelCacheKey());
+        if (is_string($cachedFallback) && $cachedFallback !== '') {
+            $this->model = $cachedFallback;
+        }
     }
 
     /**
@@ -30,15 +39,13 @@ class GroqService
      */
     public function chat(array $messages, float $temperature = 0.7, int $maxTokens = 2048): string
     {
-        $response = Http::withToken($this->apiKey)
-            ->timeout(60)
-            ->post("{$this->baseUrl}/chat/completions", [
-                'model'       => $this->model,
-                'messages'    => $messages,
-                'max_tokens'  => $maxTokens,
-                'temperature' => $temperature,
-                'stream'      => false,
-            ]);
+        $response = $this->sendChatRequest([
+            'model'       => $this->model,
+            'messages'    => $messages,
+            'max_tokens'  => $maxTokens,
+            'temperature' => $temperature,
+            'stream'      => false,
+        ], 60);
 
         if (!$response->successful()) {
             $err = $response->json('error.message', 'Groq API error');
@@ -53,16 +60,17 @@ class GroqService
      */
     public function stream(array $messages, float $temperature = 0.7, int $maxTokens = 2048): \Generator
     {
-        $rawResponse = Http::withToken($this->apiKey)
-            ->timeout(120)
-            ->withOptions(['stream' => true])
-            ->post("{$this->baseUrl}/chat/completions", [
-                'model'       => $this->model,
-                'messages'    => $messages,
-                'max_tokens'  => $maxTokens,
-                'temperature' => $temperature,
-                'stream'      => true,
-            ]);
+        $rawResponse = $this->sendChatRequest([
+            'model'       => $this->model,
+            'messages'    => $messages,
+            'max_tokens'  => $maxTokens,
+            'temperature' => $temperature,
+            'stream'      => true,
+        ], 120, true);
+
+        if (!$rawResponse->successful()) {
+            throw new \RuntimeException($rawResponse->json('error.message', 'Groq API error'));
+        }
 
         $body = $rawResponse->getBody();
         $buffer = '';
@@ -83,6 +91,111 @@ class GroqService
                 if ($chunk !== '') yield $chunk;
             }
         }
+    }
+
+    private function sendChatRequest(array $payload, int $timeout, bool $stream = false): Response
+    {
+        $response = $this->makeChatRequest($payload, $timeout, $stream);
+        if (!$this->isUnavailableModelResponse($response)) {
+            return $response;
+        }
+
+        $fallbackModel = $this->findAvailableFallbackModel();
+        if ($fallbackModel === $this->model) {
+            return $response;
+        }
+
+        Log::warning('Configured Groq model is unavailable; retrying with an available account model.', [
+            'configured_model' => $this->configuredModel,
+            'fallback_model' => $fallbackModel,
+        ]);
+
+        $this->model = $fallbackModel;
+        Cache::put($this->fallbackModelCacheKey(), $fallbackModel, now()->addHours(6));
+        $payload['model'] = $fallbackModel;
+
+        return $this->makeChatRequest($payload, $timeout, $stream);
+    }
+
+    private function makeChatRequest(array $payload, int $timeout, bool $stream): Response
+    {
+        $request = Http::withToken($this->apiKey)->timeout($timeout);
+        if ($stream) {
+            $request = $request->withOptions(['stream' => true]);
+        }
+
+        return $request->post("{$this->baseUrl}/chat/completions", $payload);
+    }
+
+    private function isUnavailableModelResponse(Response $response): bool
+    {
+        if (!in_array($response->status(), [400, 404, 422], true)) {
+            return false;
+        }
+
+        $message = strtolower((string) $response->json('error.message', ''));
+
+        return str_contains($message, 'model')
+            && (
+                str_contains($message, 'does not exist')
+                || str_contains($message, 'do not have access')
+                || str_contains($message, 'not found')
+                || str_contains($message, 'not available')
+            );
+    }
+
+    private function findAvailableFallbackModel(): string
+    {
+        if ($this->apiKey === '') {
+            throw new \RuntimeException('GROQ_API_KEY is not configured.');
+        }
+
+        $cacheKey = 'groq.available_chat_models.' . hash('sha256', $this->apiKey);
+        $availableModels = Cache::remember($cacheKey, now()->addHours(6), function (): array {
+            $response = Http::withToken($this->apiKey)
+                ->timeout(15)
+                ->get("{$this->baseUrl}/models");
+
+            if (!$response->successful()) {
+                throw new \RuntimeException(
+                    'Unable to retrieve available models from Groq: '
+                    . $response->json('error.message', 'Groq API error')
+                );
+            }
+
+            return collect($response->json('data', []))
+                ->pluck('id')
+                ->filter(fn ($model) => is_string($model) && $model !== '')
+                ->values()
+                ->all();
+        });
+
+        $preferredModels = [
+            'openai/gpt-oss-120b',
+            'openai/gpt-oss-20b',
+            'llama-3.3-70b-versatile',
+            'llama-3.1-8b-instant',
+            'qwen/qwen3-32b',
+            'moonshotai/kimi-k2-instruct',
+            'meta-llama/llama-4-scout-17b-16e-instruct',
+            'meta-llama/llama-4-maverick-17b-128e-instruct',
+        ];
+
+        foreach ($preferredModels as $model) {
+            if (in_array($model, $availableModels, true)) {
+                return $model;
+            }
+        }
+
+        throw new \RuntimeException(
+            'The configured Groq model is unavailable and no supported chat model was found for this account. '
+            . 'Set GROQ_MODEL to an active chat model available from the Groq account.'
+        );
+    }
+
+    private function fallbackModelCacheKey(): string
+    {
+        return 'groq.fallback_model.' . hash('sha256', $this->apiKey . '|' . $this->configuredModel);
     }
 
     /**

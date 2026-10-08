@@ -108,6 +108,8 @@ class GoogleMeetingController extends Controller
 
         // Check if Google Meet is configured
         $hasGoogleMeetConfig = $this->googleMeetService->hasValidCredentials();
+        $canCreateMeetings = strtolower(trim((string) $userWorkspaceRole)) === 'member'
+            || $this->checkPermission('google_meeting_create');
         
         // Get Google Calendar sync settings
         $googleCalendarEnabled = getSetting('is_googlecalendar_sync', '0', $user->id, $user->current_workspace_id) === '1';
@@ -119,13 +121,14 @@ class GoogleMeetingController extends Controller
             'hasGoogleMeetConfig' => $hasGoogleMeetConfig,
             'filters' => $request->only(['search', 'status', 'project_id', 'sort_by', 'sort_order', 'per_page']),
             'permissions' => $this->getModuleCrudPermissions('google_meeting'),
-            'googleCalendarEnabled' => $googleCalendarEnabled
+            'googleCalendarEnabled' => $googleCalendarEnabled,
+            'canCreateMeetings' => $canCreateMeetings,
         ]);
     }
 
     public function create()
     {
-        $this->authorizePermission('google_meeting_create');
+        $this->authorizeGoogleMeetingCreation();
 
         $user = auth()->user();
         $workspace = $user->currentWorkspace;
@@ -255,7 +258,7 @@ class GoogleMeetingController extends Controller
         $user = auth()->user();
         $workspace = $user?->currentWorkspace;
 
-        if ($workspace && $workspace->getMemberRole($user) === 'member') {
+        if ($workspace && strtolower(trim((string) $workspace->getMemberRole($user))) === 'member') {
             return;
         }
 

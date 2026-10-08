@@ -1067,7 +1067,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
         // Google Meeting routes
         Route::get('google-meetings', [GoogleMeetingController::class, 'index'])->middleware('permission:google_meeting_view_any')->name('google-meetings.index');
-        Route::get('google-meetings/create', [GoogleMeetingController::class, 'create'])->middleware('permission:google_meeting_create')->name('google-meetings.create');
+        Route::get('google-meetings/create', [GoogleMeetingController::class, 'create'])->name('google-meetings.create');
         Route::post('google-meetings', [GoogleMeetingController::class, 'store'])->name('google-meetings.store');
         Route::get('google-meetings/{googleMeeting}', [GoogleMeetingController::class, 'show'])->middleware('permission:google_meeting_view')->name('google-meetings.show');
         Route::put('google-meetings/{googleMeeting}', [GoogleMeetingController::class, 'update'])->middleware('permission:google_meeting_update')->name('google-meetings.update');

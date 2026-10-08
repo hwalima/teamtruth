@@ -16,7 +16,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 
 export default function GoogleMeetingIndex() {
     const { t } = useTranslation();
-    const { auth, meetings, projects, members, hasGoogleMeetConfig, filters: pageFilters = {}, permissions, flash, googleCalendarEnabled } = usePage().props as any;
+    const { auth, meetings, projects, members, hasGoogleMeetConfig, canCreateMeetings, filters: pageFilters = {}, permissions, flash, googleCalendarEnabled } = usePage().props as any;
     
     const formatText = (text: string) => {
         return text.replace(/_/g, ' ').split(' ').map(word => 
@@ -187,7 +187,7 @@ export default function GoogleMeetingIndex() {
 
     const pageActions = [];
     
-    if (hasPermission(auth?.permissions, 'google_meeting_create')) {
+    if (canCreateMeetings || hasPermission(auth?.permissions, 'google_meeting_create')) {
         pageActions.push({
             label: t('Create Meeting'),
             icon: <Plus className="h-4 w-4 mr-2" />,

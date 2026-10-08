@@ -232,7 +232,8 @@ class CalendarController extends Controller
 
     private function canManageEvents(?string $workspaceRole): bool
     {
-        return $workspaceRole === 'member' || $this->checkPermission('task_calendar_manage_events');
+        return strtolower(trim((string) $workspaceRole)) === 'member'
+            || $this->checkPermission('task_calendar_manage_events');
     }
 
     public function getTask(Task $task)
