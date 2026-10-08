@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { SearchAndFilterBar } from '@/components/ui/search-and-filter-bar';
 import { Pagination } from '@/components/ui/pagination';
 import { Card, CardContent } from '@/components/ui/card';
-import { Plus, Video, Clock, Edit, Trash2, Eye, Copy, ExternalLink, Play, Calendar } from 'lucide-react';
+import { Plus, Video, Edit, Trash2, Eye, ExternalLink, Play, Calendar } from 'lucide-react';
 import { PageTemplate } from '@/components/page-template';
 import { CrudDeleteModal } from '@/components/CrudDeleteModal';
 import { CrudTable } from '@/components/CrudTable';
@@ -384,33 +384,130 @@ export default function GoogleMeetingIndex() {
             </div>
 
             {/* Meetings Table */}
-            <div className="bg-white rounded-lg shadow overflow-hidden">
-                <CrudTable
-                    columns={columns}
-                    actions={actions}
-                    data={meetings?.data || []}
-                    from={meetings?.from || 1}
-                    onAction={handleAction}
-                    sortField={pageFilters.sort_by}
-                    sortDirection={pageFilters.sort_order}
-                    onSort={handleSort}
-                    permissions={auth?.permissions || []}
-                />
-                {meetings?.links && meetings.data.length > 0 && (
-                    <Pagination
-                        from={meetings?.from || 0}
-                        to={meetings?.to || 0}
-                        total={meetings?.total || 0}
-                        links={meetings?.links}
-                        entityName={t('meetings')}
-                        currentPerPage={pageFilters.per_page?.toString() || '10'}
-                        onPerPageChange={(value) => router.get(route('google-meetings.index'), buildParams({ page: 1, per_page: parseInt(value) }), { preserveState: false, preserveScroll: false })}
-                        onPageChange={(url) => {
-                            const pageNum = new URL(url).searchParams.get('page');
-                            router.get(route('google-meetings.index'), buildParams({ page: pageNum ? parseInt(pageNum) : 1 }), { preserveState: false, preserveScroll: false });
-                        }}
-                    />
+            <div className="space-y-3 2xl:hidden">
+                {meetings?.data?.length ? meetings.data.map((meeting: any, index: number) => (
+                    <Card key={meeting.id} className="overflow-hidden">
+                        <CardContent className="space-y-4 p-4">
+                            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                                <div className="min-w-0">
+                                    <p className="break-words font-semibold text-gray-900 dark:text-gray-100">
+                                        {(meetings.from || 1) + index}. {meeting.title}
+                                    </p>
+                                    {meeting.description && (
+                                        <p className="mt-1 break-words text-sm text-gray-500 dark:text-gray-400">
+                                            {meeting.description}
+                                        </p>
+                                    )}
+                                </div>
+                                <span className={`w-fit shrink-0 rounded-md px-2 py-1 text-xs font-medium ${getStatusColor(meeting.status)}`}>
+                                    {formatText(meeting.status)}
+                                </span>
+                            </div>
+
+                            <dl className="grid grid-cols-1 gap-3 border-t pt-3 text-sm sm:grid-cols-2">
+                                <div className="min-w-0">
+                                    <dt className="text-xs font-medium text-gray-500">{t('Date & Time')}</dt>
+                                    <dd className="mt-1 flex items-start gap-1.5 text-gray-900 dark:text-gray-100">
+                                        <Calendar className="mt-0.5 h-4 w-4 shrink-0 text-gray-500" />
+                                        <span className="break-words">
+                                            {meeting.start_time ? window.appSettings.formatDateTime(new Date(meeting.start_time), false) : '-'}
+                                        </span>
+                                    </dd>
+                                </div>
+                                <div>
+                                    <dt className="text-xs font-medium text-gray-500">{t('Duration')}</dt>
+                                    <dd className="mt-1 text-gray-900 dark:text-gray-100">{meeting.duration} {t('minutes')}</dd>
+                                </div>
+                                <div className="min-w-0 sm:col-span-2">
+                                    <dt className="text-xs font-medium text-gray-500">{t('Project')}</dt>
+                                    <dd className="mt-1 break-words text-gray-900 dark:text-gray-100">{meeting.project?.title || '-'}</dd>
+                                </div>
+                            </dl>
+
+                            <div className="flex flex-wrap items-center justify-between gap-3 border-t pt-3">
+                                <div className="flex flex-wrap gap-2">
+                                    {meeting.join_url && (
+                                        <a
+                                            href={meeting.join_url}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="inline-flex min-h-9 items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm text-purple-700 hover:bg-purple-50 dark:text-purple-300 dark:hover:bg-purple-950/30"
+                                        >
+                                            <ExternalLink className="h-4 w-4" />
+                                            {t('Join')}
+                                        </a>
+                                    )}
+                                    {meeting.start_url && (
+                                        <a
+                                            href={meeting.start_url}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="inline-flex min-h-9 items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm text-green-700 hover:bg-green-50 dark:text-green-300 dark:hover:bg-green-950/30"
+                                        >
+                                            <Play className="h-4 w-4" />
+                                            {t('Start')}
+                                        </a>
+                                    )}
+                                </div>
+                                <div className="flex flex-wrap gap-2">
+                                    {hasPermission(auth?.permissions, 'google_meeting_view') && (
+                                        <Button variant="outline" size="sm" onClick={() => handleAction('view', meeting)}>
+                                            <Eye className="mr-1.5 h-4 w-4" />
+                                            {t('View')}
+                                        </Button>
+                                    )}
+                                    {hasPermission(auth?.permissions, 'google_meeting_update') && (
+                                        <Button variant="outline" size="sm" onClick={() => handleAction('edit', meeting)}>
+                                            <Edit className="mr-1.5 h-4 w-4" />
+                                            {t('Edit')}
+                                        </Button>
+                                    )}
+                                    {hasPermission(auth?.permissions, 'google_meeting_delete') && (
+                                        <Button variant="outline" size="sm" onClick={() => handleAction('delete', meeting)}>
+                                            <Trash2 className="mr-1.5 h-4 w-4" />
+                                            {t('Delete')}
+                                        </Button>
+                                    )}
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
+                )) : (
+                    <div className="rounded-lg border bg-white px-4 py-10 text-center text-sm text-muted-foreground dark:bg-gray-900">
+                        {t('No results found.')}
+                    </div>
                 )}
+            </div>
+
+            <div className="hidden 2xl:block">
+                <div className="bg-white dark:bg-gray-900 rounded-lg shadow overflow-hidden">
+                    <CrudTable
+                        columns={columns}
+                        actions={actions}
+                        data={meetings?.data || []}
+                        from={meetings?.from || 1}
+                        onAction={handleAction}
+                        sortField={pageFilters.sort_by}
+                        sortDirection={pageFilters.sort_order}
+                        onSort={handleSort}
+                        permissions={auth?.permissions || []}
+                    />
+                    {meetings?.links && meetings.data.length > 0 && (
+                        <Pagination
+                            from={meetings?.from || 0}
+                            to={meetings?.to || 0}
+                            total={meetings?.total || 0}
+                            links={meetings?.links}
+                            entityName={t('meetings')}
+                            currentPerPage={pageFilters.per_page?.toString() || '10'}
+                            onPerPageChange={(value) => router.get(route('google-meetings.index'), buildParams({ page: 1, per_page: parseInt(value) }), { preserveState: false, preserveScroll: false })}
+                            onPageChange={(url) => {
+                                const pageNum = new URL(url).searchParams.get('page');
+                                router.get(route('google-meetings.index'), buildParams({ page: pageNum ? parseInt(pageNum) : 1 }), { preserveState: false, preserveScroll: false });
+                            }}
+                        />
+                    )}
+                </div>
             </div>
 
             {/* Create Modal */}

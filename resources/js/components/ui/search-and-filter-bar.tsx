@@ -104,10 +104,10 @@ export function SearchAndFilterBar({
     }, [searchTerm]);
 
     return (
-        <div className="w-full p-3">
-            <div className="flex flex-col sm:flex-row flex-wrap gap-2 sm:items-center sm:justify-between">
-                <div className="flex flex-wrap items-center gap-2">
-                    <form ref={formRef} onSubmit={onSearch} className="flex gap-2">
+        <div className="w-full min-w-0 p-3">
+            <div className="flex min-w-0 flex-col flex-wrap gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex w-full min-w-0 flex-col items-stretch gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center">
+                    <form ref={formRef} onSubmit={onSearch} className="w-full min-w-0 sm:w-auto">
                         <div className="relative w-full sm:w-64">
                             <Search className="absolute left-2.5 top-2 h-4 w-4 text-muted-foreground" />
                             <Input
@@ -121,13 +121,13 @@ export function SearchAndFilterBar({
                     </form>
 
                     {filters.map((filter) => (
-                        <div key={filter.name} className="space-y-2">
+                        <div key={filter.name} className="w-full min-w-0 space-y-2 sm:w-auto">
                             {filter.type === 'select' && filter.options && (
                                 <Select
                                     value={filter.value as string}
                                     onValueChange={(value) => filter.onChange(value)}
                                 >
-                                    <SelectTrigger className="w-auto h-9 gap-2">
+                                    <SelectTrigger className="h-9 w-full gap-2 sm:w-auto">
                                         <SelectValue placeholder={t(`All ${filter.label}`)} />
                                     </SelectTrigger>
                                     <SelectContent searchable={filter.searchable}>
@@ -150,7 +150,7 @@ export function SearchAndFilterBar({
                     ))}
                 </div>
 
-                <div className="flex flex-wrap items-center gap-2">
+                <div className="flex w-full flex-wrap items-center justify-between gap-2 sm:w-auto sm:justify-end">
                     {filters.length > 0 && <>
                         <Button
                             variant="ghost"
