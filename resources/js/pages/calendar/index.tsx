@@ -1,20 +1,26 @@
 import { PageTemplate } from '@/components/page-template';
-import { usePage } from '@inertiajs/react';
+import { useForm, usePage } from '@inertiajs/react';
+import { route } from 'ziggy-js';
 import { useTranslation } from 'react-i18next';
 import { useState, useMemo, useCallback, useRef } from 'react';
-import { Dialog } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
-import { ChevronLeft, ChevronRight, Download, Calendar as CalendarIcon, List, Clock, Flag, FolderOpen, Layers } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { toast } from '@/components/custom-toast';
+import { ChevronLeft, ChevronRight, Download, Calendar as CalendarIcon, List, Clock, Flag, FolderOpen, Layers, Plus } from 'lucide-react';
 import CalendarEventView from './CalendarEventView';
 import jsPDF from 'jspdf';
+import GoogleMeetingModal from '@/pages/google-meetings/GoogleMeetingModal';
 
 interface CalendarEvent {
   id: string;
   title: string;
   start: string;
   end: string;
-  type: 'task' | 'meeting' | 'google_meeting';
+  type: 'task' | 'meeting' | 'google_meeting' | 'calendar_event';
   backgroundColor: string;
   borderColor: string;
   description?: string;
@@ -39,13 +45,66 @@ type ViewMode = 'month' | 'week' | 'day' | 'agenda';
 
 export default function CalendarIndex() {
   const { t } = useTranslation();
-  const { events, googleCalendarEnabled } = usePage().props as any;
+  const {
+    events,
+    googleCalendarEnabled,
+    canManageEvents,
+    canCreateGoogleMeet,
+    projects = [],
+    members = [],
+  } = usePage().props as any;
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
   const [showModal, setShowModal] = useState(false);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showGoogleMeetModal, setShowGoogleMeetModal] = useState(false);
   const [calendarView, setCalendarView] = useState('local');
   const [viewMode, setViewMode] = useState<ViewMode>('month');
   const [currentDate, setCurrentDate] = useState(new Date());
   const calendarRef = useRef<HTMLDivElement>(null);
+  const {
+    data: eventForm,
+    setData: setEventForm,
+    post: createEvent,
+    processing: creatingEvent,
+    errors: eventErrors,
+    reset: resetEventForm,
+  } = useForm({
+    title: '',
+    description: '',
+    start_at: '',
+    end_at: '',
+  });
+
+  const toDateTimeInputValue = (date: Date) => {
+    const localDate = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
+    return localDate.toISOString().slice(0, 16);
+  };
+
+  const openCreateModal = () => {
+    const start = new Date(currentDate);
+    start.setHours(9, 0, 0, 0);
+    const end = new Date(start);
+    end.setHours(end.getHours() + 1);
+    setEventForm({
+      title: '',
+      description: '',
+      start_at: toDateTimeInputValue(start),
+      end_at: toDateTimeInputValue(end),
+    });
+    setShowCreateModal(true);
+  };
+
+  const submitEvent = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    createEvent(route('task-calendar.events.store'), {
+      preserveScroll: true,
+      onSuccess: () => {
+        setShowCreateModal(false);
+        resetEventForm();
+        toast.success(t('Calendar event added'));
+      },
+    });
+  };
 
   const filteredEvents: CalendarEvent[] = useMemo(() => {
     const evts = calendarView === 'google'
@@ -120,6 +179,7 @@ export default function CalendarIndex() {
       case 'task': return { color: 'bg-amber-500', lightBg: 'bg-amber-50 dark:bg-amber-950/30', text: 'text-amber-700 dark:text-amber-300', border: 'border-amber-200 dark:border-amber-800', dot: 'bg-amber-400' };
       case 'meeting': return { color: 'bg-blue-500', lightBg: 'bg-blue-50 dark:bg-blue-950/30', text: 'text-blue-700 dark:text-blue-300', border: 'border-blue-200 dark:border-blue-800', dot: 'bg-blue-400' };
       case 'google_meeting': return { color: 'bg-emerald-500', lightBg: 'bg-emerald-50 dark:bg-emerald-950/30', text: 'text-emerald-700 dark:text-emerald-300', border: 'border-emerald-200 dark:border-emerald-800', dot: 'bg-emerald-400' };
+      case 'calendar_event': return { color: 'bg-violet-500', lightBg: 'bg-violet-50 dark:bg-violet-950/30', text: 'text-violet-700 dark:text-violet-300', border: 'border-violet-200 dark:border-violet-800', dot: 'bg-violet-400' };
       default: return { color: 'bg-gray-500', lightBg: 'bg-gray-50 dark:bg-gray-900', text: 'text-gray-700 dark:text-gray-300', border: 'border-gray-200 dark:border-gray-800', dot: 'bg-gray-400' };
     }
   };
@@ -201,11 +261,12 @@ export default function CalendarIndex() {
           y += 5;
         }
 
-        const typeLabel = event.type === 'task' ? 'TASK' : event.type === 'meeting' ? 'ZOOM' : 'GMEET';
+        const typeLabel = event.type === 'task' ? 'TASK' : event.type === 'meeting' ? 'ZOOM' : event.type === 'google_meeting' ? 'GMEET' : 'EVENT';
         const typeColors: Record<string, [number, number, number]> = {
           'TASK': [245, 158, 11],
           'ZOOM': [59, 130, 246],
           'GMEET': [16, 183, 127],
+          'EVENT': [139, 92, 246],
         };
         const [r, g, b] = typeColors[typeLabel] || [150, 150, 150];
 
@@ -665,6 +726,23 @@ export default function CalendarIndex() {
               <Download className="w-3.5 h-3.5" />
               <span className="hidden sm:inline">PDF</span>
             </Button>
+            {canManageEvents && (
+              <Button size="sm" onClick={openCreateModal} className="gap-1.5 text-xs">
+                <Plus className="w-3.5 h-3.5" />
+                <span>{t('Add Event')}</span>
+              </Button>
+            )}
+            {canCreateGoogleMeet && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setShowGoogleMeetModal(true)}
+                className="gap-1.5 text-xs"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>{t('Add Google Meet')}</span>
+              </Button>
+            )}
           </div>
         </div>
 
@@ -681,6 +759,10 @@ export default function CalendarIndex() {
           <div className="flex items-center gap-1.5">
             <span className="w-2.5 h-2.5 rounded-full bg-emerald-400" />
             <span className="text-[10px] sm:text-xs text-gray-600 dark:text-gray-400">{t('Google Meetings')}</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="w-2.5 h-2.5 rounded-full bg-violet-400" />
+            <span className="text-[10px] sm:text-xs text-gray-600 dark:text-gray-400">{t('Calendar Events')}</span>
           </div>
           <div className="ml-auto text-[10px] sm:text-xs text-gray-400 tabular-nums">
             {filteredEvents.length} {t('events')}
@@ -700,6 +782,80 @@ export default function CalendarIndex() {
       <Dialog open={showModal} onOpenChange={setShowModal}>
         {selectedEvent && <CalendarEventView event={selectedEvent} />}
       </Dialog>
+
+      <Dialog open={showCreateModal} onOpenChange={setShowCreateModal}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>{t('Add Calendar Event')}</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={submitEvent} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="calendar-event-title">{t('Title')}</Label>
+              <Input
+                id="calendar-event-title"
+                value={eventForm.title}
+                onChange={(e) => setEventForm('title', e.target.value)}
+                maxLength={255}
+                required
+                autoFocus
+              />
+              {eventErrors.title && <p className="text-sm text-destructive">{eventErrors.title}</p>}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="calendar-event-description">{t('Description')}</Label>
+              <Textarea
+                id="calendar-event-description"
+                value={eventForm.description}
+                onChange={(e) => setEventForm('description', e.target.value)}
+                maxLength={5000}
+              />
+              {eventErrors.description && <p className="text-sm text-destructive">{eventErrors.description}</p>}
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="calendar-event-start">{t('Starts')}</Label>
+                <Input
+                  id="calendar-event-start"
+                  type="datetime-local"
+                  value={eventForm.start_at}
+                  onChange={(e) => setEventForm('start_at', e.target.value)}
+                  required
+                />
+                {eventErrors.start_at && <p className="text-sm text-destructive">{eventErrors.start_at}</p>}
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="calendar-event-end">{t('Ends')}</Label>
+                <Input
+                  id="calendar-event-end"
+                  type="datetime-local"
+                  value={eventForm.end_at}
+                  min={eventForm.start_at}
+                  onChange={(e) => setEventForm('end_at', e.target.value)}
+                  required
+                />
+                {eventErrors.end_at && <p className="text-sm text-destructive">{eventErrors.end_at}</p>}
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <Button type="button" variant="outline" onClick={() => setShowCreateModal(false)}>
+                {t('Cancel')}
+              </Button>
+              <Button type="submit" disabled={creatingEvent}>
+                {creatingEvent ? t('Saving...') : t('Save Event')}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+      {canCreateGoogleMeet && (
+        <GoogleMeetingModal
+          isOpen={showGoogleMeetModal}
+          onClose={() => setShowGoogleMeetModal(false)}
+          projects={projects}
+          members={members}
+          returnToCalendar
+        />
+      )}
     </PageTemplate>
   );
 }

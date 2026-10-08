@@ -1068,7 +1068,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         // Google Meeting routes
         Route::get('google-meetings', [GoogleMeetingController::class, 'index'])->middleware('permission:google_meeting_view_any')->name('google-meetings.index');
         Route::get('google-meetings/create', [GoogleMeetingController::class, 'create'])->middleware('permission:google_meeting_create')->name('google-meetings.create');
-        Route::post('google-meetings', [GoogleMeetingController::class, 'store'])->middleware('permission:google_meeting_create')->name('google-meetings.store');
+        Route::post('google-meetings', [GoogleMeetingController::class, 'store'])->name('google-meetings.store');
         Route::get('google-meetings/{googleMeeting}', [GoogleMeetingController::class, 'show'])->middleware('permission:google_meeting_view')->name('google-meetings.show');
         Route::put('google-meetings/{googleMeeting}', [GoogleMeetingController::class, 'update'])->middleware('permission:google_meeting_update')->name('google-meetings.update');
         Route::patch('google-meetings/{googleMeeting}', [GoogleMeetingController::class, 'update'])->middleware('permission:google_meeting_update');
@@ -1095,6 +1095,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
         //Calendar routes
         Route::get('task-calendar', [\App\Http\Controllers\CalendarController::class, 'index'])->middleware('permission:task_calendar_view')->name('task-calendar.index');
+        Route::post('task-calendar/events', [\App\Http\Controllers\CalendarController::class, 'storeEvent'])->name('task-calendar.events.store');
         Route::get('api/task-calendar/task/{task}', [\App\Http\Controllers\CalendarController::class, 'getTask'])->middleware('permission:task_view')->name('api.task-calendar.task');
 
         // Contract Types routes

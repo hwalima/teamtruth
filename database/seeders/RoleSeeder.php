@@ -297,6 +297,7 @@ class RoleSeeder extends Seeder
             'task_calendar_view',
             'task_calendar_view_tasks',
             'task_calendar_view_meetings',
+            'task_calendar_manage_events',
             'project_report_view_any',
             'project_report_view',
             'todo_view_any',

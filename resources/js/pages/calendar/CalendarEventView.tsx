@@ -16,6 +16,7 @@ export default function CalendarEventView({ event }: CalendarEventViewProps) {
             case 'task': return { bg: 'bg-amber-500', light: 'bg-amber-50 dark:bg-amber-950/30', text: 'text-amber-700 dark:text-amber-300', label: 'Task', icon: CheckSquare };
             case 'meeting': return { bg: 'bg-blue-500', light: 'bg-blue-50 dark:bg-blue-950/30', text: 'text-blue-700 dark:text-blue-300', label: 'Zoom Meeting', icon: Video };
             case 'google_meeting': return { bg: 'bg-emerald-500', light: 'bg-emerald-50 dark:bg-emerald-950/30', text: 'text-emerald-700 dark:text-emerald-300', label: 'Google Meet', icon: Video };
+            case 'calendar_event': return { bg: 'bg-violet-500', light: 'bg-violet-50 dark:bg-violet-950/30', text: 'text-violet-700 dark:text-violet-300', label: 'Calendar Event', icon: Calendar };
             default: return { bg: 'bg-gray-500', light: 'bg-gray-50', text: 'text-gray-700', label: 'Event', icon: Calendar };
         }
     };
@@ -49,6 +50,7 @@ export default function CalendarEventView({ event }: CalendarEventViewProps) {
     const TypeIcon = typeConfig.icon;
     const isMeeting = event.type === 'meeting' || event.type === 'google_meeting';
     const isTask = event.type === 'task';
+    const isCalendarEvent = event.type === 'calendar_event';
 
     return (
         <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto p-0 gap-0 rounded-2xl" onOpenAutoFocus={(e) => e.preventDefault()}>
@@ -148,6 +150,30 @@ export default function CalendarEventView({ event }: CalendarEventViewProps) {
                             <div>
                                 <p className="text-[10px] text-gray-500 uppercase tracking-wider font-medium">{t('Duration')}</p>
                                 <p className="text-sm font-medium text-gray-900 dark:text-gray-100">{event.duration} {t('minutes')}</p>
+                            </div>
+                        </div>
+                    )}
+
+                    {isCalendarEvent && event.start && (
+                        <div className="flex items-center gap-2.5 p-2.5 rounded-lg bg-gray-50 dark:bg-gray-900">
+                            <Clock className="w-4 h-4 text-gray-400 shrink-0" />
+                            <div>
+                                <p className="text-[10px] text-gray-500 uppercase tracking-wider font-medium">{t('Starts')}</p>
+                                <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                                    {new Date(event.start).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                                </p>
+                            </div>
+                        </div>
+                    )}
+
+                    {isCalendarEvent && event.end && (
+                        <div className="flex items-center gap-2.5 p-2.5 rounded-lg bg-gray-50 dark:bg-gray-900">
+                            <Clock className="w-4 h-4 text-gray-400 shrink-0" />
+                            <div>
+                                <p className="text-[10px] text-gray-500 uppercase tracking-wider font-medium">{t('Ends')}</p>
+                                <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                                    {new Date(event.end).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                                </p>
                             </div>
                         </div>
                     )}

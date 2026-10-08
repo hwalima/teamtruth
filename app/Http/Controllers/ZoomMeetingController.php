@@ -228,13 +228,15 @@ class ZoomMeetingController extends Controller
 
     public function getProjectMembers($projectId)
     {
-        $this->authorizePermission('zoom_meeting_view_any');
-
         $user = auth()->user();
         $workspace = $user->currentWorkspace;
 
         if (!$workspace) {
             return response()->json(['error' => 'No workspace found'], 403);
+        }
+
+        if ($workspace->getMemberRole($user) !== 'member') {
+            $this->authorizePermission('zoom_meeting_view_any');
         }
 
         $project = Project::find($projectId);

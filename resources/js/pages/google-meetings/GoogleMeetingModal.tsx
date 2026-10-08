@@ -19,9 +19,10 @@ interface Props {
     projects: Project[];
     members: User[];
     googleCalendarEnabled?: boolean;
+    returnToCalendar?: boolean;
 }
 
-export default function GoogleMeetingModal({ isOpen, onClose, meeting, projects, members, googleCalendarEnabled = false }: Props) {
+export default function GoogleMeetingModal({ isOpen, onClose, meeting, projects, members, googleCalendarEnabled = false, returnToCalendar = false }: Props) {
        const { t } = useTranslation();
     const [formData, setFormData] = useState({
         title: '',
@@ -142,7 +143,8 @@ export default function GoogleMeetingModal({ isOpen, onClose, meeting, projects,
 
         const submitData = {
             ...formData,
-            project_id: formData.project_id === 'none' ? '' : formData.project_id
+            project_id: formData.project_id === 'none' ? '' : formData.project_id,
+            return_to_calendar: returnToCalendar
         };
 
         if (meeting) {
@@ -180,6 +182,7 @@ export default function GoogleMeetingModal({ isOpen, onClose, meeting, projects,
                 </DialogHeader>
 
                 <form onSubmit={handleSubmit} className="space-y-6">
+                    {errors.error && <p role="alert" className="text-sm text-red-600">{errors.error}</p>}
                     <div>
                         <Label htmlFor="title">{t('Meeting Title')} <span className="text-red-500">*</span></Label>
                         <Input

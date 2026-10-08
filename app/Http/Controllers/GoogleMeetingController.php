@@ -155,7 +155,7 @@ class GoogleMeetingController extends Controller
 
     public function store(Request $request)
     {
-        $this->authorizePermission('google_meeting_create');
+        $this->authorizeGoogleMeetingCreation();
 
         $user = auth()->user();
         $workspace = $user->currentWorkspace;
@@ -169,10 +169,27 @@ class GoogleMeetingController extends Controller
             'description' => 'nullable|string',
             'start_time' => 'required|date|after:now',
             'duration' => 'required|integer|min:15|max:480',
-            'project_id' => 'required|exists:projects,id',
+            'project_id' => [
+                'required',
+                \Illuminate\Validation\Rule::exists('projects', 'id')
+                    ->where('workspace_id', $workspace->id),
+            ],
             'member_ids' => 'required|array|min:1',
             'member_ids.*' => 'exists:users,id',
         ]);
+
+        $project = Project::forWorkspace($workspace->id)->findOrFail($validated['project_id']);
+        $projectMemberIds = $project->users()->pluck('users.id')
+            ->merge($project->clients()->pluck('users.id'))
+            ->map(fn ($id) => (int) $id)
+            ->unique();
+        $requestedMemberIds = collect($validated['member_ids'])->map(fn ($id) => (int) $id);
+
+        if ($requestedMemberIds->diff($projectMemberIds)->isNotEmpty()) {
+            return back()->withErrors([
+                'member_ids' => __('All invitees must be members or clients of the selected project.'),
+            ])->withInput();
+        }
 
         $startTime = Carbon::parse($request->start_time);
         
@@ -223,12 +240,26 @@ class GoogleMeetingController extends Controller
                 event(new GoogleMeetingCreated($meeting));
             }
 
-            return redirect()->route('google-meetings.index')
+            return redirect()->route($request->boolean('return_to_calendar')
+                ? 'task-calendar.index'
+                : 'google-meetings.index')
                 ->with('success', __('Google Meet meeting created successfully!'));
                 
         } catch (\Exception $e) {
-            return back()->with('error', $e->getMessage())->withInput();
+            return back()->withErrors(['error' => $e->getMessage()])->withInput();
         }
+    }
+
+    private function authorizeGoogleMeetingCreation(): void
+    {
+        $user = auth()->user();
+        $workspace = $user?->currentWorkspace;
+
+        if ($workspace && $workspace->getMemberRole($user) === 'member') {
+            return;
+        }
+
+        $this->authorizePermission('google_meeting_create');
     }
 
     public function show(GoogleMeeting $googleMeeting)

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Task;
+use App\Models\CalendarEvent;
 use App\Models\ZoomMeeting;
 use App\Models\GoogleMeeting;
 use App\Models\Project;
@@ -114,6 +115,8 @@ class CalendarController extends Controller
                     'start_time' => $meeting->start_time,
                     'duration' => $meeting->duration,
                     'parent_name' => $meeting->project?->title,
+                    'join_url' => $meeting->join_url,
+                    'start_url' => $meeting->start_url,
                     'is_googlecalendar_sync' => $meeting->is_googlecalendar_sync ?? false
                 ];
             });
@@ -157,14 +160,79 @@ class CalendarController extends Controller
             // Skip if GoogleMeeting model doesn't exist
         }
 
+        $calendarEvents = CalendarEvent::where('workspace_id', $workspace->id)
+            ->get()
+            ->map(function (CalendarEvent $event) {
+                return [
+                    'id' => 'calendar-event-' . $event->id,
+                    'title' => $event->title,
+                    'start' => $event->start_at,
+                    'end' => $event->end_at,
+                    'type' => 'calendar_event',
+                    'backgroundColor' => '#8b5cf6',
+                    'borderColor' => '#7c3aed',
+                    'description' => $event->description,
+                ];
+            });
+        $events = $events->merge($calendarEvents);
+
         // Get Google Calendar sync settings from company owner
         $companyOwner = $workspace->owner; // Get the company owner
         $googleCalendarEnabled = getSetting('is_googlecalendar_sync', '0', $companyOwner->id, $workspace->id) === '1';
-        
+
+        $canCreateGoogleMeet = $userWorkspaceRole === 'member'
+            || $this->checkPermission('google_meeting_create');
+
         return Inertia::render('calendar/index', [
             'events' => $events->values()->toArray(),
-            'googleCalendarEnabled' => $googleCalendarEnabled
+            'googleCalendarEnabled' => $googleCalendarEnabled,
+            'canManageEvents' => $this->canManageEvents($userWorkspaceRole),
+            'canCreateGoogleMeet' => $canCreateGoogleMeet,
+            'projects' => $canCreateGoogleMeet
+                ? Project::forWorkspace($workspace->id)->get(['id', 'title'])
+                : [],
+            'members' => $canCreateGoogleMeet
+                ? User::whereHas('workspaces', function ($query) use ($workspace) {
+                    $query->where('workspace_id', $workspace->id)
+                        ->where('status', 'active');
+                })->get(['id', 'name', 'email'])
+                : [],
         ]);
+    }
+
+    public function storeEvent(Request $request)
+    {
+        $user = auth()->user();
+        $workspace = $user->currentWorkspace;
+
+        if (!$workspace) {
+            abort(404, __('No workspace found. Please select a workspace.'));
+        }
+
+        $workspaceRole = $workspace->getMemberRole($user);
+        if (!$this->canManageEvents($workspaceRole)) {
+            abort(403, 'You do not have permission to add calendar events.');
+        }
+
+        $validated = $request->validate([
+            'title' => ['required', 'string', 'max:255'],
+            'description' => ['nullable', 'string', 'max:5000'],
+            'start_at' => ['required', 'date'],
+            'end_at' => ['required', 'date', 'after_or_equal:start_at'],
+        ]);
+
+        CalendarEvent::create([
+            ...$validated,
+            'workspace_id' => $workspace->id,
+            'user_id' => $user->id,
+        ]);
+
+        return redirect()->route('task-calendar.index')->with('success', __('Calendar event added.'));
+    }
+
+    private function canManageEvents(?string $workspaceRole): bool
+    {
+        return $workspaceRole === 'member' || $this->checkPermission('task_calendar_manage_events');
     }
 
     public function getTask(Task $task)
