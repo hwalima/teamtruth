@@ -236,7 +236,7 @@ export default function Dashboard({ dashboardData, isSuperAdmin, isSaasMode = tr
           }
         ]}
       >
-         <div className="space-y-6">
+         <div className="w-full min-w-0 space-y-6">
         <style>{`
           @keyframes waterWave {
             0%   { transform: translateX(0); }
@@ -752,7 +752,7 @@ export default function Dashboard({ dashboardData, isSuperAdmin, isSaasMode = tr
       url="/dashboard"
       actions={pageActions}
     >
-      <div className="space-y-6">
+      <div className="w-full min-w-0 space-y-6">
 
         {/* ── COMPANY CHUNK 1: Greeting Banner ── */}
         {(() => {
@@ -761,7 +761,7 @@ export default function Dashboard({ dashboardData, isSuperAdmin, isSaasMode = tr
           const userName = auth?.user?.name ?? t('there');
           const roleLabel = userWorkspaceRole === 'company' ? t('Owner') : userWorkspaceRole === 'client' ? t('Client') : userWorkspaceRole === 'member' ? t('Member') : userWorkspaceRole ?? t('Member');
           return (
-            <div className="group relative overflow-hidden rounded-2xl bg-slate-800 dark:bg-slate-900 px-6 py-5 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="group relative flex w-full min-w-0 flex-col gap-4 overflow-hidden rounded-2xl bg-slate-800 px-4 py-5 dark:bg-slate-900 sm:flex-row sm:items-center sm:justify-between sm:px-6">
               {/* gradient orbs */}
               <span className="pointer-events-none absolute -top-10 -left-10 w-48 h-48 rounded-full bg-emerald-500/10 blur-2xl animate-pulse" style={{ animationDuration: '4s' }} />
               <span className="pointer-events-none absolute -bottom-10 right-0 w-56 h-56 rounded-full bg-blue-500/10 blur-2xl animate-pulse" style={{ animationDuration: '5s', animationDelay: '1.5s' }} />
@@ -785,7 +785,7 @@ export default function Dashboard({ dashboardData, isSuperAdmin, isSaasMode = tr
               </div>
 
               {/* Left: greeting */}
-              <div className="group-hover:translate-x-2 transition-transform duration-300 min-w-0">
+              <div className="min-w-0 transition-transform duration-300 group-hover:translate-x-2">
                 <p className="text-slate-400 text-sm mb-0.5">{greetingText},</p>
                 <div className="flex items-center gap-2">
                   <h2 className="text-white text-xl sm:text-2xl font-bold truncate group-hover:text-primary transition-colors duration-300">{userName}</h2>
@@ -800,7 +800,7 @@ export default function Dashboard({ dashboardData, isSuperAdmin, isSaasMode = tr
                     <div className="w-2 h-2 bg-primary/50 rounded-full animate-bounce" style={{ animationDelay: '150ms', animationDuration: '1.2s' }} />
                     <div className="w-2 h-2 bg-primary/40 rounded-full animate-bounce" style={{ animationDelay: '300ms', animationDuration: '1.2s' }} />
                   </div>
-                  <span className="text-primary font-semibold text-sm group-hover:scale-105 transition-transform duration-200">
+                  <span className="min-w-0 break-words text-sm font-semibold text-primary transition-transform duration-200 group-hover:scale-105">
                     {(() => {
                       if (userWorkspaceRole === 'company') {
                         const count = dashboardData?.cards?.find((c: any) => c.title?.includes('User'))?.value ?? 0;
@@ -818,15 +818,15 @@ export default function Dashboard({ dashboardData, isSuperAdmin, isSaasMode = tr
               </div>
 
               {/* Right: stats chips + quick links */}
-              <div className="flex items-center gap-2 flex-wrap shrink-0">
+              <div className="grid w-full min-w-0 grid-cols-2 gap-2 sm:flex sm:w-auto sm:flex-wrap sm:shrink-0">
                 {dashboardData?.projects && (
-                  <div className="rounded-xl bg-white/10 px-4 py-2.5 text-center min-w-[80px] hover:bg-white/15 hover:scale-105 transition-all duration-300">
+                  <div className="min-w-0 rounded-xl bg-white/10 px-2 py-2.5 text-center transition-all duration-300 hover:bg-white/15 hover:scale-105 sm:min-w-[80px] sm:px-4">
                     <p className="text-white text-lg font-bold leading-tight">{dashboardData.projects.active ?? 0}</p>
                     <p className="text-slate-400 text-[11px]">{t('Active Projects')}</p>
                   </div>
                 )}
                 {dashboardData?.tasks && (
-                  <div className="rounded-xl bg-white/10 px-4 py-2.5 text-center min-w-[80px] hover:bg-white/15 hover:scale-105 transition-all duration-300">
+                  <div className="min-w-0 rounded-xl bg-white/10 px-2 py-2.5 text-center transition-all duration-300 hover:bg-white/15 hover:scale-105 sm:min-w-[80px] sm:px-4">
                     <p className="text-emerald-400 text-lg font-bold leading-tight">{dashboardData.tasks.inProgress ?? 0}</p>
                     <p className="text-slate-400 text-[11px]">{t('In Progress')}</p>
                   </div>
@@ -838,7 +838,7 @@ export default function Dashboard({ dashboardData, isSuperAdmin, isSaasMode = tr
                   ...(dashboardData?.timesheets ? [{ icon: Clock, label: t('Timesheets'), href: safeRoute('timesheets.index'), color: 'text-emerald-300 hover:text-emerald-200', bg: 'hover:bg-emerald-400/10' }] : []),
                   { icon: SettingsIcon, label: t('Settings'), href: safeRoute('settings'), color: 'text-slate-300 hover:text-slate-200', bg: 'hover:bg-white/10' },
                 ].map(({ icon: Icon, label, href, color, bg }) => (
-                  <Link key={label} href={href} className={`flex flex-col items-center gap-1 rounded-xl px-3 py-2 transition-all duration-200 ${bg} group/qa`}>
+                  <Link key={label} href={href} className={`flex min-w-0 flex-col items-center gap-1 rounded-xl px-2 py-2 transition-all duration-200 ${bg} group/qa sm:px-3`}>
                     <Icon className={`h-5 w-5 transition-all duration-200 ${color} group-hover/qa:-translate-y-0.5`} />
                     <span className="text-slate-400 text-[10px] group-hover/qa:text-slate-300 transition-colors duration-200">{label}</span>
                   </Link>
@@ -854,7 +854,7 @@ export default function Dashboard({ dashboardData, isSuperAdmin, isSaasMode = tr
 
         {/* ── COMPANY CHUNK 2: Main Stats Cards ── */}
         {dashboardData?.cards && dashboardData.cards.length > 0 && (
-          <div className={`grid gap-4 grid-cols-1 sm:grid-cols-2 ${dashboardData.cards.length >= 3 ? 'lg:grid-cols-' + Math.min(dashboardData.cards.length, 4) : ''}`}>
+          <div className="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {dashboardData.cards.map((card: any, index: number) => {
 
               const getCardConfig = (title: string) => {
@@ -957,7 +957,7 @@ export default function Dashboard({ dashboardData, isSuperAdmin, isSaasMode = tr
                   {/* label */}
                   <p className={`${cfg.label} text-xs mb-1`}>{t(card.title)}</p>
                   {/* main value */}
-                  <p className={`${cfg.value} text-2xl font-bold tracking-tight font-mono`}>{displayValue}</p>
+                  <p className={`${cfg.value} break-words text-2xl font-bold tracking-tight font-mono`}>{displayValue}</p>
                   {/* footer */}
                   {cfg.footerText && (
                     <p className={`${cfg.footer} text-[11px] mt-1.5`}>{cfg.footerText}</p>
@@ -967,13 +967,13 @@ export default function Dashboard({ dashboardData, isSuperAdmin, isSaasMode = tr
 
               return cardHref ? (
                 <Link key={index} href={cardHref} className="group">
-                  <Card className={`h-full border ${cfg.border} shadow-sm ${cfg.bg} hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 cursor-pointer`}>
+                  <Card className={`h-full min-w-0 border ${cfg.border} shadow-sm ${cfg.bg} hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 cursor-pointer`}>
                     {cardInner}
                   </Card>
                 </Link>
               ) : (
                 <div key={index} className="group">
-                  <Card className={`h-full border ${cfg.border} shadow-sm ${cfg.bg} hover:shadow-md hover:-translate-y-0.5 transition-all duration-200`}>
+                  <Card className={`h-full min-w-0 border ${cfg.border} shadow-sm ${cfg.bg} hover:shadow-md hover:-translate-y-0.5 transition-all duration-200`}>
                     {cardInner}
                   </Card>
                 </div>

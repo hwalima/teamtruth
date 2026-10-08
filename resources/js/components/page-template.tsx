@@ -47,7 +47,7 @@ export function PageTemplate({
     <AppLayout breadcrumbs={pageBreadcrumbs}>
       <Head title={`${title} - ${(usePage().props as any).globalSettings?.titleText || 'Team Truth'}`} />
       
-      <div className="flex flex-1 flex-col gap-4 p-4 pb-8 px-4 sm:px-6 lg:px-12 overflow-x-hidden w-full min-w-0">
+      <div className="flex w-full min-w-0 flex-1 flex-col gap-4 overflow-x-hidden p-4 px-4 pb-8 sm:px-6 lg:px-12">
         {/* Header with action buttons */}
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div>
@@ -91,7 +91,7 @@ export function PageTemplate({
         </div>
         
         {/* Content */}
-        <div className={noPadding ? "" : "rounded-xl border p-6"}>
+        <div className={noPadding ? "min-w-0" : "min-w-0 rounded-xl border p-6"}>
           {children}
         </div>
       </div>
