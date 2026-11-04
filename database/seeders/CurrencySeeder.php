@@ -3,7 +3,6 @@
 namespace Database\Seeders;
 
 use App\Models\Currency;
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 
 class CurrencySeeder extends Seeder
@@ -15,6 +14,7 @@ class CurrencySeeder extends Seeder
     {
         $currencies = [
             ['name' => 'US Dollar', 'code' => 'USD', 'symbol' => '$', 'description' => 'United States Dollar', 'is_default' => true],
+            ['name' => 'Zimbabwe Gold', 'code' => 'ZWG', 'symbol' => 'ZiG', 'description' => 'Zimbabwe Gold', 'is_default' => false],
             ['name' => 'Euro', 'code' => 'EUR', 'symbol' => '€', 'description' => 'Euro', 'is_default' => false],
             ['name' => 'British Pound', 'code' => 'GBP', 'symbol' => '£', 'description' => 'British Pound Sterling', 'is_default' => false],
             ['name' => 'Japanese Yen', 'code' => 'JPY', 'symbol' => '¥', 'description' => 'Japanese Yen', 'is_default' => false],

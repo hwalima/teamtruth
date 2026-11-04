@@ -71,6 +71,64 @@ use App\Http\Controllers\GoogleMeetingController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
+Route::middleware(['auth', 'verified'])->prefix('erp')->name('erp.')->group(function () {
+    Route::get('companies', [\App\Modules\Core\Http\Controllers\CompanyController::class, 'index'])
+        ->middleware('permission:erp.company.view')
+        ->name('companies.index');
+    Route::post('companies', [\App\Modules\Core\Http\Controllers\CompanyController::class, 'store'])
+        ->middleware('permission:erp.company.create')
+        ->name('companies.store');
+    Route::post('companies/{company}/switch', [\App\Modules\Core\Http\Controllers\CompanyController::class, 'switch'])
+        ->middleware('permission:erp.company.switch')
+        ->name('companies.switch');
+
+    Route::middleware('erp.company')->group(function () {
+        Route::get('settings/branding', [\App\Modules\Core\Http\Controllers\CompanyBrandingController::class, 'edit'])
+            ->name('settings.branding.edit');
+        Route::patch('settings/branding', [\App\Modules\Core\Http\Controllers\CompanyBrandingController::class, 'update'])
+            ->name('settings.branding.update');
+        Route::get('settings/exchange-rates', [\App\Modules\Core\Http\Controllers\ExchangeRateController::class, 'index'])
+            ->name('settings.exchange-rates.index');
+        Route::post('settings/exchange-rates', [\App\Modules\Core\Http\Controllers\ExchangeRateController::class, 'store'])
+            ->name('settings.exchange-rates.store');
+        Route::get('settings/signatories', [\App\Modules\Core\Http\Controllers\CompanySignatoryController::class, 'index'])
+            ->name('settings.signatories.index');
+        Route::post('settings/signatories', [\App\Modules\Core\Http\Controllers\CompanySignatoryController::class, 'store'])
+            ->name('settings.signatories.store');
+        Route::patch('settings/signatories/{signatoryId}', [\App\Modules\Core\Http\Controllers\CompanySignatoryController::class, 'update'])
+            ->name('settings.signatories.update');
+        Route::delete('settings/signatories/{signatoryId}', [\App\Modules\Core\Http\Controllers\CompanySignatoryController::class, 'destroy'])
+            ->name('settings.signatories.destroy');
+
+        Route::get('approvals/workflows', [\App\Modules\Core\Http\Controllers\ApprovalWorkflowController::class, 'index'])
+            ->name('approvals.workflows.index');
+        Route::post('approvals/workflows', [\App\Modules\Core\Http\Controllers\ApprovalWorkflowController::class, 'store'])
+            ->name('approvals.workflows.store');
+        Route::patch('approvals/workflows/{workflow}', [\App\Modules\Core\Http\Controllers\ApprovalWorkflowController::class, 'update'])
+            ->name('approvals.workflows.update');
+        Route::delete('approvals/workflows/{workflow}', [\App\Modules\Core\Http\Controllers\ApprovalWorkflowController::class, 'destroy'])
+            ->name('approvals.workflows.destroy');
+
+        Route::middleware('permission:erp.approval.act')->group(function () {
+            Route::get('approvals', [\App\Modules\Core\Http\Controllers\ApprovalController::class, 'index'])
+                ->name('approvals.index');
+            Route::get('approvals/{approvalRequest}', [\App\Modules\Core\Http\Controllers\ApprovalController::class, 'show'])
+                ->name('approvals.show');
+            Route::post('approvals/{approvalRequest}/actions', [\App\Modules\Core\Http\Controllers\ApprovalController::class, 'act'])
+                ->name('approvals.act');
+            Route::post('approvals/{approvalRequest}/delegate', [\App\Modules\Core\Http\Controllers\ApprovalController::class, 'delegate'])
+                ->name('approvals.delegate');
+        });
+    });
+
+    Route::middleware(['permission:erp.company.access', 'erp.company'])->get('/', fn () => Inertia::render(
+        'Erp/Dashboard/Index',
+        ['company' => app(\App\Modules\Core\Services\CompanyContext::class)->requireActiveCompany()]
+    ))->name('dashboard');
+    Route::middleware(['permission:erp.document.download', 'erp.company'])->get('sample-document', [\App\Modules\Core\Http\Controllers\CompanyController::class, 'sampleDocument'])
+        ->name('documents.sample');
+});
+
 // Critical payment callback routes (must be first, no middleware)
 Route::withoutMiddleware(['web', \App\Http\Middleware\VerifyCsrfToken::class])
     ->group(function () {

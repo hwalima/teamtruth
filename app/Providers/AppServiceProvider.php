@@ -18,6 +18,7 @@ class AppServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->app->singleton(\App\Services\WebhookService::class);
+        $this->app->scoped(\App\Modules\Core\Services\CompanyContext::class);
     }
 
     /**
@@ -25,6 +26,8 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        $this->loadMigrationsFrom(app_path('Modules/Core/Database/Migrations'));
+
         // Register the UserObserver
         User::observe(UserObserver::class);
         

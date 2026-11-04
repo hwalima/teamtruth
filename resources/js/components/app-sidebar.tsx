@@ -118,6 +118,10 @@ export function AppSidebar() {
     const buildCommonNavItems = (): NavItem[] => {
         const items: NavItem[] = [];
 
+        if (hasPermission(permissions, 'erp.company.access')) {
+            items.push({ title: t('ERP'), href: route('erp.dashboard'), icon: Building2, group: t('Overview') });
+        }
+
         // Overview
         if (hasPermission(permissions, 'dashboard_view')) {
             items.push({ title: t('Dashboard'), href: route('dashboard'), icon: LayoutGrid, group: t('Overview') });

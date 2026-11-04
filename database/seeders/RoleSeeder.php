@@ -3,8 +3,8 @@
 namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
-use Spatie\Permission\Models\Role;
 use Spatie\Permission\Models\Permission;
+use Spatie\Permission\Models\Role;
 
 class RoleSeeder extends Seeder
 {
@@ -37,7 +37,8 @@ class RoleSeeder extends Seeder
                 'media',
                 'email_template',
                 'settings_cookie',
-                'referral'
+                'referral',
+                'erp_core',
             ])->get();
 
             // Get settings permissions excluding slack and telegram
@@ -53,7 +54,6 @@ class RoleSeeder extends Seeder
                 ->merge($settingsPermissions)
                 ->merge($superAdminNamePermissions);
             $superAdminRole->syncPermissions($superAdminPermissions);
-
 
             // Company role gets full access to specific modules (excluding role/permission management)
             $companyModulePermissions = Permission::whereIn('module', [
@@ -85,6 +85,7 @@ class RoleSeeder extends Seeder
                 'project_report',
                 'project_permissions',
                 'todos',
+                'erp_core',
 
             ])->get();
 
@@ -168,9 +169,9 @@ class RoleSeeder extends Seeder
                 'google_meeting',
                 'project_permissions',
                 'todos',
+                'erp_core',
             ])->get();
         }
-
 
         // Create company role (SaaS tenant/customer)
         $companyRole = Role::updateOrCreate(
@@ -198,6 +199,11 @@ class RoleSeeder extends Seeder
             ->orWhereIn('name', [
                 'workspace_switch',
                 'workspace_leave',
+                'erp.company.access',
+                'erp.company.view',
+                'erp.company.switch',
+                'erp.document.download',
+                'erp.approval.act',
                 'user_view_logs',
                 'zoom_meeting_view_any',
                 'zoom_meeting_view',
@@ -309,6 +315,11 @@ class RoleSeeder extends Seeder
             'media_upload',
             'media_download',
             'media_delete',
+            'erp.company.access',
+            'erp.company.view',
+            'erp.company.switch',
+            'erp.document.download',
+            'erp.approval.act',
         ])->get();
         $memberRole->syncPermissions($memberPermissions);
 

@@ -29,6 +29,7 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
 
         $middleware->alias([
+            'erp.company' => \App\Modules\Core\Http\Middleware\ResolveActiveCompany::class,
             'role' => \Spatie\Permission\Middleware\RoleMiddleware::class,
             'permission' => \Spatie\Permission\Middleware\PermissionMiddleware::class,
             'permissions' => \App\Http\Middleware\CheckMultiplePermissions::class,

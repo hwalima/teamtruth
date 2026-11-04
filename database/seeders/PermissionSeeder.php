@@ -2,8 +2,8 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Seeder;
 use App\Models\Permission;
+use Illuminate\Database\Seeder;
 
 class PermissionSeeder extends Seeder
 {
@@ -13,6 +13,16 @@ class PermissionSeeder extends Seeder
             // Dashboard Module
             ['name' => 'dashboard_view', 'module' => 'dashboards', 'label' => 'View Dashboard', 'description' => 'Access dashboard metrics'],
             ['name' => 'dashboard_manage', 'module' => 'dashboards', 'label' => 'Manage Dashboard', 'description' => 'Manage dashboard widgets and layout'],
+
+            // ERP Core
+            ['name' => 'erp.company.access', 'module' => 'erp_core', 'label' => 'Access ERP', 'description' => 'Access the ERP workspace for assigned companies'],
+            ['name' => 'erp.company.view', 'module' => 'erp_core', 'label' => 'View ERP Companies', 'description' => 'View ERP companies the user belongs to'],
+            ['name' => 'erp.company.create', 'module' => 'erp_core', 'label' => 'Create ERP Company', 'description' => 'Create a subsidiary company'],
+            ['name' => 'erp.company.switch', 'module' => 'erp_core', 'label' => 'Switch ERP Company', 'description' => 'Switch between assigned ERP companies'],
+            ['name' => 'erp.document.download', 'module' => 'erp_core', 'label' => 'Download ERP Documents', 'description' => 'Render and download branded ERP documents'],
+            ['name' => 'erp.approval.act', 'module' => 'erp_core', 'label' => 'Act on Approvals', 'description' => 'Approve, reject, return, or comment on assigned approval requests'],
+            ['name' => 'erp.approval.manage', 'module' => 'erp_core', 'label' => 'Manage Approval Workflows', 'description' => 'Create and manage approval workflows'],
+            ['name' => 'erp.audit.view', 'module' => 'erp_core', 'label' => 'View ERP Audit Trail', 'description' => 'View company audit events'],
 
             // Workspace Module
             ['name' => 'workspace_view_any', 'module' => 'workspace', 'label' => 'View All Workspaces', 'description' => 'View all accessible workspaces'],
@@ -374,7 +384,7 @@ class PermissionSeeder extends Seeder
             ['name' => 'tax_update', 'module' => 'tax', 'label' => 'Update Tax', 'description' => 'Modify tax configuration'],
             ['name' => 'tax_delete', 'module' => 'tax', 'label' => 'Delete Tax', 'description' => 'Remove tax configuration'],
             ['name' => 'settings_invoice', 'module' => 'settings', 'label' => 'Manage Invoice Settings', 'description' => 'Configure invoice templates, QR codes, and colors'],
-            
+
             ['name' => 'settings_google_calendar', 'module' => 'settings', 'label' => 'Manage Google Calendar Settings', 'description' => 'Configure Google Calendar integration (company only)'],
             ['name' => 'settings_google_meet', 'module' => 'settings', 'label' => 'Manage Google Meet Settings', 'description' => 'Configure Google Meet integration settings'],
 
@@ -391,7 +401,7 @@ class PermissionSeeder extends Seeder
             ['name' => 'note_update', 'module' => 'notes', 'label' => 'Update Note', 'description' => 'Modify note information'],
             ['name' => 'note_delete', 'module' => 'notes', 'label' => 'Delete Note', 'description' => 'Remove note'],
 
-            //Seperate Calendar Module
+            // Seperate Calendar Module
             ['name' => 'task_calendar_view', 'module' => 'task_calendar', 'label' => 'View Task Calendar', 'description' => 'Access task calendar view with tasks and meetings'],
             ['name' => 'task_calendar_view_tasks', 'module' => 'task_calendar', 'label' => 'View Tasks in Calendar', 'description' => 'View task events in calendar'],
             ['name' => 'task_calendar_view_meetings', 'module' => 'task_calendar', 'label' => 'View Meetings in Calendar', 'description' => 'View meeting events in calendar'],
@@ -461,7 +471,7 @@ class PermissionSeeder extends Seeder
             ['name' => 'todo_comment_delete', 'module' => 'todos', 'label' => 'Delete ToDo Comments', 'description' => 'Remove own todo comments'],
             ['name' => 'todo_attachment_create', 'module' => 'todos', 'label' => 'Add ToDo Attachments', 'description' => 'Upload files to todos'],
             ['name' => 'todo_attachment_delete', 'module' => 'todos', 'label' => 'Delete ToDo Attachments', 'description' => 'Remove todo attachments'],
-            ['name' => 'todo_attachment_download', 'module' => 'todos', 'label' => 'Download ToDo Attachments', 'description' => 'Download todo files']
+            ['name' => 'todo_attachment_download', 'module' => 'todos', 'label' => 'Download ToDo Attachments', 'description' => 'Download todo files'],
 
         ];
 
@@ -472,7 +482,7 @@ class PermissionSeeder extends Seeder
                     'module' => $permission['module'],
                     'label' => $permission['label'],
                     'description' => $permission['description'],
-                    'guard_name' => 'web'
+                    'guard_name' => 'web',
                 ]
             );
         }

@@ -291,6 +291,18 @@ class HandleInertiaRequests extends Middleware
             ],
             'globalSettings' => $globalSettings,
             'storageSettings' => $storageSettings,
+            'erpContext' => fn () => $request->routeIs('erp.*') && $request->user()
+                ? [
+                    'activeCompany' => app(\App\Modules\Core\Services\CompanyContext::class)->activeCompany(),
+                    'companies' => \App\Modules\Core\Models\Company::query()
+                        ->where('status', 'active')
+                        ->whereHas('users', fn ($query) => $query
+                            ->whereKey($request->user()->getKey())
+                            ->where('company_user.is_active', true))
+                        ->orderBy('name')
+                        ->get(['companies.id', 'companies.code', 'companies.name']),
+                ]
+                : null,
             'userLanguage' => config('app.is_demo')
                 ? $request->cookie('app_language', $request->user()?->lang ?? $globalSettings['defaultLanguage'] ?? 'en')
                 : ($request->user()?->lang ?? $globalSettings['defaultLanguage'] ?? 'en'),
