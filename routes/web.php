@@ -83,6 +83,36 @@ Route::middleware(['auth', 'verified'])->prefix('erp')->name('erp.')->group(func
         ->name('companies.switch');
 
     Route::middleware('erp.company')->group(function () {
+        Route::get('companies/members', [\App\Modules\Core\Http\Controllers\CompanyMemberController::class, 'index'])
+            ->name('companies.members.index');
+        Route::post('companies/members', [\App\Modules\Core\Http\Controllers\CompanyMemberController::class, 'store'])
+            ->name('companies.members.store');
+        Route::delete('companies/members/{user}', [\App\Modules\Core\Http\Controllers\CompanyMemberController::class, 'deactivate'])
+            ->name('companies.members.deactivate');
+
+        Route::get('requisitions', [\App\Modules\Requisitions\Http\Controllers\RequisitionController::class, 'index'])
+            ->name('requisitions.index');
+        Route::get('requisitions/create', [\App\Modules\Requisitions\Http\Controllers\RequisitionController::class, 'create'])
+            ->name('requisitions.create');
+        Route::post('requisitions', [\App\Modules\Requisitions\Http\Controllers\RequisitionController::class, 'store'])
+            ->name('requisitions.store');
+        Route::get('requisitions/{requisition}/edit', [\App\Modules\Requisitions\Http\Controllers\RequisitionController::class, 'edit'])
+            ->name('requisitions.edit');
+        Route::put('requisitions/{requisition}', [\App\Modules\Requisitions\Http\Controllers\RequisitionController::class, 'update'])
+            ->name('requisitions.update');
+        Route::post('requisitions/{requisition}/submit', [\App\Modules\Requisitions\Http\Controllers\RequisitionController::class, 'submit'])
+            ->name('requisitions.submit');
+        Route::post('requisitions/{requisition}/cancel', [\App\Modules\Requisitions\Http\Controllers\RequisitionController::class, 'cancel'])
+            ->name('requisitions.cancel');
+        Route::post('requisitions/{requisition}/attachments', [\App\Modules\Requisitions\Http\Controllers\RequisitionController::class, 'upload'])
+            ->name('requisitions.attachments.store');
+        Route::get('requisitions/{requisition}/attachments/{attachment}', [\App\Modules\Requisitions\Http\Controllers\RequisitionController::class, 'download'])
+            ->name('requisitions.attachments.download');
+        Route::get('requisitions/{requisition}/pdf', [\App\Modules\Requisitions\Http\Controllers\RequisitionController::class, 'downloadPdf'])
+            ->name('requisitions.pdf');
+        Route::get('requisitions/{requisition}', [\App\Modules\Requisitions\Http\Controllers\RequisitionController::class, 'show'])
+            ->name('requisitions.show');
+
         Route::get('settings/branding', [\App\Modules\Core\Http\Controllers\CompanyBrandingController::class, 'edit'])
             ->name('settings.branding.edit');
         Route::patch('settings/branding', [\App\Modules\Core\Http\Controllers\CompanyBrandingController::class, 'update'])

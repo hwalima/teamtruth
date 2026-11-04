@@ -1,6 +1,6 @@
-import { useState } from 'react';
-import type { FormEvent } from 'react';
 import { router, usePage } from '@inertiajs/react';
+import type { FormEvent } from 'react';
+import { useState } from 'react';
 import { route } from 'ziggy-js';
 
 type Company = {
@@ -35,29 +35,30 @@ export default function Index({ erpContext }: Props) {
         <main className="mx-auto max-w-3xl space-y-8 p-6">
             <section>
                 <h1 className="text-2xl font-semibold">ERP companies</h1>
-                <p className="mt-2 text-sm text-muted-foreground">
-                    Manage subsidiaries separately from existing project workspaces.
-                </p>
+                <p className="text-muted-foreground mt-2 text-sm">Manage subsidiaries separately from existing project workspaces.</p>
             </section>
 
             <section className="space-y-3">
                 <h2 className="text-lg font-medium">Your companies</h2>
-                {erpContext.companies.length === 0 && (
-                    <p className="text-sm text-muted-foreground">You do not belong to an ERP company yet.</p>
-                )}
+                {erpContext.companies.length === 0 && <p className="text-muted-foreground text-sm">You do not belong to an ERP company yet.</p>}
                 <ul className="space-y-2">
                     {erpContext.companies.map((company) => (
                         <li key={company.id} className="flex items-center justify-between rounded-md border p-3">
                             <span>
                                 <span className="font-medium">{company.name}</span>
-                                <span className="ml-2 text-sm text-muted-foreground">{company.code}</span>
+                                <span className="text-muted-foreground ml-2 text-sm">{company.code}</span>
                             </span>
                             {erpContext.activeCompany?.id === company.id ? (
-                                <span className="text-sm text-muted-foreground">Active</span>
+                                <span className="text-muted-foreground flex items-center gap-3 text-sm">
+                                    Active
+                                    <a className="text-primary underline" href={route('erp.companies.members.index')}>
+                                        Members
+                                    </a>
+                                </span>
                             ) : (
                                 <button
                                     type="button"
-                                    className="text-sm font-medium text-primary underline"
+                                    className="text-primary text-sm font-medium underline"
                                     onClick={() => router.post(route('erp.companies.switch', company.id))}
                                 >
                                     Switch
@@ -78,9 +79,9 @@ export default function Index({ erpContext }: Props) {
                             maxLength={32}
                             value={code}
                             onChange={(event) => setCode(event.target.value)}
-                            className="rounded-md border bg-background px-3 py-2"
+                            className="bg-background rounded-md border px-3 py-2"
                         />
-                        {errors.code && <span className="text-sm text-destructive">{errors.code}</span>}
+                        {errors.code && <span className="text-destructive text-sm">{errors.code}</span>}
                     </label>
                     <label className="grid gap-1 text-sm">
                         Trading name
@@ -89,9 +90,9 @@ export default function Index({ erpContext }: Props) {
                             maxLength={255}
                             value={name}
                             onChange={(event) => setName(event.target.value)}
-                            className="rounded-md border bg-background px-3 py-2"
+                            className="bg-background rounded-md border px-3 py-2"
                         />
-                        {errors.name && <span className="text-sm text-destructive">{errors.name}</span>}
+                        {errors.name && <span className="text-destructive text-sm">{errors.name}</span>}
                     </label>
                     <label className="grid gap-1 text-sm">
                         Legal name
@@ -99,12 +100,12 @@ export default function Index({ erpContext }: Props) {
                             maxLength={255}
                             value={legalName}
                             onChange={(event) => setLegalName(event.target.value)}
-                            className="rounded-md border bg-background px-3 py-2"
+                            className="bg-background rounded-md border px-3 py-2"
                         />
-                        {errors.legal_name && <span className="text-sm text-destructive">{errors.legal_name}</span>}
+                        {errors.legal_name && <span className="text-destructive text-sm">{errors.legal_name}</span>}
                     </label>
                     <div>
-                        <button type="submit" className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground">
+                        <button type="submit" className="bg-primary text-primary-foreground rounded-md px-4 py-2 text-sm font-medium">
                             Create company
                         </button>
                     </div>

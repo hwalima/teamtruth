@@ -27,6 +27,7 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->loadMigrationsFrom(app_path('Modules/Core/Database/Migrations'));
+        $this->loadMigrationsFrom(app_path('Modules/Requisitions/Database/Migrations'));
 
         // Register the UserObserver
         User::observe(UserObserver::class);

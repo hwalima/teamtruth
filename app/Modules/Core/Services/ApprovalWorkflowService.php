@@ -179,6 +179,7 @@ class ApprovalWorkflowService
                     : ApprovalStatus::Returned;
                 $request->completed_at = now();
                 $request->save();
+                $this->syncApprovableStatus($request);
                 app(AuditLogService::class)->record(
                     $company,
                     'approval.status_changed',
@@ -198,8 +199,10 @@ class ApprovalWorkflowService
             }
 
             $this->advanceIfComplete($request, $steps, $actor);
+            $request = $request->fresh();
+            $this->syncApprovableStatus($request);
 
-            return $request->fresh();
+            return $request;
         });
     }
 
@@ -466,5 +469,17 @@ class ApprovalWorkflowService
             'title' => $signatory?->title,
             'signature_image_path' => $signatory?->signature_image_path,
         ];
+    }
+
+    private function syncApprovableStatus(ApprovalRequest $request): void
+    {
+        if ($request->status === ApprovalStatus::Pending) {
+            return;
+        }
+
+        $approvable = $request->approvable;
+        if ($approvable && method_exists($approvable, 'syncApprovalStatus')) {
+            $approvable->syncApprovalStatus($request->status);
+        }
     }
 }

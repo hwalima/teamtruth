@@ -3,6 +3,8 @@ import type { FormEvent } from 'react';
 import { useState } from 'react';
 import { route } from 'ziggy-js';
 
+const REQUISITION_MODEL = 'App\\Modules\\Requisitions\\Models\\Requisition';
+
 type Member = { id: number; name: string; email: string; role: string };
 type Currency = { code: string; name: string };
 type Step = {
@@ -40,9 +42,9 @@ export default function Workflows({ workflows, members, roles, currencies }: Pro
         <main className="mx-auto max-w-6xl space-y-8 p-6">
             <section>
                 <h1 className="text-2xl font-semibold">Approval workflows</h1>
-                <p className="mt-2 text-sm text-muted-foreground">
-                    Configure ordered approval steps for a document model. Each step can target one active company member or membership role.
-                    Only one active workflow per document model is used when a document is submitted.
+                <p className="text-muted-foreground mt-2 text-sm">
+                    Configure ordered approval steps for a document model. Each step can target one active company member or membership role. Only one
+                    active workflow per document model is used when a document is submitted.
                 </p>
             </section>
 
@@ -54,15 +56,15 @@ export default function Workflows({ workflows, members, roles, currencies }: Pro
             <section className="space-y-4">
                 <h2 className="text-lg font-medium">Configured workflows</h2>
                 {workflows.length === 0 && (
-                    <p className="rounded-md border p-4 text-sm text-muted-foreground">No approval workflows have been configured.</p>
+                    <p className="text-muted-foreground rounded-md border p-4 text-sm">No approval workflows have been configured.</p>
                 )}
                 {workflows.map((workflow) => (
                     <article key={workflow.id} className="space-y-4 rounded-md border p-4">
                         <div className="flex flex-wrap items-start justify-between gap-4">
                             <div>
                                 <h3 className="font-medium">{workflow.name}</h3>
-                                <p className="mt-1 break-all text-sm text-muted-foreground">{workflow.approvable_type}</p>
-                                <p className="mt-1 text-sm text-muted-foreground">
+                                <p className="text-muted-foreground mt-1 text-sm break-all">{workflow.approvable_type}</p>
+                                <p className="text-muted-foreground mt-1 text-sm">
                                     {workflow.steps.length} step{workflow.steps.length === 1 ? '' : 's'}
                                     {workflow.currency_code ? ` · Threshold currency: ${workflow.currency_code}` : ''}
                                     {' · '}
@@ -75,7 +77,7 @@ export default function Workflows({ workflows, members, roles, currencies }: Pro
                                     type="button"
                                     disabled={workflow.has_requests}
                                     onClick={() => setEditingId(editingId === workflow.id ? null : workflow.id)}
-                                    className="text-sm font-medium text-primary underline disabled:opacity-50"
+                                    className="text-primary text-sm font-medium underline disabled:opacity-50"
                                 >
                                     {editingId === workflow.id ? 'Close editor' : 'Edit'}
                                 </button>
@@ -87,7 +89,7 @@ export default function Workflows({ workflows, members, roles, currencies }: Pro
                                             router.delete(route('erp.approvals.workflows.destroy', workflow.id));
                                         }
                                     }}
-                                    className="text-sm text-destructive underline disabled:opacity-50"
+                                    className="text-destructive text-sm underline disabled:opacity-50"
                                 >
                                     Delete
                                 </button>
@@ -106,15 +108,16 @@ export default function Workflows({ workflows, members, roles, currencies }: Pro
                         <ol className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
                             {workflow.steps.map((step) => (
                                 <li key={step.step_order} className="rounded border p-3 text-sm">
-                                    <strong>Step {step.step_order}</strong>: {step.approver_type === 'role'
+                                    <strong>Step {step.step_order}</strong>:{' '}
+                                    {step.approver_type === 'role'
                                         ? `Role: ${step.approver_id}`
-                                        : members.find((member) => member.id.toString() === step.approver_id)?.name ?? `User ${step.approver_id}`}
+                                        : (members.find((member) => member.id.toString() === step.approver_id)?.name ?? `User ${step.approver_id}`)}
                                     {(step.min_amount || step.max_amount) && (
-                                        <p className="mt-1 text-muted-foreground">
+                                        <p className="text-muted-foreground mt-1">
                                             Amount: {step.min_amount || '0'} – {step.max_amount || 'no maximum'}
                                         </p>
                                     )}
-                                    <p className="mt-1 text-muted-foreground">
+                                    <p className="text-muted-foreground mt-1">
                                         {step.require_all ? 'All approvers must approve' : 'Any matching approver may approve'}
                                     </p>
                                 </li>
@@ -142,7 +145,7 @@ function WorkflowForm({
 }) {
     const form = useForm({
         name: initial?.name ?? '',
-        approvable_type: initial?.approvable_type ?? '',
+        approvable_type: initial?.approvable_type ?? REQUISITION_MODEL,
         currency_code: initial?.currency_code ?? '',
         is_active: initial?.is_active ?? true,
         steps: initial?.steps.map((step) => {
@@ -172,9 +175,7 @@ function WorkflowForm({
                 min_amount: step.min_amount || null,
                 max_amount: step.max_amount || null,
                 sla_hours: step.sla_hours || null,
-                condition_json: condition_key.trim() && condition_value.trim()
-                    ? { [condition_key.trim()]: condition_value.trim() }
-                    : {},
+                condition_json: condition_key.trim() && condition_value.trim() ? { [condition_key.trim()]: condition_value.trim() } : {},
             })),
         }));
         const options = {
@@ -194,9 +195,10 @@ function WorkflowForm({
     };
 
     const updateStep = (index: number, patch: Partial<Step>) => {
-        form.setData('steps', form.data.steps.map((step, stepIndex) => (
-            stepIndex === index ? { ...step, ...patch } : step
-        )));
+        form.setData(
+            'steps',
+            form.data.steps.map((step, stepIndex) => (stepIndex === index ? { ...step, ...patch } : step)),
+        );
     };
 
     return (
@@ -214,29 +216,33 @@ function WorkflowForm({
                     value={form.data.approvable_type}
                     onChange={(value) => form.setData('approvable_type', value)}
                     error={errors.approvable_type}
-                    placeholder="App\Modules\Purchase\Models\PurchaseOrder"
+                    placeholder={REQUISITION_MODEL}
                     required
                 />
+                {!initial && (
+                    <p className="text-muted-foreground text-sm sm:col-span-2">
+                        A requisition workflow is selected by default. Keep the model class as shown to route Phase 2 requisitions through this
+                        workflow.
+                    </p>
+                )}
                 <label className="grid gap-1 text-sm">
                     Threshold currency
                     <select
                         value={form.data.currency_code}
                         onChange={(event) => form.setData('currency_code', event.target.value)}
-                        className="rounded-md border bg-background px-3 py-2"
+                        className="bg-background rounded-md border px-3 py-2"
                     >
                         <option value="">No amount thresholds</option>
                         {currencies.map((currency) => (
-                            <option key={currency.code} value={currency.code}>{currency.code} — {currency.name}</option>
+                            <option key={currency.code} value={currency.code}>
+                                {currency.code} — {currency.name}
+                            </option>
                         ))}
                     </select>
                     {errors.currency_code && <span className="text-destructive">{errors.currency_code}</span>}
                 </label>
                 <label className="flex items-center gap-2 self-end text-sm">
-                    <input
-                        type="checkbox"
-                        checked={form.data.is_active}
-                        onChange={(event) => form.setData('is_active', event.target.checked)}
-                    />
+                    <input type="checkbox" checked={form.data.is_active} onChange={(event) => form.setData('is_active', event.target.checked)} />
                     Active workflow
                 </label>
             </div>
@@ -248,12 +254,12 @@ function WorkflowForm({
                         type="button"
                         disabled={form.data.steps.length >= 20}
                         onClick={() => form.setData('steps', [...form.data.steps, newStep(members, roles)])}
-                        className="text-sm font-medium text-primary underline disabled:opacity-50"
+                        className="text-primary text-sm font-medium underline disabled:opacity-50"
                     >
                         Add step
                     </button>
                 </div>
-                {errors.steps && <p className="text-sm text-destructive">{errors.steps}</p>}
+                {errors.steps && <p className="text-destructive text-sm">{errors.steps}</p>}
                 {form.data.steps.map((step, index) => (
                     <fieldset key={index} className="grid gap-4 rounded-md border p-4 sm:grid-cols-2 lg:grid-cols-3">
                         <legend className="px-1 text-sm font-medium">Step {index + 1}</legend>
@@ -265,12 +271,10 @@ function WorkflowForm({
                                     const approver_type = event.target.value as 'user' | 'role';
                                     updateStep(index, {
                                         approver_type,
-                                        approver_id: approver_type === 'user'
-                                            ? members[0]?.id.toString() ?? ''
-                                            : roles[0] ?? '',
+                                        approver_id: approver_type === 'user' ? (members[0]?.id.toString() ?? '') : (roles[0] ?? ''),
                                     });
                                 }}
-                                className="rounded-md border bg-background px-3 py-2"
+                                className="bg-background rounded-md border px-3 py-2"
                             >
                                 <option value="user">Specific company member</option>
                                 <option value="role">Company membership role</option>
@@ -282,13 +286,19 @@ function WorkflowForm({
                                 required
                                 value={step.approver_id}
                                 onChange={(event) => updateStep(index, { approver_id: event.target.value })}
-                                className="rounded-md border bg-background px-3 py-2"
+                                className="bg-background rounded-md border px-3 py-2"
                             >
                                 {step.approver_type === 'user'
                                     ? members.map((member) => (
-                                        <option key={member.id} value={member.id}>{member.name} — {member.email}</option>
-                                    ))
-                                    : roles.map((role) => <option key={role} value={role}>{role}</option>)}
+                                          <option key={member.id} value={member.id}>
+                                              {member.name} — {member.email}
+                                          </option>
+                                      ))
+                                    : roles.map((role) => (
+                                          <option key={role} value={role}>
+                                              {role}
+                                          </option>
+                                      ))}
                             </select>
                             {errors[`steps.${index}.approver_id`] && <span className="text-destructive">{errors[`steps.${index}.approver_id`]}</span>}
                         </label>
@@ -337,8 +347,13 @@ function WorkflowForm({
                         {form.data.steps.length > 1 && (
                             <button
                                 type="button"
-                                onClick={() => form.setData('steps', form.data.steps.filter((_, stepIndex) => stepIndex !== index))}
-                                className="self-end text-left text-sm text-destructive underline"
+                                onClick={() =>
+                                    form.setData(
+                                        'steps',
+                                        form.data.steps.filter((_, stepIndex) => stepIndex !== index),
+                                    )
+                                }
+                                className="text-destructive self-end text-left text-sm underline"
                             >
                                 Remove step
                             </button>
@@ -349,11 +364,11 @@ function WorkflowForm({
             <button
                 type="submit"
                 disabled={form.processing || members.length === 0}
-                className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-60"
+                className="bg-primary text-primary-foreground rounded-md px-4 py-2 text-sm font-medium disabled:opacity-60"
             >
                 {form.processing ? 'Saving…' : initial ? 'Save workflow' : 'Create workflow'}
             </button>
-            {members.length === 0 && <p className="text-sm text-destructive">Add an active company member before configuring approvers.</p>}
+            {members.length === 0 && <p className="text-destructive text-sm">Add an active company member before configuring approvers.</p>}
         </form>
     );
 }
@@ -399,7 +414,7 @@ function TextField({
                 inputMode={inputMode}
                 placeholder={placeholder}
                 onChange={(event) => onChange(event.target.value)}
-                className="rounded-md border bg-background px-3 py-2"
+                className="bg-background rounded-md border px-3 py-2"
             />
             {error && <span className="text-destructive">{error}</span>}
         </label>
