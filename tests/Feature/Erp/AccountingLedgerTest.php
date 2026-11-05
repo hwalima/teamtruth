@@ -212,6 +212,58 @@ test('trial balance reports posted account balances as of the selected date', fu
             ->where('trialBalance.totalCredit', '100.0000'));
 });
 
+test('trial balance report can be downloaded as CSV and PDF', function () {
+    [$user, $company, $cash, $equity, $journal] = accountingLedgerFixture('ACX');
+    app(CompanyContext::class)->setActiveCompany($company);
+    $income = AccountingAccount::create([
+        'code' => '4000',
+        'name' => 'Service income',
+        'account_type' => 'income',
+    ]);
+    app(CompanyContext::class)->setActiveCompany(null);
+
+    $this->actingAs($user)->withSession(['active_erp_company_id' => $company->id])
+        ->post(route('erp.accounting.fiscal-years.store'), [
+            'name' => 'FY 2026',
+            'starts_on' => '2026-01-01',
+            'ends_on' => '2026-12-31',
+        ])->assertRedirect();
+
+    $this->post(route('erp.accounting.entries.store'), [
+        'journal_id' => $journal->id,
+        'entry_date' => '2026-06-15',
+        'currency_code' => 'USD',
+        'description' => 'Service revenue',
+        'lines' => [
+            ['account_id' => $cash->id, 'debit' => '125', 'credit' => '0'],
+            ['account_id' => $income->id, 'debit' => '0', 'credit' => '125'],
+        ],
+    ])->assertRedirect()->assertSessionHas('success');
+
+    $response = $this->get(route('erp.accounting.reports.export', [
+        'report' => 'trial-balance',
+        'format' => 'csv',
+        'as_of' => '2026-06-30',
+    ]));
+
+    $response->assertOk()
+        ->assertHeader('content-type', 'text/csv; charset=UTF-8')
+        ->assertHeader('content-disposition');
+    expect($response->streamedContent())
+        ->toContain('Account code,Account name,Type,Debit,Credit')
+        ->toContain('Service income');
+
+    $pdfResponse = $this->get(route('erp.accounting.reports.export', [
+        'report' => 'trial-balance',
+        'format' => 'pdf',
+        'as_of' => '2026-06-30',
+    ]));
+
+    $pdfResponse->assertOk()
+        ->assertHeader('content-type', 'application/pdf');
+    expect(substr($pdfResponse->getContent(), 0, 4))->toBe('%PDF');
+});
+
 test('general ledger shows opening and running balances for the selected account and date range', function () {
     [$user, $company, $cash, $equity, $journal] = accountingLedgerFixture('AGL');
     $this->actingAs($user)->withSession(['active_erp_company_id' => $company->id])

@@ -1,5 +1,16 @@
 import { router, useForm } from '@inertiajs/react';
-import { BookOpenCheck, Building2, CalendarDays, ChartNoAxesCombined, CircleDollarSign, FilePlus2, Landmark } from 'lucide-react';
+import {
+    BookOpenCheck,
+    Building2,
+    CalendarDays,
+    ChartNoAxesCombined,
+    CircleDollarSign,
+    Download,
+    FilePlus2,
+    FileSpreadsheet,
+    FileText,
+    Landmark,
+} from 'lucide-react';
 import type { FormEvent, ReactNode } from 'react';
 import { useEffect, useState } from 'react';
 import { route } from 'ziggy-js';
@@ -538,6 +549,7 @@ export default function AccountingIndex({
                     <TextField label="As of" type="date" value={asOf} onChange={setAsOf} required />
                     <SubmitButton processing={false}>Run report</SubmitButton>
                 </form>
+                <ReportExports report="trial-balance" params={{ as_of: asOf }} />
                 <div className="border-border/70 bg-background/25 overflow-x-auto rounded-xl border">
                     <table className="w-full text-left text-sm">
                         <thead>
@@ -610,6 +622,7 @@ export default function AccountingIndex({
                     />
                     <SubmitButton processing={false}>Run report</SubmitButton>
                 </form>
+                <ReportExports report="profit-and-loss" params={{ from: profitFrom, to: profitTo }} />
 
                 <div className="grid gap-3 sm:grid-cols-3">
                     <ReportTotal label="Income" currency={company.default_currency} value={profitAndLoss.incomeTotal} />
@@ -678,6 +691,14 @@ export default function AccountingIndex({
                     />
                     <SubmitButton processing={false}>Run report</SubmitButton>
                 </form>
+                <ReportExports
+                    report="general-ledger"
+                    params={{
+                        from: ledgerFrom,
+                        to: ledgerTo,
+                        account_id: ledgerAccountId || undefined,
+                    }}
+                />
                 {generalLedger.accounts.map((account) => (
                     <section key={account.accountId} className="border-border/70 bg-background/25 space-y-3 rounded-xl border p-4">
                         <div className="flex flex-wrap items-baseline justify-between gap-2">
@@ -911,6 +932,33 @@ function ReportTotal({ label, currency, value, emphasis = false }: { label: stri
                 <span className="text-muted-foreground mr-1 text-sm font-medium">{currency}</span>
                 {value}
             </p>
+        </div>
+    );
+}
+
+function ReportExports({
+    report,
+    params,
+}: {
+    report: 'trial-balance' | 'profit-and-loss' | 'general-ledger';
+    params: Record<string, string | undefined>;
+}) {
+    return (
+        <div className="flex flex-wrap items-center gap-2">
+            <span className="text-muted-foreground mr-1 inline-flex items-center gap-1.5 text-xs font-medium">
+                <Download className="h-3.5 w-3.5" />
+                Export
+            </span>
+            {(['pdf', 'csv'] as const).map((format) => (
+                <a
+                    key={format}
+                    href={route('erp.accounting.reports.export', { report, format, ...params })}
+                    className="border-border/70 bg-background/40 hover:bg-primary/10 hover:border-primary/30 inline-flex min-h-9 items-center gap-2 rounded-xl border px-3 text-xs font-medium transition-colors"
+                >
+                    {format === 'pdf' ? <FileText className="text-primary h-4 w-4" /> : <FileSpreadsheet className="text-primary h-4 w-4" />}
+                    {format.toUpperCase()}
+                </a>
+            ))}
         </div>
     );
 }
