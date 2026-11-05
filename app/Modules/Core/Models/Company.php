@@ -51,8 +51,13 @@ class Company extends Model
     public function users(): BelongsToMany
     {
         return $this->belongsToMany(User::class)
-            ->withPivot(['role', 'is_active'])
+            ->withPivot(['role', 'erp_role_id', 'is_active'])
             ->withTimestamps();
+    }
+
+    public function erpRoles(): HasMany
+    {
+        return $this->hasMany(CompanyErpRole::class)->orderBy('name');
     }
 
     public function activeUsers(): BelongsToMany

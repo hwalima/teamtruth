@@ -73,138 +73,197 @@ use Inertia\Inertia;
 
 Route::middleware(['auth', 'verified'])->prefix('erp')->name('erp.')->group(function () {
     Route::get('companies', [\App\Modules\Core\Http\Controllers\CompanyController::class, 'index'])
-        ->middleware('permission:erp.company.view')
         ->name('companies.index');
     Route::post('companies', [\App\Modules\Core\Http\Controllers\CompanyController::class, 'store'])
         ->middleware('permission:erp.company.create')
         ->name('companies.store');
     Route::post('companies/{company}/switch', [\App\Modules\Core\Http\Controllers\CompanyController::class, 'switch'])
-        ->middleware('permission:erp.company.switch')
         ->name('companies.switch');
 
     Route::middleware('erp.company')->group(function () {
         Route::get('companies/members', [\App\Modules\Core\Http\Controllers\CompanyMemberController::class, 'index'])
+            ->middleware('erp.permission:erp.members.manage')
             ->name('companies.members.index');
         Route::post('companies/members', [\App\Modules\Core\Http\Controllers\CompanyMemberController::class, 'store'])
+            ->middleware('erp.permission:erp.members.manage')
             ->name('companies.members.store');
+        Route::patch('companies/members/{user}/role', [\App\Modules\Core\Http\Controllers\CompanyMemberController::class, 'updateRole'])
+            ->middleware('erp.permission:erp.members.manage')
+            ->name('companies.members.role.update');
         Route::delete('companies/members/{user}', [\App\Modules\Core\Http\Controllers\CompanyMemberController::class, 'deactivate'])
+            ->middleware('erp.permission:erp.members.manage')
             ->name('companies.members.deactivate');
+        Route::get('settings/roles', [\App\Modules\Core\Http\Controllers\CompanyErpRoleController::class, 'index'])
+            ->middleware('erp.permission:erp.roles.manage')
+            ->name('settings.roles.index');
+        Route::post('settings/roles', [\App\Modules\Core\Http\Controllers\CompanyErpRoleController::class, 'store'])
+            ->middleware('erp.permission:erp.roles.manage')
+            ->name('settings.roles.store');
+        Route::patch('settings/roles/{role}', [\App\Modules\Core\Http\Controllers\CompanyErpRoleController::class, 'update'])
+            ->middleware('erp.permission:erp.roles.manage')
+            ->name('settings.roles.update');
 
         Route::get('requisitions', [\App\Modules\Requisitions\Http\Controllers\RequisitionController::class, 'index'])
+            ->middleware('erp.permission:erp.requisitions.view')
             ->name('requisitions.index');
         Route::get('requisitions/create', [\App\Modules\Requisitions\Http\Controllers\RequisitionController::class, 'create'])
+            ->middleware('erp.permission:erp.requisitions.create')
             ->name('requisitions.create');
         Route::post('requisitions', [\App\Modules\Requisitions\Http\Controllers\RequisitionController::class, 'store'])
+            ->middleware('erp.permission:erp.requisitions.create')
             ->name('requisitions.store');
         Route::get('requisitions/{requisition}/edit', [\App\Modules\Requisitions\Http\Controllers\RequisitionController::class, 'edit'])
+            ->middleware('erp.permission:erp.requisitions.create')
             ->name('requisitions.edit');
         Route::put('requisitions/{requisition}', [\App\Modules\Requisitions\Http\Controllers\RequisitionController::class, 'update'])
+            ->middleware('erp.permission:erp.requisitions.create')
             ->name('requisitions.update');
         Route::post('requisitions/{requisition}/submit', [\App\Modules\Requisitions\Http\Controllers\RequisitionController::class, 'submit'])
+            ->middleware('erp.permission:erp.requisitions.create')
             ->name('requisitions.submit');
         Route::post('requisitions/{requisition}/cancel', [\App\Modules\Requisitions\Http\Controllers\RequisitionController::class, 'cancel'])
+            ->middleware('erp.permission:erp.requisitions.create')
             ->name('requisitions.cancel');
         Route::post('requisitions/{requisition}/attachments', [\App\Modules\Requisitions\Http\Controllers\RequisitionController::class, 'upload'])
+            ->middleware('erp.permission:erp.requisitions.create')
             ->name('requisitions.attachments.store');
         Route::get('requisitions/{requisition}/attachments/{attachment}', [\App\Modules\Requisitions\Http\Controllers\RequisitionController::class, 'download'])
+            ->middleware('erp.permission:erp.requisitions.view')
             ->name('requisitions.attachments.download');
         Route::get('requisitions/{requisition}/pdf', [\App\Modules\Requisitions\Http\Controllers\RequisitionController::class, 'downloadPdf'])
+            ->middleware('erp.permission:erp.requisitions.view')
             ->name('requisitions.pdf');
         Route::get('requisitions/{requisition}', [\App\Modules\Requisitions\Http\Controllers\RequisitionController::class, 'show'])
+            ->middleware('erp.permission:erp.requisitions.view')
             ->name('requisitions.show');
 
         Route::get('inventory/setup', [\App\Modules\Inventory\Http\Controllers\InventorySetupController::class, 'index'])
+            ->middleware('erp.permission:erp.inventory.view')
             ->name('inventory.setup');
         Route::post('inventory/units', [\App\Modules\Inventory\Http\Controllers\InventorySetupController::class, 'storeUnit'])
+            ->middleware('erp.permission:erp.inventory.manage')
             ->name('inventory.units.store');
         Route::post('inventory/categories', [\App\Modules\Inventory\Http\Controllers\InventorySetupController::class, 'storeCategory'])
+            ->middleware('erp.permission:erp.inventory.manage')
             ->name('inventory.categories.store');
         Route::post('inventory/products', [\App\Modules\Inventory\Http\Controllers\InventorySetupController::class, 'storeProduct'])
+            ->middleware('erp.permission:erp.inventory.manage')
             ->name('inventory.products.store');
         Route::post('inventory/warehouses', [\App\Modules\Inventory\Http\Controllers\InventorySetupController::class, 'storeWarehouse'])
+            ->middleware('erp.permission:erp.inventory.manage')
             ->name('inventory.warehouses.store');
         Route::post('inventory/locations', [\App\Modules\Inventory\Http\Controllers\InventorySetupController::class, 'storeLocation'])
+            ->middleware('erp.permission:erp.inventory.manage')
             ->name('inventory.locations.store');
         Route::get('inventory/stock', [\App\Modules\Inventory\Http\Controllers\StockMovementController::class, 'index'])
+            ->middleware('erp.permission:erp.inventory.view')
             ->name('inventory.stock.index');
         Route::post('inventory/stock/movements', [\App\Modules\Inventory\Http\Controllers\StockMovementController::class, 'store'])
+            ->middleware('erp.permission:erp.stock.manage')
             ->name('inventory.stock.movements.store');
 
         Route::get('purchase', [\App\Modules\Purchase\Http\Controllers\PurchaseController::class, 'index'])
+            ->middleware('erp.permission:erp.purchase.view')
             ->name('purchase.index');
         Route::post('purchase/vendors', [\App\Modules\Purchase\Http\Controllers\PurchaseController::class, 'storeVendor'])
+            ->middleware('erp.permission:erp.purchase.manage')
             ->name('purchase.vendors.store');
         Route::post('purchase/rfqs', [\App\Modules\Purchase\Http\Controllers\PurchaseController::class, 'storeRfq'])
+            ->middleware('erp.permission:erp.purchase.manage')
             ->name('purchase.rfqs.store');
         Route::post('purchase/requisitions/{requisition}/rfq', [\App\Modules\Purchase\Http\Controllers\PurchaseController::class, 'convertRequisitionToRfq'])
+            ->middleware('erp.permission:erp.purchase.manage')
             ->name('purchase.requisitions.rfqs.store');
         Route::post('purchase/requisitions/{requisition}/issue-stock', [\App\Modules\Purchase\Http\Controllers\PurchaseController::class, 'issueStoreRequisition'])
+            ->middleware('erp.permission:erp.stock.manage')
             ->name('purchase.requisitions.issue-stock');
         Route::post('purchase/rfqs/{rfq}/quotations', [\App\Modules\Purchase\Http\Controllers\PurchaseController::class, 'storeQuotation'])
+            ->middleware('erp.permission:erp.purchase.manage')
             ->name('purchase.rfqs.quotations.store');
         Route::post('purchase/quotations/{quotation}/orders', [\App\Modules\Purchase\Http\Controllers\PurchaseController::class, 'createOrder'])
+            ->middleware('erp.permission:erp.purchase.manage')
             ->name('purchase.quotations.orders.store');
         Route::post('purchase/orders/{order}/lines/{line}/receipts', [\App\Modules\Purchase\Http\Controllers\PurchaseController::class, 'receive'])
+            ->middleware('erp.permission:erp.purchase.manage')
             ->name('purchase.orders.receive');
 
         Route::get('accounting', [\App\Modules\Accounting\Http\Controllers\AccountingController::class, 'index'])
+            ->middleware('erp.permission:erp.accounting.view')
             ->name('accounting.index');
         Route::post('accounting/accounts', [\App\Modules\Accounting\Http\Controllers\AccountingController::class, 'storeAccount'])
+            ->middleware('erp.permission:erp.accounting.manage')
             ->name('accounting.accounts.store');
         Route::post('accounting/journals', [\App\Modules\Accounting\Http\Controllers\AccountingController::class, 'storeJournal'])
+            ->middleware('erp.permission:erp.accounting.manage')
             ->name('accounting.journals.store');
         Route::post('accounting/fiscal-years', [\App\Modules\Accounting\Http\Controllers\AccountingController::class, 'storeFiscalYear'])
+            ->middleware('erp.permission:erp.accounting.manage')
             ->name('accounting.fiscal-years.store');
         Route::post('accounting/periods/{period}/lock', [\App\Modules\Accounting\Http\Controllers\AccountingController::class, 'lockPeriod'])
+            ->middleware('erp.permission:erp.accounting.manage')
             ->name('accounting.periods.lock');
         Route::post('accounting/entries', [\App\Modules\Accounting\Http\Controllers\AccountingController::class, 'postJournalEntry'])
+            ->middleware('erp.permission:erp.accounting.manage')
             ->name('accounting.entries.store');
         Route::post('accounting/entries/{entry}/reverse', [\App\Modules\Accounting\Http\Controllers\AccountingController::class, 'reverseJournalEntry'])
+            ->middleware('erp.permission:erp.accounting.manage')
             ->name('accounting.entries.reverse');
 
         Route::get('settings/branding', [\App\Modules\Core\Http\Controllers\CompanyBrandingController::class, 'edit'])
+            ->middleware('erp.permission:erp.settings.view')
             ->name('settings.branding.edit');
         Route::patch('settings/branding', [\App\Modules\Core\Http\Controllers\CompanyBrandingController::class, 'update'])
+            ->middleware('erp.permission:erp.settings.manage')
             ->name('settings.branding.update');
         Route::get('settings/exchange-rates', [\App\Modules\Core\Http\Controllers\ExchangeRateController::class, 'index'])
+            ->middleware('erp.permission:erp.settings.view')
             ->name('settings.exchange-rates.index');
         Route::post('settings/exchange-rates', [\App\Modules\Core\Http\Controllers\ExchangeRateController::class, 'store'])
+            ->middleware('erp.permission:erp.settings.manage')
             ->name('settings.exchange-rates.store');
         Route::get('settings/signatories', [\App\Modules\Core\Http\Controllers\CompanySignatoryController::class, 'index'])
+            ->middleware('erp.permission:erp.settings.view')
             ->name('settings.signatories.index');
         Route::post('settings/signatories', [\App\Modules\Core\Http\Controllers\CompanySignatoryController::class, 'store'])
+            ->middleware('erp.permission:erp.settings.manage')
             ->name('settings.signatories.store');
         Route::patch('settings/signatories/{signatoryId}', [\App\Modules\Core\Http\Controllers\CompanySignatoryController::class, 'update'])
+            ->middleware('erp.permission:erp.settings.manage')
             ->name('settings.signatories.update');
         Route::delete('settings/signatories/{signatoryId}', [\App\Modules\Core\Http\Controllers\CompanySignatoryController::class, 'destroy'])
+            ->middleware('erp.permission:erp.settings.manage')
             ->name('settings.signatories.destroy');
 
         Route::get('approvals/workflows', [\App\Modules\Core\Http\Controllers\ApprovalWorkflowController::class, 'index'])
+            ->middleware('erp.permission:erp.approvals.manage')
             ->name('approvals.workflows.index');
         Route::post('approvals/workflows', [\App\Modules\Core\Http\Controllers\ApprovalWorkflowController::class, 'store'])
+            ->middleware('erp.permission:erp.approvals.manage')
             ->name('approvals.workflows.store');
         Route::patch('approvals/workflows/{workflow}', [\App\Modules\Core\Http\Controllers\ApprovalWorkflowController::class, 'update'])
+            ->middleware('erp.permission:erp.approvals.manage')
             ->name('approvals.workflows.update');
         Route::delete('approvals/workflows/{workflow}', [\App\Modules\Core\Http\Controllers\ApprovalWorkflowController::class, 'destroy'])
+            ->middleware('erp.permission:erp.approvals.manage')
             ->name('approvals.workflows.destroy');
 
-        Route::middleware('permission:erp.approval.act')->group(function () {
-            Route::get('approvals', [\App\Modules\Core\Http\Controllers\ApprovalController::class, 'index'])
-                ->name('approvals.index');
-            Route::get('approvals/{approvalRequest}', [\App\Modules\Core\Http\Controllers\ApprovalController::class, 'show'])
-                ->name('approvals.show');
-            Route::post('approvals/{approvalRequest}/actions', [\App\Modules\Core\Http\Controllers\ApprovalController::class, 'act'])
-                ->name('approvals.act');
-            Route::post('approvals/{approvalRequest}/delegate', [\App\Modules\Core\Http\Controllers\ApprovalController::class, 'delegate'])
-                ->name('approvals.delegate');
-        });
+        Route::get('approvals', [\App\Modules\Core\Http\Controllers\ApprovalController::class, 'index'])
+            ->middleware('erp.permission:erp.approvals.view')
+            ->name('approvals.index');
+        Route::get('approvals/{approvalRequest}', [\App\Modules\Core\Http\Controllers\ApprovalController::class, 'show'])
+            ->middleware('erp.permission:erp.approvals.view')
+            ->name('approvals.show');
+        Route::post('approvals/{approvalRequest}/actions', [\App\Modules\Core\Http\Controllers\ApprovalController::class, 'act'])
+            ->middleware('erp.permission:erp.approvals.act')
+            ->name('approvals.act');
+        Route::post('approvals/{approvalRequest}/delegate', [\App\Modules\Core\Http\Controllers\ApprovalController::class, 'delegate'])
+            ->middleware('erp.permission:erp.approvals.act')
+            ->name('approvals.delegate');
     });
 
-    Route::middleware(['permission:erp.company.access', 'erp.company'])->get('/', fn () => Inertia::render(
-        'Erp/Dashboard/Index',
-        ['company' => app(\App\Modules\Core\Services\CompanyContext::class)->requireActiveCompany()]
-    ))->name('dashboard');
-    Route::middleware('erp.company')->get('sample-document', [\App\Modules\Core\Http\Controllers\CompanyController::class, 'sampleDocument'])
+    Route::middleware(['erp.company', 'erp.permission:erp.dashboard.view'])->get('/', [\App\Modules\Core\Http\Controllers\ErpDashboardController::class, 'index'])
+        ->name('dashboard');
+    Route::middleware(['erp.company', 'erp.permission:erp.settings.view'])->get('sample-document', [\App\Modules\Core\Http\Controllers\CompanyController::class, 'sampleDocument'])
         ->name('documents.sample');
 });
 
@@ -621,7 +680,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     }); // End SaaS-only routes
 
     // All other routes require plan access check and plan limits monitoring
-    Route::middleware(['plan.access', 'plan.limits'])->group(function () {
+    Route::middleware(['plan.access', 'plan.limits', 'erp.module'])->group(function () {
         // Workspace routes
         Route::get('workspaces', [WorkspaceController::class, 'index'])->middleware('permission:workspace_view_any')->name('workspaces.index');
         Route::get('workspaces/create', [WorkspaceController::class, 'create'])->middleware('permission:workspace_create')->name('workspaces.create');

@@ -14,6 +14,7 @@ use App\Modules\Accounting\Services\FiscalCalendarService;
 use App\Modules\Core\Models\Company;
 use App\Modules\Core\Services\AuditLogService;
 use App\Modules\Core\Services\CompanyContext;
+use App\Modules\Core\Services\ErpRoleService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -25,7 +26,7 @@ class AccountingController extends Controller
     public function index(Request $request): Response
     {
         $company = app(CompanyContext::class)->requireActiveCompany();
-        $this->authorizeAccess($request, $company);
+        $this->authorizePermission($request, $company, 'erp.accounting.view');
 
         return Inertia::render('Erp/Accounting/Index', [
             'company' => $company->only(['id', 'code', 'name', 'default_currency']),
@@ -48,7 +49,7 @@ class AccountingController extends Controller
     public function storeAccount(Request $request): RedirectResponse
     {
         $company = app(CompanyContext::class)->requireActiveCompany();
-        $this->authorizeManagement($request, $company);
+        $this->authorizePermission($request, $company, 'erp.accounting.manage');
         $validated = $request->validate([
             'code' => ['required', 'string', 'max:32', 'regex:/^[A-Za-z0-9._-]+$/', Rule::unique('accounting_accounts', 'code')->where('company_id', $company->id)],
             'name' => ['required', 'string', 'max:160'],
@@ -84,7 +85,7 @@ class AccountingController extends Controller
     public function storeJournal(Request $request): RedirectResponse
     {
         $company = app(CompanyContext::class)->requireActiveCompany();
-        $this->authorizeManagement($request, $company);
+        $this->authorizePermission($request, $company, 'erp.accounting.manage');
         $validated = $request->validate([
             'code' => ['required', 'string', 'max:24', 'regex:/^[A-Za-z0-9_-]+$/', Rule::unique('accounting_journals', 'code')->where('company_id', $company->id)],
             'name' => ['required', 'string', 'max:120'],
@@ -106,7 +107,7 @@ class AccountingController extends Controller
     public function storeFiscalYear(Request $request, FiscalCalendarService $service): RedirectResponse
     {
         $company = app(CompanyContext::class)->requireActiveCompany();
-        $this->authorizeManagement($request, $company);
+        $this->authorizePermission($request, $company, 'erp.accounting.manage');
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:80', Rule::unique('accounting_fiscal_years', 'name')->where('company_id', $company->id)],
             'starts_on' => ['required', 'date'],
@@ -121,7 +122,7 @@ class AccountingController extends Controller
     public function lockPeriod(Request $request, FiscalPeriod $period, FiscalCalendarService $service): RedirectResponse
     {
         $company = app(CompanyContext::class)->requireActiveCompany();
-        $this->authorizeManagement($request, $company);
+        $this->authorizePermission($request, $company, 'erp.accounting.manage');
         $service->lockPeriod($period, $request->user());
 
         return back()->with('success', __('Accounting period locked.'));
@@ -130,7 +131,7 @@ class AccountingController extends Controller
     public function postJournalEntry(Request $request, AccountingPostingService $service): RedirectResponse
     {
         $company = app(CompanyContext::class)->requireActiveCompany();
-        $this->authorizeManagement($request, $company);
+        $this->authorizePermission($request, $company, 'erp.accounting.manage');
         $validated = $request->validate([
             'journal_id' => ['required', 'integer', Rule::exists('accounting_journals', 'id')->where('company_id', $company->id)],
             'entry_date' => ['required', 'date'],
@@ -156,7 +157,7 @@ class AccountingController extends Controller
     public function reverseJournalEntry(Request $request, JournalEntry $entry, AccountingPostingService $service): RedirectResponse
     {
         $company = app(CompanyContext::class)->requireActiveCompany();
-        $this->authorizeManagement($request, $company);
+        $this->authorizePermission($request, $company, 'erp.accounting.manage');
         $validated = $request->validate([
             'reversal_date' => ['required', 'date'],
         ]);
@@ -165,20 +166,8 @@ class AccountingController extends Controller
         return back()->with('success', __('Journal entry reversed by :number.', ['number' => $reversal->document_number]));
     }
 
-    private function authorizeAccess(Request $request, Company $company): void
+    private function authorizePermission(Request $request, Company $company, string $permission): void
     {
-        abort_unless(
-            $company->users()
-                ->whereKey($request->user()->getKey())
-                ->wherePivot('is_active', true)
-                ->whereIn('company_user.role', ['owner', 'admin', 'finance'])
-                ->exists(),
-            403
-        );
-    }
-
-    private function authorizeManagement(Request $request, Company $company): void
-    {
-        $this->authorizeAccess($request, $company);
+        app(ErpRoleService::class)->authorize($company, $request->user(), $permission);
     }
 }

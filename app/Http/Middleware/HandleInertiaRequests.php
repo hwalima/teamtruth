@@ -291,17 +291,33 @@ class HandleInertiaRequests extends Middleware
             ],
             'globalSettings' => $globalSettings,
             'storageSettings' => $storageSettings,
-            'erpContext' => fn () => $request->routeIs('erp.*') && $request->user()
-                ? [
-                    'activeCompany' => app(\App\Modules\Core\Services\CompanyContext::class)->activeCompany(),
-                    'companies' => \App\Modules\Core\Models\Company::query()
+            'erpContext' => fn () => $request->user()
+                ? (function () use ($request): array {
+                    $companies = \App\Modules\Core\Models\Company::query()
                         ->where('status', 'active')
                         ->whereHas('users', fn ($query) => $query
                             ->whereKey($request->user()->getKey())
                             ->where('company_user.is_active', true))
                         ->orderBy('name')
-                        ->get(['companies.id', 'companies.code', 'companies.name']),
-                ]
+                        ->get(['companies.id', 'companies.code', 'companies.name']);
+                    $activeCompany = $companies->firstWhere('id', (int) $request->session()->get('active_erp_company_id'));
+
+                    return [
+                        'activeCompany' => $activeCompany,
+                        'companies' => $companies,
+                        'permissions' => $activeCompany
+                            ? app(\App\Modules\Core\Services\ErpRoleService::class)
+                                ->permissionsFor($activeCompany, $request->user())
+                            : [],
+                        'isOwner' => $activeCompany
+                            ? $activeCompany->users()
+                                ->whereKey($request->user()->getKey())
+                                ->wherePivot('is_active', true)
+                                ->wherePivot('role', 'owner')
+                                ->exists()
+                            : false,
+                    ];
+                })()
                 : null,
             'userLanguage' => config('app.is_demo')
                 ? $request->cookie('app_language', $request->user()?->lang ?? $globalSettings['defaultLanguage'] ?? 'en')

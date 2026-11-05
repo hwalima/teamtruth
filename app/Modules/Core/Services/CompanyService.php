@@ -17,8 +17,11 @@ class CompanyService
         try {
             return DB::transaction(function () use ($user, $attributes, $context): Company {
                 $company = Company::create($attributes);
+                app(ErpRoleService::class)->createDefaultRoles($company);
+                $ownerRole = $company->erpRoles()->where('slug', 'owner')->firstOrFail();
                 $company->users()->attach($user->id, [
                     'role' => 'owner',
+                    'erp_role_id' => $ownerRole->id,
                     'is_active' => true,
                 ]);
                 $context->setActiveCompany($company);

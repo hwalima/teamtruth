@@ -8,6 +8,7 @@ use App\Modules\Core\Services\AuditLogService;
 use App\Modules\Core\Services\CompanyContext;
 use App\Modules\Core\Services\CompanyService;
 use App\Modules\Core\Services\DocumentRenderer;
+use App\Modules\Core\Services\ErpRoleService;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -38,12 +39,15 @@ class CompanyController extends Controller
         }
 
         $this->companyContext->setActiveCompany($activeCompany);
+        $roleService = app(ErpRoleService::class);
 
         return Inertia::render('Erp/Companies/Index', [
             'erpContext' => [
                 'activeCompany' => $activeCompany,
                 'companies' => $companies,
             ],
+            'canManageMembers' => $activeCompany !== null && $roleService->allows($activeCompany, $request->user(), 'erp.members.manage'),
+            'canManageRoles' => $activeCompany !== null && $roleService->allows($activeCompany, $request->user(), 'erp.roles.manage'),
         ]);
     }
 
@@ -93,7 +97,7 @@ class CompanyController extends Controller
         );
         $request->session()->put('active_erp_company_id', $company->id);
 
-        return back()->with('success', __('Active company changed.'));
+        return redirect()->route('erp.companies.index')->with('success', __('Active company changed.'));
     }
 
     public function sampleDocument(): \Symfony\Component\HttpFoundation\Response

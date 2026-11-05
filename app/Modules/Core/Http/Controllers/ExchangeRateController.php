@@ -9,6 +9,7 @@ use App\Modules\Core\Models\ExchangeRate;
 use App\Modules\Core\Services\AuditLogService;
 use App\Modules\Core\Services\CompanyContext;
 use App\Modules\Core\Services\ExchangeRateService;
+use App\Modules\Core\Services\ErpRoleService;
 use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -22,7 +23,7 @@ class ExchangeRateController extends Controller
     public function index(Request $request): Response
     {
         $company = app(CompanyContext::class)->requireActiveCompany();
-        $this->authorizeManagement($request, $company);
+        $this->authorizePermission($request, $company, 'erp.settings.view');
 
         return Inertia::render('Erp/Settings/ExchangeRates', [
             'rates' => ExchangeRate::query()
@@ -38,7 +39,7 @@ class ExchangeRateController extends Controller
     public function store(Request $request): RedirectResponse
     {
         $company = app(CompanyContext::class)->requireActiveCompany();
-        $this->authorizeManagement($request, $company);
+        $this->authorizePermission($request, $company, 'erp.settings.manage');
 
         $validated = $request->validate([
             'from_currency' => ['required', 'string', 'size:3', Rule::exists('currencies', 'code')],
@@ -91,15 +92,8 @@ class ExchangeRateController extends Controller
         return back()->with('success', __('Exchange rate saved.'));
     }
 
-    private function authorizeManagement(Request $request, Company $company): void
+    private function authorizePermission(Request $request, Company $company, string $permission): void
     {
-        abort_unless(
-            $company->users()
-                ->whereKey($request->user()->getKey())
-                ->wherePivot('is_active', true)
-                ->whereIn('company_user.role', ['owner', 'admin'])
-                ->exists(),
-            403
-        );
+        app(ErpRoleService::class)->authorize($company, $request->user(), $permission);
     }
 }

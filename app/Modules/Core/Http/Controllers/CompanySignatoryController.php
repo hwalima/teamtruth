@@ -7,6 +7,7 @@ use App\Modules\Core\Models\Company;
 use App\Modules\Core\Models\CompanySignatory;
 use App\Modules\Core\Services\AuditLogService;
 use App\Modules\Core\Services\CompanyContext;
+use App\Modules\Core\Services\ErpRoleService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -21,7 +22,7 @@ class CompanySignatoryController extends Controller
     public function index(Request $request): Response
     {
         $company = app(CompanyContext::class)->requireActiveCompany();
-        $this->authorizeManagement($request, $company);
+        $this->authorizePermission($request, $company, 'erp.settings.view');
 
         return Inertia::render('Erp/Settings/Signatories', [
             'signatories' => $company->signatories()->with('user:id,name,email')->get()
@@ -51,7 +52,7 @@ class CompanySignatoryController extends Controller
     public function store(Request $request): RedirectResponse
     {
         $company = app(CompanyContext::class)->requireActiveCompany();
-        $this->authorizeManagement($request, $company);
+        $this->authorizePermission($request, $company, 'erp.settings.manage');
         $validated = $this->validated($request, $company);
         $paths = $this->storeImages($request, $company);
 
@@ -80,7 +81,7 @@ class CompanySignatoryController extends Controller
     public function update(Request $request, int $signatoryId): RedirectResponse
     {
         $company = app(CompanyContext::class)->requireActiveCompany();
-        $this->authorizeManagement($request, $company);
+        $this->authorizePermission($request, $company, 'erp.settings.manage');
         $signatory = $company->signatories()->findOrFail($signatoryId);
         $validated = $this->validated($request, $company);
         $paths = $this->storeImages($request, $company);
@@ -114,7 +115,7 @@ class CompanySignatoryController extends Controller
     public function destroy(Request $request, int $signatoryId): RedirectResponse
     {
         $company = app(CompanyContext::class)->requireActiveCompany();
-        $this->authorizeManagement($request, $company);
+        $this->authorizePermission($request, $company, 'erp.settings.manage');
         $signatory = $company->signatories()->findOrFail($signatoryId);
         $before = $this->auditValues($signatory);
         DB::transaction(function () use ($company, $request, $signatory, $before): void {
@@ -201,15 +202,8 @@ class CompanySignatoryController extends Controller
         ]);
     }
 
-    private function authorizeManagement(Request $request, Company $company): void
+    private function authorizePermission(Request $request, Company $company, string $permission): void
     {
-        abort_unless(
-            $company->users()
-                ->whereKey($request->user()->getKey())
-                ->wherePivot('is_active', true)
-                ->whereIn('company_user.role', ['owner', 'admin'])
-                ->exists(),
-            403
-        );
+        app(ErpRoleService::class)->authorize($company, $request->user(), $permission);
     }
 }

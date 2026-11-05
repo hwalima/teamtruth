@@ -9,6 +9,7 @@ use App\Modules\Core\Models\Company;
 use App\Modules\Core\Services\ApprovalWorkflowService;
 use App\Modules\Core\Services\AuditLogService;
 use App\Modules\Core\Services\CompanyContext;
+use App\Modules\Core\Services\ErpRoleService;
 use App\Modules\Core\Services\DocumentRenderer;
 use App\Modules\Requisitions\Enums\RequisitionStatus;
 use App\Modules\Requisitions\Models\Requisition;
@@ -283,9 +284,6 @@ class RequisitionController extends Controller
 
     private function canManage(User $user, Company $company): bool
     {
-        return $company->activeUsers()
-            ->whereKey($user->id)
-            ->whereIn('company_user.role', ['owner', 'admin'])
-            ->exists();
+        return app(ErpRoleService::class)->allows($company, $user, 'erp.requisitions.manage');
     }
 }

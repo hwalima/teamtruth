@@ -1,16 +1,17 @@
 import { Breadcrumbs } from '@/components/breadcrumbs';
+import { LanguageSwitcher } from '@/components/language-switcher';
+import { ProfileMenu } from '@/components/profile-menu';
+import NavigationTimer from '@/components/timesheets/NavigationTimer';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { SidebarTrigger } from '@/components/ui/sidebar';
+import { WorkspaceSwitcher } from '@/components/workspace-switcher';
 import { useLayout } from '@/contexts/LayoutContext';
 import { type BreadcrumbItem as BreadcrumbItemType } from '@/types';
-import { ProfileMenu } from '@/components/profile-menu';
-import { LanguageSwitcher } from '@/components/language-switcher';
-import { WorkspaceSwitcher } from '@/components/workspace-switcher';
-import NavigationTimer from '@/components/timesheets/NavigationTimer';
-import { usePage, router } from '@inertiajs/react';
+import { router, usePage } from '@inertiajs/react';
+import { Building2, Moon, Sun } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Building2,Sun,Moon } from 'lucide-react';
-import { useState, useEffect } from 'react';
-
+import { route } from 'ziggy-js';
 
 const setCookie = (name: string, value: string, days = 365) => {
     if (typeof document === 'undefined') return;
@@ -32,7 +33,7 @@ const getCookie = (name: string): string | null => {
 export function AppSidebarHeader({ breadcrumbs = [] }: { breadcrumbs?: BreadcrumbItemType[] }) {
     const { t } = useTranslation();
     const { position } = useLayout();
-    const { auth } = usePage().props as any;
+    const { auth, erpContext } = usePage().props as any;
     const currentWorkspace = auth?.user?.current_workspace;
     const { globalSettings } = usePage().props as any;
     const isDemo = globalSettings?.is_demo || false;
@@ -49,14 +50,12 @@ export function AppSidebarHeader({ breadcrumbs = [] }: { breadcrumbs?: Breadcrum
             } catch {}
             return 'light';
         }
-        return (globalSettings?.themeMode === 'dark') ? 'dark' : 'light';
+        return globalSettings?.themeMode === 'dark' ? 'dark' : 'light';
     };
 
-    const [isDark, setIsDark] = useState(
-        () => globalSettings?.themeMode === 'dark'
-    );
+    const [isDark, setIsDark] = useState(() => globalSettings?.themeMode === 'dark');
     // Sync with globalSettings changes (main version)
-        useEffect(() => {
+    useEffect(() => {
         if (isDemo) return;
         setIsDark(globalSettings?.themeMode === 'dark');
     }, [globalSettings?.themeMode, isDemo]);
@@ -72,8 +71,7 @@ export function AppSidebarHeader({ breadcrumbs = [] }: { breadcrumbs?: Breadcrum
         return () => observer.disconnect();
     }, [isDemo]);
 
-
-       const handleToggle = () => {
+    const handleToggle = () => {
         const newMode = isDark ? 'light' : 'dark';
         setIsDark(!isDark);
 
@@ -98,65 +96,95 @@ export function AppSidebarHeader({ breadcrumbs = [] }: { breadcrumbs?: Breadcrum
             }
         } else {
             // Main: save to database
-            router.post(route('settings.brand.update'), {
-                settings: {
-                    themeMode: newMode,
-                }
-            }, { preserveScroll: true, preserveState: true });
+            router.post(
+                route('settings.brand.update'),
+                {
+                    settings: {
+                        themeMode: newMode,
+                    },
+                },
+                { preserveScroll: true, preserveState: true },
+            );
         }
     };
 
     return (
         <>
-            <header className="border-sidebar-border/50 flex h-14 shrink-0 items-center gap-2 border-b px-3 sm:px-4 lg:px-10 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">
-            <div className="flex w-full items-center justify-between min-w-0">
-                <div className="flex items-center gap-2 min-w-0">
-                    {position === 'left' && <SidebarTrigger className="-ml-1 shrink-0" />}
-                    {auth?.user?.type === 'company' && (
-                        <div className="hidden sm:flex items-center gap-1 text-sm text-muted-foreground shrink-0">
-                            <Building2 className="h-4 w-4" />
-                            <span className="truncate max-w-[120px]">{currentWorkspace?.name || 'No Workspace'}</span>
-                            {breadcrumbs.length > 0 && <span className="mx-1">/</span>}
-                        </div>
-                    )}
-                    <Breadcrumbs items={breadcrumbs.map(b => ({ label: b.title, href: b.href }))} />
-                </div>
-                <div className="flex items-center gap-1.5 shrink-0">
-                    {(usePage().props as any).isImpersonating && (
-                        <button 
-                            onClick={() => router.post(route('impersonate.leave'))}
-                            className="bg-red-500 cursor-pointer text-white px-2 py-1 rounded text-xs hover:bg-red-600"
+            <header className="border-sidebar-border/50 flex h-14 shrink-0 items-center gap-2 border-b px-3 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12 sm:px-4 lg:px-10">
+                <div className="flex w-full min-w-0 items-center justify-between">
+                    <div className="flex min-w-0 items-center gap-2">
+                        {position === 'left' && <SidebarTrigger className="-ml-1 shrink-0" />}
+                        {auth?.user?.type === 'company' && !erpContext?.activeCompany && (
+                            <div className="text-muted-foreground hidden shrink-0 items-center gap-1 text-sm sm:flex">
+                                <Building2 className="h-4 w-4" />
+                                <span className="max-w-[120px] truncate">{currentWorkspace?.name || 'No Workspace'}</span>
+                                {breadcrumbs.length > 0 && <span className="mx-1">/</span>}
+                            </div>
+                        )}
+                        {erpContext?.activeCompany && (
+                            <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                    <button className="hover:bg-muted flex max-w-[220px] items-center gap-2 rounded-md border px-2 py-1.5 text-sm font-medium">
+                                        <Building2 className="h-4 w-4 shrink-0" />
+                                        <span className="truncate">{erpContext.activeCompany.name}</span>
+                                        {erpContext.companies.length > 1 && <span className="text-muted-foreground">⌄</span>}
+                                    </button>
+                                </DropdownMenuTrigger>
+                                {erpContext.companies.length > 1 && (
+                                    <DropdownMenuContent align="start">
+                                        {erpContext.companies.map((company: { id: number; name: string; code: string }) => (
+                                            <DropdownMenuItem
+                                                key={company.id}
+                                                disabled={company.id === erpContext.activeCompany.id}
+                                                onSelect={() => router.post(route('erp.companies.switch', company.id))}
+                                            >
+                                                {company.name} <span className="text-muted-foreground ml-2">{company.code}</span>
+                                            </DropdownMenuItem>
+                                        ))}
+                                        <DropdownMenuItem onSelect={() => router.visit(route('erp.companies.index'))}>
+                                            Manage companies
+                                        </DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                )}
+                            </DropdownMenu>
+                        )}
+                        <Breadcrumbs items={breadcrumbs.map((b) => ({ label: b.title, href: b.href }))} />
+                    </div>
+                    <div className="flex shrink-0 items-center gap-1.5">
+                        {(usePage().props as any).isImpersonating && (
+                            <button
+                                onClick={() => router.post(route('impersonate.leave'))}
+                                className="cursor-pointer rounded bg-red-500 px-2 py-1 text-xs text-white hover:bg-red-600"
+                            >
+                                {t('Return Back')}
+                            </button>
+                        )}
+                        {auth?.user?.type !== 'superadmin' && (
+                            <div className="hidden sm:block">
+                                <NavigationTimer />
+                            </div>
+                        )}
+                        {!erpContext?.activeCompany && (
+                            <div className="hidden md:block">
+                                <WorkspaceSwitcher />
+                            </div>
+                        )}
+                        {/* Dark/Light Mode Toggle */}
+                        <button
+                            onClick={handleToggle}
+                            className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-md border bg-white shadow-sm transition-colors hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-900 dark:hover:bg-gray-800"
+                            title={isDark ? t('Switch to Light Mode') : t('Switch to Dark Mode')}
                         >
-                            {t("Return Back")}
+                            {isDark ? <Sun className="h-4 w-4 text-yellow-500" /> : <Moon className="h-4 w-4 text-gray-600 dark:text-gray-400" />}
                         </button>
-                    )}
-                    {auth?.user?.type !== 'superadmin' && (
                         <div className="hidden sm:block">
-                            <NavigationTimer />
+                            <LanguageSwitcher />
                         </div>
-                    )}
-                    <div className="hidden md:block">
-                        <WorkspaceSwitcher />
+                        <ProfileMenu />
+                        {position === 'right' && <SidebarTrigger className="-mr-1 shrink-0" />}
                     </div>
-                    {/* Dark/Light Mode Toggle */}
-                    <button
-                        onClick={handleToggle}
-                        className="flex items-center justify-center h-8 w-8 rounded-md border shadow-sm bg-white dark:bg-gray-900 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors cursor-pointer"
-                        title={isDark ? t('Switch to Light Mode') : t('Switch to Dark Mode')}
-                    >
-                        {isDark
-                            ? <Sun className="h-4 w-4 text-yellow-500" />
-                            : <Moon className="h-4 w-4 text-gray-600 dark:text-gray-400" />
-                        }
-                    </button>
-                    <div className="hidden sm:block">
-                        <LanguageSwitcher />
-                    </div>
-                    <ProfileMenu />
-                    {position === 'right' && <SidebarTrigger className="-mr-1 shrink-0" />}
                 </div>
-            </div>
-        </header>
+            </header>
         </>
     );
 }

@@ -7,6 +7,7 @@ use App\Models\Currency;
 use App\Modules\Core\Models\Company;
 use App\Modules\Core\Services\AuditLogService;
 use App\Modules\Core\Services\CompanyContext;
+use App\Modules\Core\Services\ErpRoleService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
@@ -26,7 +27,7 @@ class CompanyBrandingController extends Controller
     public function edit(Request $request): Response
     {
         $company = app(CompanyContext::class)->requireActiveCompany();
-        $this->authorizeManagement($request, $company);
+        $this->authorizePermission($request, $company, 'erp.settings.view');
         $company->load('branding');
 
         return Inertia::render('Erp/Settings/Branding', [
@@ -65,7 +66,7 @@ class CompanyBrandingController extends Controller
     public function update(Request $request): RedirectResponse
     {
         $company = app(CompanyContext::class)->requireActiveCompany();
-        $this->authorizeManagement($request, $company);
+        $this->authorizePermission($request, $company, 'erp.settings.manage');
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'legal_name' => ['nullable', 'string', 'max:255'],
@@ -181,16 +182,9 @@ class CompanyBrandingController extends Controller
         return back()->with('success', __('Company settings updated.'));
     }
 
-    private function authorizeManagement(Request $request, Company $company): void
+    private function authorizePermission(Request $request, Company $company, string $permission): void
     {
-        abort_unless(
-            $company->users()
-                ->whereKey($request->user()->getKey())
-                ->wherePivot('is_active', true)
-                ->whereIn('company_user.role', ['owner', 'admin'])
-                ->exists(),
-            403
-        );
+        app(ErpRoleService::class)->authorize($company, $request->user(), $permission);
     }
 
     private function validateLetterhead(UploadedFile $file): void

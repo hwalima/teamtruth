@@ -5,6 +5,7 @@ namespace App\Modules\Inventory\Http\Controllers;
 use App\Http\Controllers\Controller;
 use App\Modules\Core\Models\Company;
 use App\Modules\Core\Services\CompanyContext;
+use App\Modules\Core\Services\ErpRoleService;
 use App\Modules\Inventory\Models\InventoryProduct;
 use App\Modules\Inventory\Models\StockLocation;
 use App\Modules\Inventory\Models\StockMove;
@@ -20,7 +21,7 @@ class StockMovementController extends Controller
     public function index(Request $request, InventoryStockService $stockService): Response
     {
         $company = app(CompanyContext::class)->requireActiveCompany();
-        $this->authorizeMovement($request, $company);
+        app(ErpRoleService::class)->authorize($company, $request->user(), 'erp.inventory.view');
         $products = InventoryProduct::query()
             ->with('unit:id,name,abbreviation')
             ->where('is_active', true)
@@ -83,7 +84,7 @@ class StockMovementController extends Controller
     public function store(Request $request, InventoryStockService $stockService): RedirectResponse
     {
         $company = app(CompanyContext::class)->requireActiveCompany();
-        $this->authorizeMovement($request, $company);
+        app(ErpRoleService::class)->authorize($company, $request->user(), 'erp.stock.manage');
         $validated = $request->validate([
             'operation' => ['required', Rule::in(['receipt', 'issue', 'transfer', 'adjustment', 'scrap'])],
             'product_id' => [
@@ -112,15 +113,4 @@ class StockMovementController extends Controller
         return back()->with('success', __('Stock movement posted.'));
     }
 
-    private function authorizeMovement(Request $request, Company $company): void
-    {
-        abort_unless(
-            $company->users()
-                ->whereKey($request->user()->getKey())
-                ->wherePivot('is_active', true)
-                ->whereIn('company_user.role', ['owner', 'admin', 'manager'])
-                ->exists(),
-            403
-        );
-    }
 }

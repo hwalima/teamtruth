@@ -10,6 +10,7 @@ use App\Modules\Core\Models\ApprovalWorkflow;
 use App\Modules\Core\Models\Company;
 use App\Modules\Core\Services\AuditLogService;
 use App\Modules\Core\Services\CompanyContext;
+use App\Modules\Core\Services\ErpRoleService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -270,13 +271,6 @@ class ApprovalWorkflowController extends Controller
 
     private function authorizeManagement(Request $request, Company $company): void
     {
-        abort_unless(
-            $company->users()
-                ->whereKey($request->user()->getKey())
-                ->wherePivot('is_active', true)
-                ->whereIn('company_user.role', ['owner', 'admin'])
-                ->exists(),
-            403
-        );
+        app(ErpRoleService::class)->authorize($company, $request->user(), 'erp.approvals.manage');
     }
 }

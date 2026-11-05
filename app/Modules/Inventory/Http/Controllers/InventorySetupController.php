@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Modules\Core\Models\Company;
 use App\Modules\Core\Services\AuditLogService;
 use App\Modules\Core\Services\CompanyContext;
+use App\Modules\Core\Services\ErpRoleService;
 use App\Modules\Inventory\Models\InventoryCategory;
 use App\Modules\Inventory\Models\InventoryProduct;
 use App\Modules\Inventory\Models\InventoryUnit;
@@ -243,13 +244,6 @@ class InventorySetupController extends Controller
 
     private function authorizeManagement(Request $request, Company $company): void
     {
-        abort_unless(
-            $company->users()
-                ->whereKey($request->user()->getKey())
-                ->wherePivot('is_active', true)
-                ->whereIn('company_user.role', ['owner', 'admin'])
-                ->exists(),
-            403
-        );
+        app(ErpRoleService::class)->authorize($company, $request->user(), 'erp.inventory.manage');
     }
 }

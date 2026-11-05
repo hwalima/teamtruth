@@ -3,16 +3,20 @@ import type { FormEvent } from 'react';
 import { route } from 'ziggy-js';
 
 type UserOption = { id: number; name: string; email: string };
-type Member = UserOption & { role: string; is_active: boolean };
+type ErpRole = { id: number; name: string; slug: string };
+type Member = UserOption & { role: string; erp_role_id: number | null; erp_role_name: string | null; is_active: boolean };
 type Props = {
     company: { id: number; code: string; name: string };
     members: Member[];
     eligibleUsers: UserOption[];
-    roles: string[];
+    roles: ErpRole[];
 };
 
 export default function Members({ company, members, eligibleUsers, roles }: Props) {
-    const form = useForm({ user_id: eligibleUsers[0]?.id.toString() ?? '', role: 'finance' });
+    const form = useForm({
+        user_id: eligibleUsers[0]?.id.toString() ?? '',
+        role_id: (roles.find((role) => role.slug === 'member') ?? roles.find((role) => role.slug !== 'owner'))?.id.toString() ?? '',
+    });
     const errors = form.errors as Record<string, string>;
     const submit = (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
@@ -25,7 +29,7 @@ export default function Members({ company, members, eligibleUsers, roles }: Prop
                 <p className="text-muted-foreground text-sm">{company.code}</p>
                 <h1 className="text-2xl font-semibold">{company.name} members</h1>
                 <p className="text-muted-foreground mt-2 text-sm">
-                    Add staff accounts belonging to this application company. Assign each member an ERP role for approval routing.
+                    Assign each member a company-specific ERP role. Their access updates for this company without changing their access elsewhere.
                 </p>
             </header>
 
@@ -54,23 +58,25 @@ export default function Members({ company, members, eligibleUsers, roles }: Prop
                             {errors.user_id && <span className="text-destructive">{errors.user_id}</span>}
                         </label>
                         <label className="grid gap-1 text-sm">
-                            ERP role
+                            Company role
                             <select
                                 required
-                                value={form.data.role}
-                                onChange={(event) => form.setData('role', event.target.value)}
+                                value={form.data.role_id}
+                                onChange={(event) => form.setData('role_id', event.target.value)}
                                 className="bg-background rounded-md border px-3 py-2"
                             >
-                                {roles.map((role) => (
-                                    <option key={role} value={role}>
-                                        {role}
-                                    </option>
-                                ))}
+                                {roles
+                                    .filter((role) => role.slug !== 'owner')
+                                    .map((role) => (
+                                        <option key={role.id} value={role.id}>
+                                            {role.name}
+                                        </option>
+                                    ))}
                             </select>
                         </label>
                         <button
                             type="submit"
-                            disabled={form.processing || !form.data.user_id}
+                            disabled={form.processing || !form.data.user_id || !form.data.role_id}
                             className="bg-primary text-primary-foreground self-end rounded-md px-4 py-2 text-sm font-medium disabled:opacity-50"
                         >
                             Save member
@@ -87,21 +93,43 @@ export default function Members({ company, members, eligibleUsers, roles }: Prop
                             <span>
                                 <span className="font-medium">{member.name}</span>
                                 <span className="text-muted-foreground ml-2 text-sm">{member.email}</span>
-                                <span className="ml-2 rounded border px-2 py-0.5 text-xs">{member.role}</span>
+                                <span className="ml-2 rounded border px-2 py-0.5 text-xs">{member.erp_role_name ?? member.role}</span>
                                 {!member.is_active && <span className="text-destructive ml-2 text-xs">Inactive</span>}
                             </span>
-                            {member.role !== 'owner' && member.is_active && (
-                                <button
-                                    type="button"
-                                    onClick={() => {
-                                        if (window.confirm(`Deactivate ${member.name} in this ERP company?`)) {
-                                            router.delete(route('erp.companies.members.deactivate', member.id));
-                                        }
-                                    }}
-                                    className="text-destructive text-sm underline"
-                                >
-                                    Deactivate
-                                </button>
+                            {member.role !== 'owner' && (
+                                <div className="flex flex-wrap items-center gap-2">
+                                    <select
+                                        aria-label={`Role for ${member.name}`}
+                                        value={member.erp_role_id?.toString() ?? ''}
+                                        onChange={(event) => {
+                                            if (event.target.value) {
+                                                router.patch(route('erp.companies.members.role.update', member.id), { role_id: event.target.value });
+                                            }
+                                        }}
+                                        className="bg-background rounded-md border px-2 py-1 text-sm"
+                                    >
+                                        {roles
+                                            .filter((role) => role.slug !== 'owner')
+                                            .map((role) => (
+                                                <option key={role.id} value={role.id}>
+                                                    {role.name}
+                                                </option>
+                                            ))}
+                                    </select>
+                                    {member.is_active && (
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                if (window.confirm(`Deactivate ${member.name} in this ERP company?`)) {
+                                                    router.delete(route('erp.companies.members.deactivate', member.id));
+                                                }
+                                            }}
+                                            className="text-destructive text-sm underline"
+                                        >
+                                            Deactivate
+                                        </button>
+                                    )}
+                                </div>
                             )}
                         </li>
                     ))}

@@ -1,28 +1,59 @@
-import { NavFooter } from '@/components/nav-footer';
+import { MzitshwaPanel } from '@/components/Mzitshwa';
 import { NavMain } from '@/components/nav-main';
-import { NavUser } from '@/components/nav-user';
-import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarTrigger } from '@/components/ui/sidebar';
+import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarTrigger } from '@/components/ui/sidebar';
+import { useBrand } from '@/contexts/BrandContext';
 import { useLayout } from '@/contexts/LayoutContext';
 import { useSidebarSettings } from '@/contexts/SidebarContext';
-import { useBrand } from '@/contexts/BrandContext';
-import { MzitshwaPanel } from '@/components/Mzitshwa';
 
 import { type NavItem } from '@/types';
-import { Link, usePage, router } from '@inertiajs/react';
-import { BookOpen, Contact, Folder, LayoutGrid, ShoppingBag, Users, Tag, FileIcon, Settings, BarChart, Barcode, FileText, Briefcase, CheckSquare, Calendar, CreditCard, Nfc, Ticket, Gift, DollarSign, MessageSquare, CalendarDays, Palette, Image, Mail, Mail as VCard, ChevronDown, Building2, Globe, FolderOpen, Clock, Bug, Receipt, TrendingUp, Bot, Video, Bell, HelpCircle, Workflow, Activity, Archive, ListTodo, Search, X } from 'lucide-react';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { Button } from '@/components/ui/button';
-import AppLogo from './app-logo';
+import { hasPermission } from '@/utils/authorization';
+import { Link, usePage } from '@inertiajs/react';
+import {
+    Activity,
+    BarChart,
+    Bell,
+    Bot,
+    Boxes,
+    Building2,
+    Calendar,
+    CheckSquare,
+    ClipboardList,
+    Clock,
+    CreditCard,
+    DollarSign,
+    FileIcon,
+    FileText,
+    FolderOpen,
+    Gift,
+    Globe,
+    HelpCircle,
+    Home,
+    Image,
+    Landmark,
+    LayoutGrid,
+    ListTodo,
+    Mail,
+    Receipt,
+    Search,
+    Settings,
+    ShieldCheck,
+    ShoppingCart,
+    Ticket,
+    TrendingUp,
+    Users,
+    Video,
+    X,
+} from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { hasPermission } from '@/utils/authorization';
-
-
+import { route } from 'ziggy-js';
 
 export function AppSidebar() {
     const { t, i18n } = useTranslation();
-    const { auth, isSaasMode, globalSettings } = usePage().props as any;
+    const { auth, isSaasMode, globalSettings, erpContext } = usePage().props as any;
     const permissions = auth?.permissions || [];
+    const erpPermissions: string[] = erpContext?.permissions || [];
+    const canUseErp = (permission: string) => erpPermissions.includes('*') || erpPermissions.includes(permission);
     const [currentLang, setCurrentLang] = useState(i18n.language);
     const [forceUpdate, setForceUpdate] = useState(0);
     const [isDarkTheme, setIsDarkTheme] = useState(() => document.documentElement.classList.contains('dark'));
@@ -33,16 +64,16 @@ export function AppSidebar() {
         const handleLanguageChange = (event: CustomEvent) => {
             setCurrentLang(event.detail.languageCode);
         };
-        
+
         const handleLayoutDirectionChange = (event: CustomEvent) => {
-            setForceUpdate(prev => prev + 1);
+            setForceUpdate((prev) => prev + 1);
         };
-        
+
         // Listen for theme changes
         const handleThemeChange = () => {
             setIsDarkTheme(document.documentElement.classList.contains('dark'));
         };
-        
+
         // Create a MutationObserver to watch for class changes on html element
         const observer = new MutationObserver((mutations) => {
             mutations.forEach((mutation) => {
@@ -81,10 +112,15 @@ export function AppSidebar() {
         if (hasPermission(permissions, 'media_view_any')) {
             items.push({ title: t('Media Library'), href: route('media-library'), icon: Image, group: t('Management') });
         }
-        if (hasPermission(permissions, 'plan_view_any') || hasPermission(permissions, 'plan_manage_requests') || hasPermission(permissions, 'plan_manage_orders')) {
+        if (
+            hasPermission(permissions, 'plan_view_any') ||
+            hasPermission(permissions, 'plan_manage_requests') ||
+            hasPermission(permissions, 'plan_manage_orders')
+        ) {
             const planChildren = [];
             if (hasPermission(permissions, 'plan_view_any')) planChildren.push({ title: t('Plan'), href: route('plans.index') });
-            if (hasPermission(permissions, 'plan_manage_requests')) planChildren.push({ title: t('Plan Requests'), href: route('plan-requests.index') });
+            if (hasPermission(permissions, 'plan_manage_requests'))
+                planChildren.push({ title: t('Plan Requests'), href: route('plan-requests.index') });
             if (hasPermission(permissions, 'plan_manage_orders')) planChildren.push({ title: t('Plan Orders'), href: route('plan-orders.index') });
             items.push({ title: t('Plans'), icon: CreditCard, group: t('Management'), children: planChildren });
         }
@@ -99,7 +135,8 @@ export function AppSidebar() {
         }
         const landingChildren = [];
         if (hasPermission(permissions, 'landing_page_manage')) landingChildren.push({ title: t('Landing Page'), href: route('landing-page') });
-        if (hasPermission(permissions, 'custom_page_view_any')) landingChildren.push({ title: t('Custom Pages'), href: route('landing-page.custom-pages.index') });
+        if (hasPermission(permissions, 'custom_page_view_any'))
+            landingChildren.push({ title: t('Custom Pages'), href: route('landing-page.custom-pages.index') });
         if (hasPermission(permissions, 'contact_view_any')) landingChildren.push({ title: t('Contact Inquiries'), href: route('contacts.index') });
         if (hasPermission(permissions, 'newsletter_view_any')) landingChildren.push({ title: t('Newsletter'), href: route('newsletters.index') });
         if (landingChildren.length > 0) {
@@ -118,8 +155,14 @@ export function AppSidebar() {
     const buildCommonNavItems = (): NavItem[] => {
         const items: NavItem[] = [];
 
-        if (hasPermission(permissions, 'erp.company.access')) {
-            items.push({ title: t('ERP'), href: route('erp.dashboard'), icon: Building2, group: t('Overview') });
+        if (erpContext?.companies?.length > 0 || hasPermission(permissions, 'erp.company.access')) {
+            const active = Boolean(erpContext?.activeCompany);
+            items.push({
+                title: t('ERP'),
+                href: active ? route('erp.dashboard') : route('erp.companies.index'),
+                icon: Building2,
+                group: t('Overview'),
+            });
         }
 
         // Overview
@@ -146,7 +189,7 @@ export function AppSidebar() {
         if (hasPermission(permissions, 'todo_view_any')) {
             items.push({ title: t('ToDos'), href: route('todos.index'), icon: ListTodo, group: t('Project Management') });
         }
-        
+
         if (hasPermission(permissions, 'project_report_view_any')) {
             items.push({ title: t('Project Reports'), href: route('project-reports.index'), icon: TrendingUp, group: t('Project Management') });
             items.push({ title: t('Milestone Report'), href: route('project-reports.milestone'), icon: BarChart, group: t('Project Management') });
@@ -165,8 +208,10 @@ export function AppSidebar() {
                 { title: t('Weekly View'), href: route('timesheets.weekly-view') },
                 { title: t('Monthly View'), href: route('timesheets.monthly-view') },
             ];
-            if (hasPermission(permissions, 'timesheet_approve')) timesheetChildren.push({ title: t('Approvals'), href: route('timesheet-approvals.index') });
-            if (hasPermission(permissions, 'timesheet_generate_reports')) timesheetChildren.push({ title: t('Reports'), href: route('timesheet-reports.index') });
+            if (hasPermission(permissions, 'timesheet_approve'))
+                timesheetChildren.push({ title: t('Approvals'), href: route('timesheet-approvals.index') });
+            if (hasPermission(permissions, 'timesheet_generate_reports'))
+                timesheetChildren.push({ title: t('Reports'), href: route('timesheet-reports.index') });
             items.push({ title: t('Timesheets'), icon: Clock, group: t('Time Tracking'), children: timesheetChildren });
         }
 
@@ -176,12 +221,16 @@ export function AppSidebar() {
         }
         if (hasPermission(permissions, 'budget_view_any') || hasPermission(permissions, 'expense_view_any')) {
             const budgetChildren = [];
-            if (hasPermission(permissions, 'budget_dashboard_view')) budgetChildren.push({ title: t('Budget Dashboard'), href: route('budgets.dashboard') });
+            if (hasPermission(permissions, 'budget_dashboard_view'))
+                budgetChildren.push({ title: t('Budget Dashboard'), href: route('budgets.dashboard') });
             if (hasPermission(permissions, 'budget_view_any')) budgetChildren.push({ title: t('Budgets'), href: route('budgets.index') });
             if (hasPermission(permissions, 'expense_view_any')) budgetChildren.push({ title: t('Expenses'), href: route('expenses.index') });
-            if (hasPermission(permissions, 'expense_approval_approve')) budgetChildren.push({ title: t('Expense Approvals'), href: route('expense-approvals.index') });
+            if (hasPermission(permissions, 'expense_approval_approve'))
+                budgetChildren.push({ title: t('Expense Approvals'), href: route('expense-approvals.index') });
             items.push({
-                title: t('Budget & Expenses'), icon: Receipt, group: t('Finance'),
+                title: t('Budget & Expenses'),
+                icon: Receipt,
+                group: t('Finance'),
                 children: budgetChildren.length > 0 ? budgetChildren : undefined,
             });
         }
@@ -199,11 +248,14 @@ export function AppSidebar() {
         if (hasPermission(permissions, 'contract_view_any') || hasPermission(permissions, 'contract_type_view_any')) {
             const contractChildren = [];
             if (hasPermission(permissions, 'contract_view_any')) contractChildren.push({ title: t('Contracts'), href: route('contracts.index') });
-            if (hasPermission(permissions, 'contract_type_view_any')) contractChildren.push({ title: t('Contract Types'), href: route('contract-types.index') });
+            if (hasPermission(permissions, 'contract_type_view_any'))
+                contractChildren.push({ title: t('Contract Types'), href: route('contract-types.index') });
             items.push({
-                title: t('Contracts'), icon: FileText, group: t('Communications & Content'),
+                title: t('Contracts'),
+                icon: FileText,
+                group: t('Communications & Content'),
                 children: contractChildren.length > 1 ? contractChildren : undefined,
-                href: contractChildren.length === 1 ? contractChildren[0].href : undefined
+                href: contractChildren.length === 1 ? contractChildren[0].href : undefined,
             });
         }
         if (hasPermission(permissions, 'media_view_any')) {
@@ -225,13 +277,16 @@ export function AppSidebar() {
         // Subscription & Billing
         const planChildren = [];
         if (hasPermission(permissions, 'plan_view_any')) planChildren.push({ title: t('Plans'), href: route('plans.index') });
-        if (hasPermission(permissions, 'plan_view_my_requests')) planChildren.push({ title: t('My Plan Requests'), href: route('my-plan-requests.index') });
+        if (hasPermission(permissions, 'plan_view_my_requests'))
+            planChildren.push({ title: t('My Plan Requests'), href: route('my-plan-requests.index') });
         if (hasPermission(permissions, 'plan_view_my_orders')) planChildren.push({ title: t('My Plan Orders'), href: route('my-plan-orders.index') });
         if (planChildren.length > 0) {
             items.push({
-                title: t('Plans'), icon: CreditCard, group: t('Subscription & Billing'),
+                title: t('Plans'),
+                icon: CreditCard,
+                group: t('Subscription & Billing'),
                 children: planChildren.length > 1 ? planChildren : undefined,
-                href: planChildren.length === 1 ? planChildren[0].href : undefined
+                href: planChildren.length === 1 ? planChildren[0].href : undefined,
             });
         }
 
@@ -258,7 +313,8 @@ export function AppSidebar() {
         // Website & Marketing
         const landingChildren = [];
         if (hasPermission(permissions, 'landing_page_manage')) landingChildren.push({ title: t('Landing Page'), href: route('landing-page') });
-        if (hasPermission(permissions, 'custom_page_view_any')) landingChildren.push({ title: t('Custom Pages'), href: route('landing-page.custom-pages.index') });
+        if (hasPermission(permissions, 'custom_page_view_any'))
+            landingChildren.push({ title: t('Custom Pages'), href: route('landing-page.custom-pages.index') });
         if (hasPermission(permissions, 'newsletter_view_any')) landingChildren.push({ title: t('Newsletters'), href: route('newsletters.index') });
         if (hasPermission(permissions, 'contact_view_any')) landingChildren.push({ title: t('Contact Inquiries'), href: route('contacts.index') });
         if (landingChildren.length > 0) {
@@ -282,7 +338,96 @@ export function AppSidebar() {
         return items;
     };
 
+    const getErpNavItems = (): NavItem[] => {
+        const items: NavItem[] = [];
+        if (canUseErp('erp.dashboard.view')) {
+            items.push({ title: t('ERP Home'), href: route('erp.dashboard'), icon: Home, group: t('Overview') });
+        }
+
+        if (canUseErp('erp.project_management.view')) {
+            const projectItems: NavItem[] = [];
+            if (hasPermission(permissions, 'dashboard_view')) {
+                projectItems.push({ title: t('Project Dashboard'), href: route('dashboard') });
+            }
+            if (hasPermission(permissions, 'workspace_view_any')) {
+                projectItems.push({ title: t('Workspaces'), href: route('workspaces.index') });
+            }
+            if (hasPermission(permissions, 'project_view_any')) {
+                projectItems.push({ title: t('Projects'), href: route('projects.index') });
+            }
+            if (hasPermission(permissions, 'task_view_any')) {
+                projectItems.push({ title: t('Tasks'), href: route('tasks.index') });
+            }
+            if (hasPermission(permissions, 'task_calendar_view')) {
+                projectItems.push({ title: t('Calendar'), href: route('task-calendar.index') });
+            }
+            if (hasPermission(permissions, 'todo_view_any')) {
+                projectItems.push({ title: t('ToDos'), href: route('todos.index') });
+            }
+            if (hasPermission(permissions, 'project_report_view_any')) {
+                projectItems.push({ title: t('Project Reports'), href: route('project-reports.index') });
+                projectItems.push({ title: t('Milestone Report'), href: route('project-reports.milestone') });
+            }
+            if (hasPermission(permissions, 'task_view_any')) {
+                projectItems.push({ title: t('Team Workload'), href: route('workload.index') });
+            }
+            if (hasPermission(permissions, 'timesheet_view_any')) {
+                projectItems.push({ title: t('Timesheets'), href: route('timesheets.index') });
+            }
+            if (projectItems.length > 0) {
+                items.push({ title: t('Project Management'), icon: FolderOpen, group: t('Modules'), children: projectItems });
+            }
+        }
+
+        if (canUseErp('erp.requisitions.view')) {
+            items.push({ title: t('Requisitions & Approvals'), href: route('erp.requisitions.index'), icon: ClipboardList, group: t('Modules') });
+        }
+        if (canUseErp('erp.inventory.view')) {
+            items.push({
+                title: t('Inventory'),
+                icon: Boxes,
+                group: t('Modules'),
+                children: [
+                    { title: t('Products & Locations'), href: route('erp.inventory.setup') },
+                    { title: t('Stock on Hand & Movements'), href: route('erp.inventory.stock.index') },
+                ],
+            });
+        }
+        if (canUseErp('erp.purchase.view')) {
+            items.push({ title: t('Procurement'), href: route('erp.purchase.index'), icon: ShoppingCart, group: t('Modules') });
+        }
+        if (canUseErp('erp.accounting.view')) {
+            items.push({ title: t('Finance & Accounting'), href: route('erp.accounting.index'), icon: Landmark, group: t('Modules') });
+        }
+        if (canUseErp('erp.approvals.view')) {
+            items.push({ title: t('My Approvals'), href: route('erp.approvals.index'), icon: ShieldCheck, group: t('Modules') });
+        }
+
+        if (canUseErp('erp.companies.manage')) {
+            items.push({ title: t('Company'), href: route('erp.companies.index'), icon: Building2, group: t('Company Settings') });
+        }
+        if (canUseErp('erp.members.manage')) {
+            items.push({ title: t('Members'), href: route('erp.companies.members.index'), icon: Users, group: t('Company Settings') });
+        }
+        if (canUseErp('erp.roles.manage')) {
+            items.push({ title: t('Roles & Permissions'), href: route('erp.settings.roles.index'), icon: ShieldCheck, group: t('Company Settings') });
+        }
+        if (canUseErp('erp.settings.view')) {
+            const settings = [
+                { title: t('Company Branding'), href: route('erp.settings.branding.edit') },
+                { title: t('Exchange Rates'), href: route('erp.settings.exchange-rates.index') },
+                { title: t('Signatories'), href: route('erp.settings.signatories.index') },
+            ];
+            if (canUseErp('erp.approvals.manage')) {
+                settings.push({ title: t('Approval Workflows'), href: route('erp.approvals.workflows.index') });
+            }
+            items.push({ title: t('Settings'), icon: Settings, group: t('Company Settings'), children: settings });
+        }
+        return items;
+    };
+
     const getNavItems = (): NavItem[] => {
+        if (erpContext?.activeCompany) return getErpNavItems();
         if (isSaasMode && isSuperAdmin) return getSuperAdminNavItems();
         if (isSaasMode) return getSaasNavItems();
         return getNonSaasNavItems();
@@ -297,14 +442,13 @@ export function AppSidebar() {
     const [searchQuery, setSearchQuery] = useState('');
 
     useEffect(() => {
-
         // Apply styles based on sidebar style
         if (style === 'colored') {
             setSidebarStyle({ backgroundColor: 'var(--primary)', color: 'white' });
         } else if (style === 'gradient') {
             setSidebarStyle({
                 background: 'linear-gradient(to bottom, var(--primary), color-mix(in srgb, var(--primary), transparent 20%))',
-                color: 'white'
+                color: 'white',
             });
         } else {
             setSidebarStyle({});
@@ -346,227 +490,267 @@ export function AppSidebar() {
 
     return (
         <>
-        <Sidebar
-            // key={`sidebar-${effectivePosition}-${position}-${forceUpdate}-${isRTL ? 'rtl' : 'ltr'}`}
-            side={effectivePosition}
-            collapsible={collapsible}
-            variant={variant}
-            className={style !== 'plain' ? 'sidebar-custom-style' : ''}
-        >
-            <SidebarHeader className={style !== 'plain' ? 'sidebar-styled' : ''} style={sidebarStyle}>
-                <div className="flex justify-center items-center p-2 relative">
-                    {/* Close button — only shown on mobile inside the Sheet */}
-                    <SidebarTrigger className="md:hidden absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8" />
-                    <Link href={getFirstAvailableHref()} prefetch className="flex items-center justify-center">
-                        {/* Logo for expanded sidebar */}
-                        <div className="group-data-[collapsible=icon]:hidden flex items-center">
-                            {(() => {
-                                const currentLogo = isDarkTheme ? logoLight : logoDark;
-                                const displayUrl = currentLogo ? (
-                                    currentLogo.startsWith('http') ? currentLogo :
-                                        currentLogo.startsWith('/storage/') ? `${window.location.origin}${currentLogo}` :
-                                            currentLogo.startsWith('/') ? `${window.location.origin}${currentLogo}` : currentLogo
-                                ) : '';
+            <Sidebar
+                // key={`sidebar-${effectivePosition}-${position}-${forceUpdate}-${isRTL ? 'rtl' : 'ltr'}`}
+                side={effectivePosition}
+                collapsible={collapsible}
+                variant={variant}
+                className={style !== 'plain' ? 'sidebar-custom-style' : ''}
+            >
+                <SidebarHeader className={style !== 'plain' ? 'sidebar-styled' : ''} style={sidebarStyle}>
+                    <div className="relative flex items-center justify-center p-2">
+                        {/* Close button — only shown on mobile inside the Sheet */}
+                        <SidebarTrigger className="absolute top-1/2 right-2 h-8 w-8 -translate-y-1/2 md:hidden" />
+                        <Link href={getFirstAvailableHref()} prefetch className="flex items-center justify-center">
+                            {/* Logo for expanded sidebar */}
+                            <div className="flex items-center group-data-[collapsible=icon]:hidden">
+                                {(() => {
+                                    const currentLogo = isDarkTheme ? logoLight : logoDark;
+                                    const displayUrl = currentLogo
+                                        ? currentLogo.startsWith('http')
+                                            ? currentLogo
+                                            : currentLogo.startsWith('/storage/')
+                                              ? `${window.location.origin}${currentLogo}`
+                                              : currentLogo.startsWith('/')
+                                                ? `${window.location.origin}${currentLogo}`
+                                                : currentLogo
+                                        : '';
 
-                                return displayUrl ? (
-                                    <img
-                                        key={`${currentLogo}-${isDarkTheme}-${Date.now()}`}
-                                        src={displayUrl}
-                                        alt="Logo"
-                                        className="w-auto transition-all duration-200"
-                                        onError={() => updateBrandSettings({ [isDarkTheme ? 'logoLight' : 'logoDark']: '' })}
-                                    />
-                                ) : (
-                                    <div className="h-8 text-inherit font-semibold flex items-center text-lg tracking-tight">
-                                        WorkDo
-                                    </div>
-                                );
-                            })()}
-                        </div>
+                                    return displayUrl ? (
+                                        <img
+                                            key={`${currentLogo}-${isDarkTheme}-${Date.now()}`}
+                                            src={displayUrl}
+                                            alt="Logo"
+                                            className="w-auto transition-all duration-200"
+                                            onError={() => updateBrandSettings({ [isDarkTheme ? 'logoLight' : 'logoDark']: '' })}
+                                        />
+                                    ) : (
+                                        <div className="flex h-8 items-center text-lg font-semibold tracking-tight text-inherit">WorkDo</div>
+                                    );
+                                })()}
+                            </div>
 
-                        {/* Icon for collapsed sidebar */}
-                        <div className="h-8 w-8 hidden group-data-[collapsible=icon]:block">
-                            {(() => {
-                                const displayFavicon = favicon ? (
-                                    favicon.startsWith('http') ? favicon :
-                                        favicon.startsWith('/storage/') ? `${window.location.origin}${favicon}` :
-                                            favicon.startsWith('/') ? `${window.location.origin}${favicon}` : favicon
-                                ) : '';
+                            {/* Icon for collapsed sidebar */}
+                            <div className="hidden h-8 w-8 group-data-[collapsible=icon]:block">
+                                {(() => {
+                                    const displayFavicon = favicon
+                                        ? favicon.startsWith('http')
+                                            ? favicon
+                                            : favicon.startsWith('/storage/')
+                                              ? `${window.location.origin}${favicon}`
+                                              : favicon.startsWith('/')
+                                                ? `${window.location.origin}${favicon}`
+                                                : favicon
+                                        : '';
 
-                                return displayFavicon ? (
-                                    <img
-                                        key={`${favicon}-${Date.now()}`}
-                                        src={displayFavicon}
-                                        alt="Icon"
-                                        className="h-8 w-8 transition-all duration-200"
-                                        onError={() => updateBrandSettings({ favicon: '' })}
-                                    />
-                                ) : (
-                                    <div className="h-8 w-8 bg-primary text-white rounded flex items-center justify-center font-bold shadow-sm">
-                                        W
-                                    </div>
-                                );
-                            })()}
-                        </div>
-                    </Link>
-                </div>
-
-                {/* Search Input */}
-                <div className="group-data-[collapsible=icon]:hidden px-2 pb-2">
-                    <div className="relative">
-                        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400" />
-                        <input
-                            type="text"
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            placeholder={t('Search menu...')}
-                            className="w-full rounded-md border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-800 py-1.5 pl-8 pr-7 text-sm text-gray-700 dark:text-gray-300 placeholder-gray-400 dark:placeholder-gray-500 outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all"
-                        />
-                        {searchQuery && (
-                            <button
-                                onClick={() => setSearchQuery('')}
-                                className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-                            >
-                                <X className="h-3.5 w-3.5" />
-                            </button>
-                        )}
-                    </div>
-                </div>
-
-            </SidebarHeader>
-
-            <SidebarContent style={sidebarStyle} className={style !== 'plain' ? 'sidebar-styled' : ''}>
-                {filteredNavItems.length === 0 && searchQuery ? (
-                    <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
-                        <Search className="h-8 w-8 text-gray-300 mb-3" />
-                        <p className="text-sm font-medium text-gray-500">{t('No menu found')}</p>
-                        <p className="text-xs text-gray-400 mt-1">"{searchQuery}"</p>
-                    </div>
-                ) : (
-                    <NavMain items={filteredNavItems} position={effectivePosition} sidebarStyle={style} />
-                )}
-            </SidebarContent>
-
-            <SidebarFooter className="p-3">
-                {/* <NavFooter items={footerNavItems} className="mt-auto" position={position} /> */}
-                {/* Profile menu moved to header */}
-
-                {/* Plan Active UI — SaaS + Company only */}
-                {isSaasMode && auth.user?.workspace_role === 'owner' && (() => {
-                    const user = auth.user;
-                    const plan = user?.plan;
-                    
-                    const planName = plan?.name ?? t('No Plan');
-                    const isActive = user?.plan_is_active === 1;
-                    const isTrial = user?.is_trial;
-                    
-                    const expireDate = isTrial == 1 ? user?.trial_expire_date : (user?.plan_expire_date || globalSettings?.planExirationDate);
-
-                    const daysLeft = expireDate
-                        ? Math.ceil((new Date(expireDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
-                        : null;
-                    const isExpired = daysLeft == null || daysLeft <= 0;
-                    const isExpiringSoon = daysLeft !== null && daysLeft > 0 && daysLeft <= 7;
-
-                     return (
-                        <div className="group-data-[collapsible=icon]:hidden">
-                            <div
-                                className={`relative rounded-xl overflow-hidden ${isExpired ? 'rounded-lg border bg-card text-card-foreground shadow-sm bg-gradient-to-r from-red-500 to-red-400' : 'bg-primary border-t border-t-[color-mix(in_srgb,var(--primary),white_20%)]'}`}
-                            >
-                                {/* Decorative circles */}
-                                <div className="absolute -top-4 -right-4 w-16 h-16 rounded-full" style={{ backgroundColor: 'rgba(255,255,255,0.1)' }} />
-                                <div className="absolute -bottom-3 -left-3 w-10 h-10 rounded-full" style={{ backgroundColor: 'rgba(255,255,255,0.06)' }} />
-
-                                <div className="relative p-5">
-                                    {/* Header row */}
-                                    <div className="flex items-start justify-between mb-3">
-                                        <div className="flex items-center gap-2">
-                                            <div className="p-1.5 rounded-lg" style={{ backgroundColor: 'rgba(255,255,255,0.2)' }}>
-                                                <CreditCard className="h-4 w-4 text-white" />
-                                            </div>
-                                            <div>
-                                                <p className="text-xs font-semibold leading-tight mb-1" style={{ color: 'rgba(255,255,255,0.9)' }}>{t('Current Plan')}</p>
-                                                <p className="text-sm font-bold text-white leading-tight">{planName}</p>
-                                            </div>
+                                    return displayFavicon ? (
+                                        <img
+                                            key={`${favicon}-${Date.now()}`}
+                                            src={displayFavicon}
+                                            alt="Icon"
+                                            className="h-8 w-8 transition-all duration-200"
+                                            onError={() => updateBrandSettings({ favicon: '' })}
+                                        />
+                                    ) : (
+                                        <div className="bg-primary flex h-8 w-8 items-center justify-center rounded font-bold text-white shadow-sm">
+                                            W
                                         </div>
-                                        {/* Status badge */}
-                                        <span
-                                            className="text-xs font-bold px-3 py-1 rounded-full tracking-wide"
-                                            style={{ backgroundColor: 'rgba(255,255,255,0.25)', color: 'white', border: '1px solid rgba(255,255,255,0.35)' }}
-                                        >
-                                            {isExpired ? t('Expired') : isTrial == 1 ? t('Trial') : t('Active')}
-                                        </span>
-                                    </div>
+                                    );
+                                })()}
+                            </div>
+                        </Link>
+                    </div>
 
-                                    {/* Divider */}
-                                    <div className="mb-3" style={{ borderTop: '1px solid rgba(255,255,255,0.2)' }} />
+                    {/* Search Input */}
+                    <div className="px-2 pb-2 group-data-[collapsible=icon]:hidden">
+                        <div className="relative">
+                            <Search className="absolute top-1/2 left-2.5 h-3.5 w-3.5 -translate-y-1/2 text-gray-400" />
+                            <input
+                                type="text"
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                placeholder={t('Search menu...')}
+                                className="focus:border-primary focus:ring-primary w-full rounded-md border border-gray-300 bg-gray-50 py-1.5 pr-7 pl-8 text-sm text-gray-700 placeholder-gray-400 transition-all outline-none focus:ring-1 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:placeholder-gray-500"
+                            />
+                            {searchQuery && (
+                                <button
+                                    onClick={() => setSearchQuery('')}
+                                    className="absolute top-1/2 right-2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                                >
+                                    <X className="h-3.5 w-3.5" />
+                                </button>
+                            )}
+                        </div>
+                    </div>
+                </SidebarHeader>
 
-                                    {/* Expiry info */}
-                                    <div className="mb-3 space-y-1.5">
-                                        {expireDate ? (
-                                            <>
-                                                <div className="flex items-center justify-between">
-                                                    <span className="text-xs font-medium" style={{ color: 'rgba(255,255,255,0.9)' }}>
-                                                        {isExpired ? t('Expired on') : isTrial == 1 ? t('Trial expires') : t('Plan expires')}
-                                                    </span>
-                                                    <span className="text-xs font-bold text-white">
-                                                        {window.appSettings?.formatDateTime(expireDate, false) || new Date(expireDate).toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' })}
-                                                    </span>
-                                                </div>
-                                                <div className="flex items-center justify-between">
-                                                    <span className="text-xs font-medium" style={{ color: 'rgba(255,255,255,0.9)' }}>{!isExpired ? t('Days left') : t('Days since expiration')}</span>
-                                                    <span className="text-xs font-bold text-white">
-                                                        {isExpired ? -daysLeft : daysLeft} {t('days')}
-                                                    </span>
-                                                </div>
-                                                {/* Progress bar */}
-                                                {!isExpired && daysLeft !== null && daysLeft <= 30 && (
-                                                    <div className="mt-1">
-                                                        <div className="h-1.5 w-full rounded-full overflow-hidden" style={{ backgroundColor: 'rgba(255,255,255,0.2)' }}>
-                                                            <div
-                                                                className="h-full rounded-full transition-all"
-                                                                style={{ width: `${Math.max(5, (daysLeft / 30) * 100)}%`, backgroundColor: 'rgba(255,255,255,0.9)' }}
-                                                            />
-                                                        </div>
+                <SidebarContent style={sidebarStyle} className={style !== 'plain' ? 'sidebar-styled' : ''}>
+                    {filteredNavItems.length === 0 && searchQuery ? (
+                        <div className="flex flex-col items-center justify-center px-4 py-12 text-center">
+                            <Search className="mb-3 h-8 w-8 text-gray-300" />
+                            <p className="text-sm font-medium text-gray-500">{t('No menu found')}</p>
+                            <p className="mt-1 text-xs text-gray-400">"{searchQuery}"</p>
+                        </div>
+                    ) : (
+                        <NavMain items={filteredNavItems} position={effectivePosition} sidebarStyle={style} />
+                    )}
+                </SidebarContent>
+
+                <SidebarFooter className="p-3">
+                    {/* <NavFooter items={footerNavItems} className="mt-auto" position={position} /> */}
+                    {/* Profile menu moved to header */}
+
+                    {/* Plan Active UI — SaaS + Company only */}
+                    {isSaasMode &&
+                        auth.user?.workspace_role === 'owner' &&
+                        (() => {
+                            const user = auth.user;
+                            const plan = user?.plan;
+
+                            const planName = plan?.name ?? t('No Plan');
+                            const isActive = user?.plan_is_active === 1;
+                            const isTrial = user?.is_trial;
+
+                            const expireDate = isTrial == 1 ? user?.trial_expire_date : user?.plan_expire_date || globalSettings?.planExirationDate;
+
+                            const daysLeft = expireDate ? Math.ceil((new Date(expireDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24)) : null;
+                            const isExpired = daysLeft == null || daysLeft <= 0;
+                            const isExpiringSoon = daysLeft !== null && daysLeft > 0 && daysLeft <= 7;
+
+                            return (
+                                <div className="group-data-[collapsible=icon]:hidden">
+                                    <div
+                                        className={`relative overflow-hidden rounded-xl ${isExpired ? 'bg-card text-card-foreground rounded-lg border bg-gradient-to-r from-red-500 to-red-400 shadow-sm' : 'bg-primary border-t border-t-[color-mix(in_srgb,var(--primary),white_20%)]'}`}
+                                    >
+                                        {/* Decorative circles */}
+                                        <div
+                                            className="absolute -top-4 -right-4 h-16 w-16 rounded-full"
+                                            style={{ backgroundColor: 'rgba(255,255,255,0.1)' }}
+                                        />
+                                        <div
+                                            className="absolute -bottom-3 -left-3 h-10 w-10 rounded-full"
+                                            style={{ backgroundColor: 'rgba(255,255,255,0.06)' }}
+                                        />
+
+                                        <div className="relative p-5">
+                                            {/* Header row */}
+                                            <div className="mb-3 flex items-start justify-between">
+                                                <div className="flex items-center gap-2">
+                                                    <div className="rounded-lg p-1.5" style={{ backgroundColor: 'rgba(255,255,255,0.2)' }}>
+                                                        <CreditCard className="h-4 w-4 text-white" />
                                                     </div>
-                                                )}
-                                            </>
-                                        ) : (
-                                            <div className="flex items-center justify-between">
-                                                <span className="text-xs font-medium" style={{ color: 'rgba(255,255,255,0.9)' }}>{t('Status')}</span>
-                                                <span className="text-xs font-bold text-white">
-                                                    {isActive ? t('No expiry') : t('Inactive')}
+                                                    <div>
+                                                        <p
+                                                            className="mb-1 text-xs leading-tight font-semibold"
+                                                            style={{ color: 'rgba(255,255,255,0.9)' }}
+                                                        >
+                                                            {t('Current Plan')}
+                                                        </p>
+                                                        <p className="text-sm leading-tight font-bold text-white">{planName}</p>
+                                                    </div>
+                                                </div>
+                                                {/* Status badge */}
+                                                <span
+                                                    className="rounded-full px-3 py-1 text-xs font-bold tracking-wide"
+                                                    style={{
+                                                        backgroundColor: 'rgba(255,255,255,0.25)',
+                                                        color: 'white',
+                                                        border: '1px solid rgba(255,255,255,0.35)',
+                                                    }}
+                                                >
+                                                    {isExpired ? t('Expired') : isTrial == 1 ? t('Trial') : t('Active')}
                                                 </span>
                                             </div>
-                                        )}
+
+                                            {/* Divider */}
+                                            <div className="mb-3" style={{ borderTop: '1px solid rgba(255,255,255,0.2)' }} />
+
+                                            {/* Expiry info */}
+                                            <div className="mb-3 space-y-1.5">
+                                                {expireDate ? (
+                                                    <>
+                                                        <div className="flex items-center justify-between">
+                                                            <span className="text-xs font-medium" style={{ color: 'rgba(255,255,255,0.9)' }}>
+                                                                {isExpired ? t('Expired on') : isTrial == 1 ? t('Trial expires') : t('Plan expires')}
+                                                            </span>
+                                                            <span className="text-xs font-bold text-white">
+                                                                {window.appSettings?.formatDateTime(expireDate, false) ||
+                                                                    new Date(expireDate).toLocaleDateString(undefined, {
+                                                                        day: '2-digit',
+                                                                        month: 'short',
+                                                                        year: 'numeric',
+                                                                    })}
+                                                            </span>
+                                                        </div>
+                                                        <div className="flex items-center justify-between">
+                                                            <span className="text-xs font-medium" style={{ color: 'rgba(255,255,255,0.9)' }}>
+                                                                {!isExpired ? t('Days left') : t('Days since expiration')}
+                                                            </span>
+                                                            <span className="text-xs font-bold text-white">
+                                                                {isExpired ? -daysLeft : daysLeft} {t('days')}
+                                                            </span>
+                                                        </div>
+                                                        {/* Progress bar */}
+                                                        {!isExpired && daysLeft !== null && daysLeft <= 30 && (
+                                                            <div className="mt-1">
+                                                                <div
+                                                                    className="h-1.5 w-full overflow-hidden rounded-full"
+                                                                    style={{ backgroundColor: 'rgba(255,255,255,0.2)' }}
+                                                                >
+                                                                    <div
+                                                                        className="h-full rounded-full transition-all"
+                                                                        style={{
+                                                                            width: `${Math.max(5, (daysLeft / 30) * 100)}%`,
+                                                                            backgroundColor: 'rgba(255,255,255,0.9)',
+                                                                        }}
+                                                                    />
+                                                                </div>
+                                                            </div>
+                                                        )}
+                                                    </>
+                                                ) : (
+                                                    <div className="flex items-center justify-between">
+                                                        <span className="text-xs font-medium" style={{ color: 'rgba(255,255,255,0.9)' }}>
+                                                            {t('Status')}
+                                                        </span>
+                                                        <span className="text-xs font-bold text-white">
+                                                            {isActive ? t('No expiry') : t('Inactive')}
+                                                        </span>
+                                                    </div>
+                                                )}
+                                            </div>
+
+                                            {/* Upgrade button */}
+                                            <Link
+                                                href={route('plans.index')}
+                                                className={`flex w-full items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold transition-all duration-200 ${isExpired ? 'text-red-500 hover:!text-red-500' : 'text-primary hover:text-primary'}`}
+                                                style={{ backgroundColor: 'rgba(255,255,255,0.95)' }}
+                                                onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'white')}
+                                                onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.95)')}
+                                            >
+                                                <CreditCard className="h-3.5 w-3.5" />
+                                                <span>{isExpired || !isActive ? t('Renew Plan') : t('Upgrade Plan')}</span>
+                                            </Link>
+                                        </div>
                                     </div>
-
-                                    {/* Upgrade button */}
-                                    <Link
-                                        href={route('plans.index')}
-                                        className={`flex items-center justify-center gap-1.5 w-full text-xs font-semibold py-2 px-3 rounded-lg transition-all duration-200 ${isExpired? 'text-red-500 hover:!text-red-500' : 'text-primary hover:text-primary'}`}
-                                        style={{ backgroundColor: 'rgba(255,255,255,0.95)'}}
-                                        onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'white')}
-                                        onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.95)')}
-                                    >
-                                        <CreditCard className="h-3.5 w-3.5" />
-                                        <span>{isExpired || !isActive ? t('Renew Plan') : t('Upgrade Plan')}</span>
-                                    </Link>
                                 </div>
-                            </div>
-                        </div>
-                    );
-                })()}
-            </SidebarFooter>
-        </Sidebar>
+                            );
+                        })()}
+                </SidebarFooter>
+            </Sidebar>
 
-        {/* Mzitshwa panel — intercept #mzitshwa nav clicks */}
-        <div onClick={(e) => {
-            const anchor = (e.target as HTMLElement).closest('a[href="#mzitshwa"]');
-            if (anchor) { e.preventDefault(); setMzitshwaOpen(true); }
-        }}>
-            <MzitshwaPanel isOpen={mzitshwaOpen} onClose={() => setMzitshwaOpen(false)} />
-        </div>
+            {/* Mzitshwa panel — intercept #mzitshwa nav clicks */}
+            <div
+                onClick={(e) => {
+                    const anchor = (e.target as HTMLElement).closest('a[href="#mzitshwa"]');
+                    if (anchor) {
+                        e.preventDefault();
+                        setMzitshwaOpen(true);
+                    }
+                }}
+            >
+                <MzitshwaPanel isOpen={mzitshwaOpen} onClose={() => setMzitshwaOpen(false)} />
+            </div>
         </>
     );
 }

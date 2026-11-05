@@ -7,6 +7,7 @@ use App\Models\Currency;
 use App\Modules\Core\Models\Company;
 use App\Modules\Core\Services\AuditLogService;
 use App\Modules\Core\Services\CompanyContext;
+use App\Modules\Core\Services\ErpRoleService;
 use App\Modules\Inventory\Models\InventoryProduct;
 use App\Modules\Inventory\Models\StockLocation;
 use App\Modules\Purchase\Models\PurchaseOrder;
@@ -358,25 +359,11 @@ class PurchaseController extends Controller
 
     private function authorizeAccess(Request $request, Company $company): void
     {
-        abort_unless(
-            $company->users()
-                ->whereKey($request->user()->getKey())
-                ->wherePivot('is_active', true)
-                ->whereIn('company_user.role', ['owner', 'admin', 'manager', 'finance'])
-                ->exists(),
-            403
-        );
+        app(ErpRoleService::class)->authorize($company, $request->user(), 'erp.purchase.view');
     }
 
     private function authorizeManagement(Request $request, Company $company): void
     {
-        abort_unless(
-            $company->users()
-                ->whereKey($request->user()->getKey())
-                ->wherePivot('is_active', true)
-                ->whereIn('company_user.role', ['owner', 'admin', 'manager', 'finance'])
-                ->exists(),
-            403
-        );
+        app(ErpRoleService::class)->authorize($company, $request->user(), 'erp.purchase.manage');
     }
 }

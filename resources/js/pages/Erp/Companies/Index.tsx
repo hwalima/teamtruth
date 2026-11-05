@@ -14,9 +14,11 @@ type Props = {
         activeCompany: Company | null;
         companies: Company[];
     };
+    canManageMembers: boolean;
+    canManageRoles: boolean;
 };
 
-export default function Index({ erpContext }: Props) {
+export default function Index({ erpContext, canManageMembers, canManageRoles }: Props) {
     const errors = (usePage().props as { errors?: Record<string, string> }).errors ?? {};
     const [code, setCode] = useState('');
     const [name, setName] = useState('');
@@ -51,9 +53,16 @@ export default function Index({ erpContext }: Props) {
                             {erpContext.activeCompany?.id === company.id ? (
                                 <span className="text-muted-foreground flex items-center gap-3 text-sm">
                                     Active
-                                    <a className="text-primary underline" href={route('erp.companies.members.index')}>
-                                        Members
-                                    </a>
+                                    {canManageMembers && (
+                                        <a className="text-primary underline" href={route('erp.companies.members.index')}>
+                                            Members
+                                        </a>
+                                    )}
+                                    {canManageRoles && (
+                                        <a className="text-primary underline" href={route('erp.settings.roles.index')}>
+                                            Roles & access
+                                        </a>
+                                    )}
                                 </span>
                             ) : (
                                 <button
