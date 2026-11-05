@@ -12,6 +12,7 @@ class CompanyBranding extends Model
     protected $fillable = [
         'company_id',
         'logo_path',
+        'letterhead_path',
         'logo_dark_path',
         'favicon_path',
         'primary_color',

@@ -223,7 +223,13 @@ class RequisitionController extends Controller
 
         $filename = Str::slug(str_replace(['/', '\\'], '-', $requisition->document_number)).'.pdf';
 
-        return $pdf->download($filename);
+        return response()->streamDownload(
+            static function () use ($pdf): void {
+                echo $pdf;
+            },
+            $filename,
+            ['Content-Type' => 'application/pdf'],
+        );
     }
 
     private function validateRequisition(Request $request): array

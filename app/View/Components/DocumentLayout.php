@@ -18,6 +18,8 @@ class DocumentLayout extends Component
 
     public string $accentColor;
 
+    public bool $hasLetterhead;
+
     public Collection $signatories;
 
     public function __construct(
@@ -32,6 +34,7 @@ class DocumentLayout extends Component
         $this->primaryColor = $this->safeColor($branding?->primary_color, '#1e293b');
         $this->secondaryColor = $this->safeColor($branding?->secondary_color, '#475569');
         $this->accentColor = $this->safeColor($branding?->accent_color, '#2563eb');
+        $this->hasLetterhead = filled($branding?->letterhead_path);
         $this->logoDataUri = $this->imageDataUri($branding?->logo_path);
         $this->signatories = $this->company->signatories
             ->where('is_active', true)

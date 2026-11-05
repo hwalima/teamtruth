@@ -99,10 +99,12 @@ class CompanyController extends Controller
     public function sampleDocument(): \Symfony\Component\HttpFoundation\Response
     {
         $company = $this->companyContext->requireActiveCompany();
+        $contents = app(DocumentRenderer::class)
+            ->renderForCompany($company, 'pdf.documents.sample');
 
-        return app(DocumentRenderer::class)
-            ->renderForCompany($company, 'pdf.documents.sample')
-            ->stream('company-brand-preview.pdf');
+        return response($contents)
+            ->header('Content-Type', 'application/pdf')
+            ->header('Content-Disposition', 'inline; filename="company-brand-preview.pdf"');
     }
 
     private function companiesFor(Request $request): Collection

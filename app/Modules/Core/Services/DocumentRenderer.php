@@ -6,15 +6,18 @@ use App\Modules\Core\Enums\ApprovalActionType;
 use App\Modules\Core\Enums\ApprovalStatus;
 use App\Modules\Core\Models\Company;
 use Barryvdh\DomPDF\Facade\Pdf as PdfFacade;
-use Barryvdh\DomPDF\PDF;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\View;
 use InvalidArgumentException;
+use RuntimeException;
+use setasign\Fpdi\Fpdi;
+use setasign\Fpdi\PdfParser\StreamReader;
 
 class DocumentRenderer
 {
-    public function render(Model $document, string $template, array $data = []): PDF
+    public function render(Model $document, string $template, array $data = []): string
     {
         $companyId = $document->getAttribute('company_id');
         if (! $companyId) {
@@ -31,7 +34,7 @@ class DocumentRenderer
         string $template,
         array $data = [],
         ?Model $document = null,
-    ): PDF {
+    ): string {
         $activeCompany = app(CompanyContext::class)->requireActiveCompany();
         if ((int) $activeCompany->getKey() !== (int) $company->getKey()) {
             throw new AuthorizationException('A document can only be rendered with the active company branding.');
@@ -78,6 +81,38 @@ class DocumentRenderer
             'approvalSignatories' => $approvalSignatories,
         ]);
 
-        return PdfFacade::loadView($template, $viewData)->setPaper('a4');
+        $pdfContents = PdfFacade::loadView($template, $viewData)->setPaper('a4')->output();
+        $letterheadPath = $company->branding?->letterhead_path;
+        if (! $letterheadPath) {
+            return $pdfContents;
+        }
+
+        $disk = Storage::disk('public');
+        if (! $disk->exists($letterheadPath)) {
+            throw new RuntimeException("The company letterhead file [{$letterheadPath}] does not exist.");
+        }
+
+        return $this->applyLetterhead($pdfContents, $disk->get($letterheadPath));
+    }
+
+    private function applyLetterhead(string $documentPdf, string $letterheadPdf): string
+    {
+        $pdf = new Fpdi('P', 'pt');
+        $pdf->SetAutoPageBreak(false);
+
+        $pdf->setSourceFile(StreamReader::createByString($letterheadPdf));
+        $letterheadTemplate = $pdf->importPage(1);
+
+        $pageCount = $pdf->setSourceFile(StreamReader::createByString($documentPdf));
+
+        for ($pageNumber = 1; $pageNumber <= $pageCount; $pageNumber++) {
+            $documentTemplate = $pdf->importPage($pageNumber);
+            $pageSize = $pdf->getTemplateSize($documentTemplate);
+            $pdf->AddPage($pageSize['orientation'], [$pageSize['width'], $pageSize['height']]);
+            $pdf->useTemplate($letterheadTemplate, 0, 0, $pageSize['width'], $pageSize['height']);
+            $pdf->useTemplate($documentTemplate, 0, 0, $pageSize['width'], $pageSize['height']);
+        }
+
+        return $pdf->Output('S');
     }
 }

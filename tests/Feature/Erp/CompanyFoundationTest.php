@@ -21,6 +21,8 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
+use setasign\Fpdi\Fpdi;
+use setasign\Fpdi\PdfParser\StreamReader;
 
 test('a user can create a company and becomes its owner', function () {
     $user = User::factory()->create();
@@ -184,6 +186,10 @@ test('company owners can update company document branding', function () {
 
 test('company owners can save branding and logo with a multipart method-spoofed request', function () {
     Storage::fake('public');
+    $pdf = new Fpdi('P', 'pt');
+    $pdf->AddPage();
+    $pdf->SetFillColor(252, 185, 19);
+    $pdf->Rect(0, 0, 24, 842, 'F');
     $user = User::factory()->create();
     $company = Company::create(['code' => 'IPA', 'name' => 'Ivinar Park Academy']);
     $company->users()->attach($user->id, ['role' => 'owner', 'is_active' => true]);
@@ -200,14 +206,17 @@ test('company owners can save branding and logo with a multipart method-spoofed 
             'accent_color' => '#fcb913',
             'letterhead_footer_text' => 'Ivinar Park Academy',
             'logo' => UploadedFile::fake()->image('ipa-logo.png'),
+            'letterhead' => UploadedFile::fake()->createWithContent('ipa-letterhead.pdf', $pdf->Output('S')),
         ])
         ->assertRedirect();
 
     $branding = $company->fresh()->branding;
     expect($branding->primary_color)->toBe('#0a0a0a')
         ->and($branding->secondary_color)->toBe('#0a0a0a')
-        ->and($branding->accent_color)->toBe('#fcb913');
+        ->and($branding->accent_color)->toBe('#fcb913')
+        ->and($branding->letterhead_path)->toContain("erp/companies/{$company->id}/branding/");
     Storage::disk('public')->assertExists($branding->logo_path);
+    Storage::disk('public')->assertExists($branding->letterhead_path);
 });
 
 test('company owners can manage document signatories', function () {
@@ -480,23 +489,35 @@ test('approval requests progress through steps and retain immutable signature sn
 });
 
 test('the branded PDF sample uses the active company branding', function () {
+    Storage::fake('public');
+    $letterhead = new Fpdi('P', 'pt');
+    $letterhead->AddPage();
+    $letterhead->SetFillColor(252, 185, 19);
+    $letterhead->Rect(0, 0, 24, 842, 'F');
+
     $user = User::factory()->create();
     $company = Company::create([
         'code' => 'TVF',
         'name' => 'Talen Vision Foods',
         'legal_name' => 'Talen Vision Foods (Private) Limited',
     ]);
+    $letterheadPath = "erp/companies/{$company->id}/branding/letterhead.pdf";
+    Storage::disk('public')->put($letterheadPath, $letterhead->Output('S'));
     $company->users()->attach($user->id, ['role' => 'owner', 'is_active' => true]);
     $company->branding()->create([
         'primary_color' => '#123456',
         'secondary_color' => '#234567',
         'accent_color' => '#345678',
         'letterhead_footer_text' => 'Company-specific footer',
+        'letterhead_path' => $letterheadPath,
     ]);
 
-    $this->actingAs($user)
+    $response = $this->actingAs($user)
         ->withSession(['active_erp_company_id' => $company->id])
         ->get(route('erp.documents.sample'))
         ->assertOk()
         ->assertHeader('content-type', 'application/pdf');
+
+    $renderedPdf = new Fpdi;
+    expect($renderedPdf->setSourceFile(StreamReader::createByString($response->getContent())))->toBe(1);
 });
