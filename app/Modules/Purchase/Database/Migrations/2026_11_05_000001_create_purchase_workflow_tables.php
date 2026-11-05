@@ -76,7 +76,10 @@ return new class extends Migration
             $table->decimal('line_total', 20, 4);
             $table->timestamps();
 
-            $table->unique(['purchase_quotation_id', 'purchase_rfq_line_id']);
+            $table->unique(
+                ['purchase_quotation_id', 'purchase_rfq_line_id'],
+                'purchase_quotation_lines_quotation_rfq_line_unique',
+            );
         });
 
         Schema::create('purchase_orders', function (Blueprint $table) {
