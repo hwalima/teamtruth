@@ -1,1 +1,0 @@
-import{j as t}from"./ui-KsqjVDMd.js";import o from"./form-bqKZsUnU.js";import"./vendor-B1hewrmX.js";import"./page-template-DcOQAklZ.js";import"./app-BQrSdZ9T.js";import"./utils-DBYZG17H.js";import"./textarea-DlJGPfL_.js";import"./arrow-left-DpiBU1FX.js";function u({hasDefaultPlan:r}){return t.jsx(o,{hasDefaultPlan:r})}export{u as default};

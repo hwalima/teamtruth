@@ -172,6 +172,46 @@ test('posted journal entries can be reversed once with debit and credit amounts 
     expect(JournalEntry::query()->count())->toBe(2);
 });
 
+test('trial balance reports posted account balances as of the selected date', function () {
+    [$user, $company, $cash, $equity, $journal] = accountingLedgerFixture('ACT');
+    $this->actingAs($user)->withSession(['active_erp_company_id' => $company->id])
+        ->post(route('erp.accounting.fiscal-years.store'), [
+            'name' => 'FY 2026',
+            'starts_on' => '2026-01-01',
+            'ends_on' => '2026-12-31',
+        ])->assertRedirect();
+
+    foreach ([
+        ['date' => '2026-06-15', 'amount' => '100'],
+        ['date' => '2026-07-15', 'amount' => '25'],
+    ] as $transaction) {
+        $this->post(route('erp.accounting.entries.store'), [
+            'journal_id' => $journal->id,
+            'entry_date' => $transaction['date'],
+            'currency_code' => 'USD',
+            'description' => 'Cash balance',
+            'lines' => [
+                ['account_id' => $cash->id, 'debit' => $transaction['amount'], 'credit' => '0'],
+                ['account_id' => $equity->id, 'debit' => '0', 'credit' => $transaction['amount']],
+            ],
+        ])->assertRedirect()->assertSessionHas('success');
+    }
+
+    $this->get(route('erp.accounting.index', ['as_of' => '2026-06-30']))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->component('Erp/Accounting/Index')
+            ->where('trialBalance.asOf', '2026-06-30')
+            ->where('trialBalance.rows.0.code', '1000')
+            ->where('trialBalance.rows.0.debit', '100.0000')
+            ->where('trialBalance.rows.0.credit', '0.0000')
+            ->where('trialBalance.rows.1.code', '3000')
+            ->where('trialBalance.rows.1.debit', '0.0000')
+            ->where('trialBalance.rows.1.credit', '100.0000')
+            ->where('trialBalance.totalDebit', '100.0000')
+            ->where('trialBalance.totalCredit', '100.0000'));
+});
+
 test('foreign-currency journal entries use the recorded rate for company-currency totals', function () {
     [$user, $company, $cash, $equity, $journal] = accountingLedgerFixture('ACF');
     app(CompanyContext::class)->setActiveCompany($company);

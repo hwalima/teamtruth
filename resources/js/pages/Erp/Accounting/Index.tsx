@@ -1,5 +1,6 @@
 import { router, useForm } from '@inertiajs/react';
 import type { FormEvent, ReactNode } from 'react';
+import { useEffect, useState } from 'react';
 import { route } from 'ziggy-js';
 
 type Account = {
@@ -53,8 +54,22 @@ type Entry = {
         account: { id: number; code: string; name: string };
     }>;
 };
+type TrialBalance = {
+    asOf: string;
+    rows: Array<{
+        accountId: number;
+        code: string;
+        name: string;
+        accountType: string;
+        debit: string;
+        credit: string;
+    }>;
+    totalDebit: string;
+    totalCredit: string;
+};
 type Props = {
     company: { id: number; code: string; name: string; default_currency: string };
+    trialBalance: TrialBalance;
     currencies: Array<{ code: string; name: string }>;
     accounts: Account[];
     journals: Journal[];
@@ -75,7 +90,9 @@ const accountTypes = ['asset', 'liability', 'equity', 'income', 'expense'];
 const journalTypes = ['general', 'sales', 'purchase', 'bank', 'cash', 'stock', 'payroll'];
 const emptyLine = (): EntryLineInput => ({ account_id: '', description: '', debit: '0', credit: '0' });
 
-export default function AccountingIndex({ company, currencies, accounts, journals, fiscalYears, entries }: Props) {
+export default function AccountingIndex({ company, trialBalance, currencies, accounts, journals, fiscalYears, entries }: Props) {
+    const [asOf, setAsOf] = useState(trialBalance.asOf);
+    useEffect(() => setAsOf(trialBalance.asOf), [trialBalance.asOf]);
     const accountForm = useForm<AccountInput>({
         code: '',
         name: '',
@@ -413,6 +430,56 @@ export default function AccountingIndex({ company, currencies, accounts, journal
                     </div>
                 </Panel>
             </section>
+
+            <Panel title="Trial balance">
+                <form
+                    className="flex flex-wrap items-end gap-3"
+                    onSubmit={(event) => {
+                        event.preventDefault();
+                        router.get(route('erp.accounting.index'), { as_of: asOf }, { preserveState: true, preserveScroll: true });
+                    }}
+                >
+                    <TextField label="As of" type="date" value={asOf} onChange={setAsOf} required />
+                    <SubmitButton processing={false}>Run report</SubmitButton>
+                </form>
+                <div className="overflow-x-auto">
+                    <table className="w-full text-left text-sm">
+                        <thead>
+                            <tr className="text-muted-foreground border-b">
+                                <th className="py-2">Account</th>
+                                <th className="py-2">Type</th>
+                                <th className="py-2 text-right">Debit</th>
+                                <th className="py-2 text-right">Credit</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {trialBalance.rows.map((row) => (
+                                <tr key={row.accountId} className="border-b last:border-0">
+                                    <td className="py-2">
+                                        <strong>{row.code}</strong> — {row.name}
+                                    </td>
+                                    <td className="py-2">{titleCase(row.accountType)}</td>
+                                    <td className="py-2 text-right">{row.debit}</td>
+                                    <td className="py-2 text-right">{row.credit}</td>
+                                </tr>
+                            ))}
+                            {trialBalance.rows.length > 0 && (
+                                <tr className="border-t font-semibold">
+                                    <td className="py-2" colSpan={2}>
+                                        Total
+                                    </td>
+                                    <td className="py-2 text-right">{trialBalance.totalDebit}</td>
+                                    <td className="py-2 text-right">{trialBalance.totalCredit}</td>
+                                </tr>
+                            )}
+                        </tbody>
+                    </table>
+                </div>
+                {trialBalance.rows.length === 0 && <Empty>No account balances on or before {trialBalance.asOf}.</Empty>}
+                {trialBalance.totalDebit !== trialBalance.totalCredit && (
+                    <ErrorText>The trial balance is out of balance. Review posted journal entries before proceeding.</ErrorText>
+                )}
+            </Panel>
 
             <Panel title="Fiscal periods">
                 {fiscalYears.map((year) => (

@@ -10,11 +10,13 @@ use App\Modules\Accounting\Models\FiscalPeriod;
 use App\Modules\Accounting\Models\FiscalYear;
 use App\Modules\Accounting\Models\JournalEntry;
 use App\Modules\Accounting\Services\AccountingPostingService;
+use App\Modules\Accounting\Services\AccountingReportService;
 use App\Modules\Accounting\Services\FiscalCalendarService;
 use App\Modules\Core\Models\Company;
 use App\Modules\Core\Services\AuditLogService;
 use App\Modules\Core\Services\CompanyContext;
 use App\Modules\Core\Services\ErpRoleService;
+use Carbon\CarbonImmutable;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -27,9 +29,16 @@ class AccountingController extends Controller
     {
         $company = app(CompanyContext::class)->requireActiveCompany();
         $this->authorizePermission($request, $company, 'erp.accounting.view');
+        $validated = $request->validate([
+            'as_of' => ['nullable', 'date'],
+        ]);
+        $asOf = isset($validated['as_of'])
+            ? CarbonImmutable::parse($validated['as_of'])->toDateString()
+            : today()->toDateString();
 
         return Inertia::render('Erp/Accounting/Index', [
             'company' => $company->only(['id', 'code', 'name', 'default_currency']),
+            'trialBalance' => app(AccountingReportService::class)->trialBalance($company, $asOf),
             'currencies' => Currency::query()->orderBy('code')->get(['code', 'name']),
             'accounts' => AccountingAccount::query()
                 ->with('parent:id,code,name')
