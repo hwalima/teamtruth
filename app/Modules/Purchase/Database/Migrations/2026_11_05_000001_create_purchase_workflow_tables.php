@@ -133,7 +133,7 @@ return new class extends Migration
             $table->foreignId('company_id')->constrained()->restrictOnDelete();
             $table->foreignId('purchase_receipt_id')->constrained('purchase_receipts')->cascadeOnDelete();
             $table->foreignId('purchase_order_line_id')->constrained('purchase_order_lines')->restrictOnDelete();
-            $table->foreignId('stock_move_id')->constrained('stock_moves')->restrictOnDelete();
+            $table->unsignedBigInteger('stock_move_id');
             $table->decimal('quantity', 20, 4);
             $table->timestamps();
         });
