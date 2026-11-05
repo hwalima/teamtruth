@@ -5,15 +5,17 @@
     <title>{{ $documentTitle ?: $company->name }}</title>
     <style>
         * { box-sizing: border-box; }
-        body { margin: 0; color: #1f2937; font-family: DejaVu Sans, Arial, sans-serif; font-size: 11px; }
-        .document { padding: 28px 34px; }
-        .document-header { border-bottom: 2px solid {{ $accentColor }}; padding-bottom: 14px; }
-        .document-brand { width: 100%; }
-        .document-logo { max-width: 120px; max-height: 64px; object-fit: contain; }
-        .document-company-name { color: {{ $primaryColor }}; font-size: 18px; font-weight: bold; }
+        body { margin: 0; color: #1f2937; font-family: DejaVu Sans, Arial, sans-serif; font-size: 10px; }
+        .document { border-left: 8px solid {{ $accentColor }}; border-top: 7px solid {{ $accentColor }}; padding: 24px 28px; }
+        .document-header { border-bottom: 1px solid #d1d5db; padding-bottom: 14px; }
+        .document-brand { width: 100%; border-collapse: collapse; }
+        .document-logo-cell { width: 112px; padding-right: 18px; vertical-align: middle; }
+        .document-logo { max-width: 94px; max-height: 76px; }
+        .document-company-name { color: {{ $primaryColor }}; font-size: 17px; font-weight: bold; }
         .document-company-details { color: {{ $secondaryColor }}; line-height: 1.5; margin-top: 4px; }
-        .document-content { padding: 20px 0; }
-        .document-footer { border-top: 1px solid #cbd5e1; color: {{ $secondaryColor }}; font-size: 9px; padding-top: 10px; }
+        .document-company-website { color: {{ $primaryColor }}; font-weight: bold; text-align: right; vertical-align: middle; }
+        .document-content { padding: 18px 0; }
+        .document-footer { border-top: 2px solid {{ $accentColor }}; color: {{ $secondaryColor }}; font-size: 9px; padding-top: 10px; }
         .document-signatories { width: 100%; border-collapse: collapse; margin-top: 28px; }
         .document-signatories td { padding: 24px 12px 0 0; vertical-align: bottom; width: 50%; }
         .document-signature-line { border-top: 1px solid #64748b; padding-top: 5px; }
@@ -25,12 +27,12 @@
         <header class="document-header">
             <table class="document-brand">
                 <tr>
-                    <td style="width: 135px; vertical-align: top;">
+                    <td class="document-logo-cell">
                         @if ($logoDataUri)
                             <img class="document-logo" src="{{ $logoDataUri }}" alt="{{ $company->name }}">
                         @endif
                     </td>
-                    <td style="vertical-align: top;">
+                    <td style="vertical-align: middle;">
                         <div class="document-company-name">{{ $company->legal_name ?: $company->name }}</div>
                         <div class="document-company-details">
                             @if ($company->address) {{ $company->address }}<br> @endif
@@ -39,6 +41,11 @@
                             @if ($company->registration_no) <br>Registration: {{ $company->registration_no }} @endif
                             @if ($company->tax_no) · TIN: {{ $company->tax_no }} @endif
                         </div>
+                    </td>
+                    <td class="document-company-website">
+                        @if ($company->website)
+                            {{ preg_replace('#^https?://#', '', $company->website) }}
+                        @endif
                     </td>
                 </tr>
             </table>
