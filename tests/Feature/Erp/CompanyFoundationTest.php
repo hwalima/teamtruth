@@ -182,6 +182,34 @@ test('company owners can update company document branding', function () {
     ]);
 });
 
+test('company owners can save branding and logo with a multipart method-spoofed request', function () {
+    Storage::fake('public');
+    $user = User::factory()->create();
+    $company = Company::create(['code' => 'IPA', 'name' => 'Ivinar Park Academy']);
+    $company->users()->attach($user->id, ['role' => 'owner', 'is_active' => true]);
+    Currency::create(['name' => 'US Dollar', 'code' => 'USD', 'symbol' => '$']);
+
+    $this->actingAs($user)
+        ->withSession(['active_erp_company_id' => $company->id])
+        ->post(route('erp.settings.branding.update'), [
+            '_method' => 'PATCH',
+            'name' => 'Ivinar Park Academy',
+            'default_currency' => 'USD',
+            'primary_color' => '#0a0a0a',
+            'secondary_color' => '#0a0a0a',
+            'accent_color' => '#fcb913',
+            'letterhead_footer_text' => 'Ivinar Park Academy',
+            'logo' => UploadedFile::fake()->image('ipa-logo.png'),
+        ])
+        ->assertRedirect();
+
+    $branding = $company->fresh()->branding;
+    expect($branding->primary_color)->toBe('#0a0a0a')
+        ->and($branding->secondary_color)->toBe('#0a0a0a')
+        ->and($branding->accent_color)->toBe('#fcb913');
+    Storage::disk('public')->assertExists($branding->logo_path);
+});
+
 test('company owners can manage document signatories', function () {
     Storage::fake('public');
     $user = User::factory()->create();

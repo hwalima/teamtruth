@@ -33,43 +33,95 @@ export default function Branding({ company, branding, currencies }: Props) {
         accent_color: branding.accent_color ?? '#2563eb',
         letterhead_footer_text: branding.letterhead_footer_text ?? '',
         logo: null as File | null,
+        _method: 'PATCH',
     });
     const errors = form.errors as Record<string, string>;
 
     const submit = (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
-        form.patch(route('erp.settings.branding.update'), { forceFormData: true });
+        form.post(route('erp.settings.branding.update'), { forceFormData: true });
     };
 
     return (
         <main className="mx-auto max-w-3xl space-y-8 p-6">
             <section>
                 <h1 className="text-2xl font-semibold">Company details and branding</h1>
-                <p className="mt-2 text-sm text-muted-foreground">
-                    These details and colors appear on documents produced for this company.
-                </p>
+                <p className="text-muted-foreground mt-2 text-sm">These details and colors appear on documents produced for this company.</p>
             </section>
 
             <form onSubmit={submit} className="space-y-6">
                 <section className="grid gap-4 rounded-md border p-4 sm:grid-cols-2">
                     <h2 className="text-lg font-medium sm:col-span-2">Company details</h2>
-                    <Field label="Trading name" name="name" value={form.data.name} onChange={(value) => form.setData('name', value)} error={errors.name} required />
-                    <Field label="Legal name" name="legal_name" value={form.data.legal_name ?? ''} onChange={(value) => form.setData('legal_name', value)} error={errors.legal_name} />
-                    <Field label="Registration number" name="registration_no" value={form.data.registration_no ?? ''} onChange={(value) => form.setData('registration_no', value)} error={errors.registration_no} />
-                    <Field label="Tax number" name="tax_no" value={form.data.tax_no ?? ''} onChange={(value) => form.setData('tax_no', value)} error={errors.tax_no} />
-                    <Field label="VAT number" name="vat_no" value={form.data.vat_no ?? ''} onChange={(value) => form.setData('vat_no', value)} error={errors.vat_no} />
-                    <Field label="Phone" name="phone" value={form.data.phone ?? ''} onChange={(value) => form.setData('phone', value)} error={errors.phone} />
-                    <Field label="Email" name="email" type="email" value={form.data.email ?? ''} onChange={(value) => form.setData('email', value)} error={errors.email} />
-                    <Field label="Website" name="website" type="url" value={form.data.website ?? ''} onChange={(value) => form.setData('website', value)} error={errors.website} />
+                    <Field
+                        label="Trading name"
+                        name="name"
+                        value={form.data.name}
+                        onChange={(value) => form.setData('name', value)}
+                        error={errors.name}
+                        required
+                    />
+                    <Field
+                        label="Legal name"
+                        name="legal_name"
+                        value={form.data.legal_name ?? ''}
+                        onChange={(value) => form.setData('legal_name', value)}
+                        error={errors.legal_name}
+                    />
+                    <Field
+                        label="Registration number"
+                        name="registration_no"
+                        value={form.data.registration_no ?? ''}
+                        onChange={(value) => form.setData('registration_no', value)}
+                        error={errors.registration_no}
+                    />
+                    <Field
+                        label="Tax number"
+                        name="tax_no"
+                        value={form.data.tax_no ?? ''}
+                        onChange={(value) => form.setData('tax_no', value)}
+                        error={errors.tax_no}
+                    />
+                    <Field
+                        label="VAT number"
+                        name="vat_no"
+                        value={form.data.vat_no ?? ''}
+                        onChange={(value) => form.setData('vat_no', value)}
+                        error={errors.vat_no}
+                    />
+                    <Field
+                        label="Phone"
+                        name="phone"
+                        value={form.data.phone ?? ''}
+                        onChange={(value) => form.setData('phone', value)}
+                        error={errors.phone}
+                    />
+                    <Field
+                        label="Email"
+                        name="email"
+                        type="email"
+                        value={form.data.email ?? ''}
+                        onChange={(value) => form.setData('email', value)}
+                        error={errors.email}
+                    />
+                    <Field
+                        label="Website"
+                        name="website"
+                        type="url"
+                        value={form.data.website ?? ''}
+                        onChange={(value) => form.setData('website', value)}
+                        error={errors.website}
+                    />
                     <label className="grid gap-1 text-sm">
                         Default currency
                         <select
                             value={form.data.default_currency}
                             onChange={(event) => form.setData('default_currency', event.target.value)}
-                            className="rounded-md border bg-background px-3 py-2"
+                            className="bg-background rounded-md border px-3 py-2"
                         >
                             {currencies.map((currency) => (
-                                <option key={currency.code} value={currency.code}>{currency.code} - {currency.name}</option>
+                                <option key={currency.code} value={currency.code}>
+                                    {currency.code} - {currency.name}
+                                </option>
                             ))}
                         </select>
                         {errors.default_currency && <span className="text-destructive">{errors.default_currency}</span>}
@@ -79,7 +131,7 @@ export default function Branding({ company, branding, currencies }: Props) {
                         <textarea
                             value={form.data.address ?? ''}
                             onChange={(event) => form.setData('address', event.target.value)}
-                            className="min-h-20 rounded-md border bg-background px-3 py-2"
+                            className="bg-background min-h-20 rounded-md border px-3 py-2"
                         />
                         {errors.address && <span className="text-destructive">{errors.address}</span>}
                     </label>
@@ -98,19 +150,34 @@ export default function Branding({ company, branding, currencies }: Props) {
                             type="file"
                             accept="image/png,image/jpeg,image/gif"
                             onChange={(event) => form.setData('logo', event.target.files?.[0] ?? null)}
-                            className="rounded-md border bg-background px-3 py-2"
+                            className="bg-background rounded-md border px-3 py-2"
                         />
                         {errors.logo && <span className="text-destructive">{errors.logo}</span>}
                     </label>
-                    <ColorField label="Primary color" value={form.data.primary_color} onChange={(value) => form.setData('primary_color', value)} error={errors.primary_color} />
-                    <ColorField label="Secondary color" value={form.data.secondary_color} onChange={(value) => form.setData('secondary_color', value)} error={errors.secondary_color} />
-                    <ColorField label="Accent color" value={form.data.accent_color} onChange={(value) => form.setData('accent_color', value)} error={errors.accent_color} />
+                    <ColorField
+                        label="Primary color"
+                        value={form.data.primary_color}
+                        onChange={(value) => form.setData('primary_color', value)}
+                        error={errors.primary_color}
+                    />
+                    <ColorField
+                        label="Secondary color"
+                        value={form.data.secondary_color}
+                        onChange={(value) => form.setData('secondary_color', value)}
+                        error={errors.secondary_color}
+                    />
+                    <ColorField
+                        label="Accent color"
+                        value={form.data.accent_color}
+                        onChange={(value) => form.setData('accent_color', value)}
+                        error={errors.accent_color}
+                    />
                     <label className="grid gap-1 text-sm sm:col-span-2">
                         Letterhead footer
                         <textarea
                             value={form.data.letterhead_footer_text}
                             onChange={(event) => form.setData('letterhead_footer_text', event.target.value)}
-                            className="min-h-20 rounded-md border bg-background px-3 py-2"
+                            className="bg-background min-h-20 rounded-md border px-3 py-2"
                         />
                         {errors.letterhead_footer_text && <span className="text-destructive">{errors.letterhead_footer_text}</span>}
                     </label>
@@ -119,7 +186,7 @@ export default function Branding({ company, branding, currencies }: Props) {
                 <button
                     type="submit"
                     disabled={form.processing}
-                    className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-60"
+                    className="bg-primary text-primary-foreground rounded-md px-4 py-2 text-sm font-medium disabled:opacity-60"
                 >
                     {form.processing ? 'Saving…' : 'Save company settings'}
                 </button>
@@ -154,30 +221,24 @@ function Field({
                 required={required}
                 value={value}
                 onChange={(event) => onChange(event.target.value)}
-                className="rounded-md border bg-background px-3 py-2"
+                className="bg-background rounded-md border px-3 py-2"
             />
             {error && <span className="text-destructive">{error}</span>}
         </label>
     );
 }
 
-function ColorField({
-    label,
-    value,
-    onChange,
-    error,
-}: {
-    label: string;
-    value: string;
-    onChange: (value: string) => void;
-    error?: string;
-}) {
+function ColorField({ label, value, onChange, error }: { label: string; value: string; onChange: (value: string) => void; error?: string }) {
     return (
         <label className="grid gap-1 text-sm">
             {label}
             <div className="flex gap-2">
                 <input type="color" value={value} onChange={(event) => onChange(event.target.value)} className="h-10 w-14 rounded border" />
-                <input value={value} onChange={(event) => onChange(event.target.value)} className="min-w-0 flex-1 rounded-md border bg-background px-3 py-2" />
+                <input
+                    value={value}
+                    onChange={(event) => onChange(event.target.value)}
+                    className="bg-background min-w-0 flex-1 rounded-md border px-3 py-2"
+                />
             </div>
             {error && <span className="text-destructive">{error}</span>}
         </label>
