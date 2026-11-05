@@ -155,7 +155,7 @@ Route::middleware(['auth', 'verified'])->prefix('erp')->name('erp.')->group(func
         'Erp/Dashboard/Index',
         ['company' => app(\App\Modules\Core\Services\CompanyContext::class)->requireActiveCompany()]
     ))->name('dashboard');
-    Route::middleware(['permission:erp.document.download', 'erp.company'])->get('sample-document', [\App\Modules\Core\Http\Controllers\CompanyController::class, 'sampleDocument'])
+    Route::middleware('erp.company')->get('sample-document', [\App\Modules\Core\Http\Controllers\CompanyController::class, 'sampleDocument'])
         ->name('documents.sample');
 });
 

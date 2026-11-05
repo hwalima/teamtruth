@@ -487,9 +487,6 @@ test('the branded PDF sample uses the active company branding', function () {
         'legal_name' => 'Talen Vision Foods (Private) Limited',
     ]);
     $company->users()->attach($user->id, ['role' => 'owner', 'is_active' => true]);
-    $user->givePermissionTo(
-        Permission::create(['name' => 'erp.document.download', 'guard_name' => 'web', 'module' => 'erp_core']),
-    );
     $company->branding()->create([
         'primary_color' => '#123456',
         'secondary_color' => '#234567',
