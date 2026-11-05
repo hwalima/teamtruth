@@ -92,6 +92,21 @@ test('stock receipts, issues and transfers keep on-hand derived from posted move
             ->where('balances.0.quantity', '7.2500')
             ->where('balances.1.quantity', '3.0000'));
 
+    $onHandCsv = $this->get(route('erp.inventory.stock.reports.export', [
+        'report' => 'on-hand',
+        'format' => 'csv',
+    ]))->assertOk()
+        ->assertHeader('content-type', 'text/csv; charset=UTF-8');
+    expect($onHandCsv->streamedContent())
+        ->toContain('STOCK-001')
+        ->toContain('7.2500');
+
+    $this->get(route('erp.inventory.stock.reports.export', [
+        'report' => 'movements',
+        'format' => 'pdf',
+    ]))->assertOk()
+        ->assertHeader('content-type', 'application/pdf');
+
     $this->assertDatabaseCount('stock_moves', 3);
 });
 

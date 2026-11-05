@@ -1,4 +1,5 @@
 import { useForm } from '@inertiajs/react';
+import { Download, FileSpreadsheet, FileText } from 'lucide-react';
 import type { FormEvent } from 'react';
 import { route } from 'ziggy-js';
 
@@ -183,7 +184,10 @@ export default function Stock({ company, products, locations, balances, movement
             )}
 
             <section className="space-y-3">
-                <h2 className="text-lg font-medium">On hand</h2>
+                <header className="flex flex-wrap items-center justify-between gap-3">
+                    <h2 className="text-lg font-medium">On hand</h2>
+                    <ReportExports report="on-hand" />
+                </header>
                 <div className="overflow-x-auto rounded-md border">
                     <table className="w-full text-left text-sm">
                         <thead><tr className="bg-muted/40 border-b"><th className="px-3 py-2">SKU</th><th className="px-3 py-2">Product</th><th className="px-3 py-2">Warehouse / location</th><th className="px-3 py-2">Lot / serial</th><th className="px-3 py-2 text-right">Quantity</th></tr></thead>
@@ -204,7 +208,13 @@ export default function Stock({ company, products, locations, balances, movement
             </section>
 
             <section className="space-y-3">
-                <h2 className="text-lg font-medium">Recent movements</h2>
+                <header className="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                        <h2 className="text-lg font-medium">Recent movements</h2>
+                        <p className="text-muted-foreground text-xs">Exports include the latest 100 movements shown here.</p>
+                    </div>
+                    <ReportExports report="movements" />
+                </header>
                 <div className="overflow-x-auto rounded-md border">
                     <table className="w-full text-left text-sm">
                         <thead><tr className="bg-muted/40 border-b"><th className="px-3 py-2">Document</th><th className="px-3 py-2">Type</th><th className="px-3 py-2">Product</th><th className="px-3 py-2">Movement</th><th className="px-3 py-2">Reference</th><th className="px-3 py-2">Date</th></tr></thead>
@@ -233,6 +243,27 @@ export default function Stock({ company, products, locations, balances, movement
             </section>
             <a href={route('erp.dashboard')} className="text-primary inline-block text-sm underline">Back to ERP dashboard</a>
         </main>
+    );
+}
+
+function ReportExports({ report }: { report: 'on-hand' | 'movements' }) {
+    return (
+        <div className="flex flex-wrap items-center gap-2">
+            <span className="text-muted-foreground inline-flex items-center gap-1.5 text-xs font-medium">
+                <Download className="h-3.5 w-3.5" />
+                Export
+            </span>
+            {(['pdf', 'csv'] as const).map((format) => (
+                <a
+                    key={format}
+                    href={route('erp.inventory.stock.reports.export', { report, format })}
+                    className="border-border/70 bg-background/40 hover:bg-primary/10 hover:border-primary/30 inline-flex min-h-9 items-center gap-2 rounded-xl border px-3 text-xs font-medium transition-colors"
+                >
+                    {format === 'pdf' ? <FileText className="text-primary h-4 w-4" /> : <FileSpreadsheet className="text-primary h-4 w-4" />}
+                    {format.toUpperCase()}
+                </a>
+            ))}
+        </div>
     );
 }
 

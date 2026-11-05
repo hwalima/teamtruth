@@ -158,6 +158,9 @@ Route::middleware(['auth', 'verified'])->prefix('erp')->name('erp.')->group(func
         Route::get('inventory/stock', [\App\Modules\Inventory\Http\Controllers\StockMovementController::class, 'index'])
             ->middleware('erp.permission:erp.inventory.view')
             ->name('inventory.stock.index');
+        Route::get('inventory/stock/reports/{report}/{format}', \App\Modules\Inventory\Http\Controllers\StockReportExportController::class)
+            ->middleware('erp.permission:erp.inventory.view')
+            ->name('inventory.stock.reports.export');
         Route::post('inventory/stock/movements', [\App\Modules\Inventory\Http\Controllers\StockMovementController::class, 'store'])
             ->middleware('erp.permission:erp.stock.manage')
             ->name('inventory.stock.movements.store');
