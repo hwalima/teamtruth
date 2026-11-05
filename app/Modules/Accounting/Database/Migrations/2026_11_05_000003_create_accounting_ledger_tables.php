@@ -63,7 +63,10 @@ return new class extends Migration
             $table->timestamps();
 
             $table->unique(['fiscal_year_id', 'starts_on']);
-            $table->index(['company_id', 'starts_on', 'ends_on', 'status']);
+            $table->index(
+                ['company_id', 'starts_on', 'ends_on', 'status'],
+                'accounting_periods_date_status_idx',
+            );
         });
 
         Schema::create('accounting_journal_entries', function (Blueprint $table) {
@@ -88,7 +91,10 @@ return new class extends Migration
             $table->unique(['company_id', 'document_number']);
             $table->unique(['company_id', 'reversal_of_id']);
             $table->index(['company_id', 'entry_date', 'status']);
-            $table->index(['company_id', 'journal_id', 'entry_date']);
+            $table->index(
+                ['company_id', 'journal_id', 'entry_date'],
+                'accounting_entries_journal_date_idx',
+            );
         });
 
         Schema::create('accounting_journal_entry_lines', function (Blueprint $table) {
@@ -104,7 +110,10 @@ return new class extends Migration
             $table->unsignedSmallInteger('sort_order')->default(0);
             $table->timestamps();
 
-            $table->index(['company_id', 'account_id', 'journal_entry_id']);
+            $table->index(
+                ['company_id', 'account_id', 'journal_entry_id'],
+                'accounting_entry_lines_account_idx',
+            );
         });
     }
 
