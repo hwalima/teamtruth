@@ -31,14 +31,27 @@ class AccountingController extends Controller
         $this->authorizePermission($request, $company, 'erp.accounting.view');
         $validated = $request->validate([
             'as_of' => ['nullable', 'date'],
+            'ledger_from' => ['nullable', 'date_format:Y-m-d', 'required_with:ledger_to'],
+            'ledger_to' => ['nullable', 'date_format:Y-m-d', 'required_with:ledger_from', 'after_or_equal:ledger_from'],
+            'ledger_account_id' => [
+                'nullable',
+                'integer',
+                Rule::exists('accounting_accounts', 'id')
+                    ->where('company_id', $company->id)
+                    ->where('is_group', false),
+            ],
         ]);
         $asOf = isset($validated['as_of'])
             ? CarbonImmutable::parse($validated['as_of'])->toDateString()
             : today()->toDateString();
+        $ledgerFrom = $validated['ledger_from'] ?? today()->startOfYear()->toDateString();
+        $ledgerTo = $validated['ledger_to'] ?? today()->toDateString();
+        $ledgerAccountId = isset($validated['ledger_account_id']) ? (int) $validated['ledger_account_id'] : null;
 
         return Inertia::render('Erp/Accounting/Index', [
             'company' => $company->only(['id', 'code', 'name', 'default_currency']),
             'trialBalance' => app(AccountingReportService::class)->trialBalance($company, $asOf),
+            'generalLedger' => app(AccountingReportService::class)->generalLedger($company, $ledgerFrom, $ledgerTo, $ledgerAccountId),
             'currencies' => Currency::query()->orderBy('code')->get(['code', 'name']),
             'accounts' => AccountingAccount::query()
                 ->with('parent:id,code,name')

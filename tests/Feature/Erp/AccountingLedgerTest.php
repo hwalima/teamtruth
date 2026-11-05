@@ -212,6 +212,74 @@ test('trial balance reports posted account balances as of the selected date', fu
             ->where('trialBalance.totalCredit', '100.0000'));
 });
 
+test('general ledger shows opening and running balances for the selected account and date range', function () {
+    [$user, $company, $cash, $equity, $journal] = accountingLedgerFixture('AGL');
+    $this->actingAs($user)->withSession(['active_erp_company_id' => $company->id])
+        ->post(route('erp.accounting.fiscal-years.store'), [
+            'name' => 'FY 2026',
+            'starts_on' => '2026-01-01',
+            'ends_on' => '2026-12-31',
+        ])->assertRedirect();
+
+    foreach ([
+        ['date' => '2026-01-15', 'cash_debit' => '50', 'cash_credit' => '0'],
+        ['date' => '2026-03-05', 'cash_debit' => '100', 'cash_credit' => '0'],
+        ['date' => '2026-03-20', 'cash_debit' => '0', 'cash_credit' => '20'],
+        ['date' => '2026-04-15', 'cash_debit' => '0', 'cash_credit' => '500'],
+    ] as $transaction) {
+        $this->post(route('erp.accounting.entries.store'), [
+            'journal_id' => $journal->id,
+            'entry_date' => $transaction['date'],
+            'currency_code' => 'USD',
+            'description' => 'Cash activity',
+            'lines' => [
+                [
+                    'account_id' => $cash->id,
+                    'debit' => $transaction['cash_debit'],
+                    'credit' => $transaction['cash_credit'],
+                ],
+                [
+                    'account_id' => $equity->id,
+                    'debit' => $transaction['cash_credit'],
+                    'credit' => $transaction['cash_debit'],
+                ],
+            ],
+        ])->assertRedirect()->assertSessionHas('success');
+    }
+
+    $this->get(route('erp.accounting.index', [
+        'ledger_from' => '2026-03-01',
+        'ledger_to' => '2026-03-31',
+        'ledger_account_id' => $cash->id,
+    ]))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->component('Erp/Accounting/Index')
+            ->where('generalLedger.from', '2026-03-01')
+            ->where('generalLedger.to', '2026-03-31')
+            ->where('generalLedger.accountId', $cash->id)
+            ->has('generalLedger.accounts', 1)
+            ->where('generalLedger.accounts.0.openingBalance', '50.0000')
+            ->where('generalLedger.accounts.0.debitTotal', '100.0000')
+            ->where('generalLedger.accounts.0.creditTotal', '20.0000')
+            ->where('generalLedger.accounts.0.closingBalance', '130.0000')
+            ->has('generalLedger.accounts.0.lines', 2)
+            ->where('generalLedger.accounts.0.lines.0.balance', '150.0000')
+            ->where('generalLedger.accounts.0.lines.1.balance', '130.0000'));
+
+    $this->get(route('erp.accounting.index', [
+        'ledger_from' => '2026-03-01',
+        'ledger_to' => '2026-03-31',
+        'ledger_account_id' => $equity->id,
+    ]))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->where('generalLedger.accounts.0.openingBalance', '-50.0000')
+            ->where('generalLedger.accounts.0.closingBalance', '-130.0000')
+            ->where('generalLedger.accounts.0.lines.0.balance', '-150.0000')
+            ->where('generalLedger.accounts.0.lines.1.balance', '-130.0000'));
+});
+
 test('foreign-currency journal entries use the recorded rate for company-currency totals', function () {
     [$user, $company, $cash, $equity, $journal] = accountingLedgerFixture('ACF');
     app(CompanyContext::class)->setActiveCompany($company);

@@ -67,9 +67,34 @@ type TrialBalance = {
     totalDebit: string;
     totalCredit: string;
 };
+type GeneralLedger = {
+    from: string;
+    to: string;
+    accountId: number | null;
+    accounts: Array<{
+        accountId: number;
+        code: string;
+        name: string;
+        openingBalance: string;
+        debitTotal: string;
+        creditTotal: string;
+        closingBalance: string;
+        lines: Array<{
+            date: string;
+            documentNumber: string;
+            journalCode: string;
+            description: string;
+            reference: string | null;
+            debit: string;
+            credit: string;
+            balance: string;
+        }>;
+    }>;
+};
 type Props = {
     company: { id: number; code: string; name: string; default_currency: string };
     trialBalance: TrialBalance;
+    generalLedger: GeneralLedger;
     currencies: Array<{ code: string; name: string }>;
     accounts: Account[];
     journals: Journal[];
@@ -90,9 +115,17 @@ const accountTypes = ['asset', 'liability', 'equity', 'income', 'expense'];
 const journalTypes = ['general', 'sales', 'purchase', 'bank', 'cash', 'stock', 'payroll'];
 const emptyLine = (): EntryLineInput => ({ account_id: '', description: '', debit: '0', credit: '0' });
 
-export default function AccountingIndex({ company, trialBalance, currencies, accounts, journals, fiscalYears, entries }: Props) {
+export default function AccountingIndex({ company, trialBalance, generalLedger, currencies, accounts, journals, fiscalYears, entries }: Props) {
     const [asOf, setAsOf] = useState(trialBalance.asOf);
+    const [ledgerFrom, setLedgerFrom] = useState(generalLedger.from);
+    const [ledgerTo, setLedgerTo] = useState(generalLedger.to);
+    const [ledgerAccountId, setLedgerAccountId] = useState(generalLedger.accountId?.toString() ?? '');
     useEffect(() => setAsOf(trialBalance.asOf), [trialBalance.asOf]);
+    useEffect(() => {
+        setLedgerFrom(generalLedger.from);
+        setLedgerTo(generalLedger.to);
+        setLedgerAccountId(generalLedger.accountId?.toString() ?? '');
+    }, [generalLedger]);
     const accountForm = useForm<AccountInput>({
         code: '',
         name: '',
@@ -436,7 +469,16 @@ export default function AccountingIndex({ company, trialBalance, currencies, acc
                     className="flex flex-wrap items-end gap-3"
                     onSubmit={(event) => {
                         event.preventDefault();
-                        router.get(route('erp.accounting.index'), { as_of: asOf }, { preserveState: true, preserveScroll: true });
+                        router.get(
+                            route('erp.accounting.index'),
+                            {
+                                as_of: asOf,
+                                ledger_from: ledgerFrom,
+                                ledger_to: ledgerTo,
+                                ledger_account_id: ledgerAccountId || undefined,
+                            },
+                            { preserveState: true, preserveScroll: true },
+                        );
                     }}
                 >
                     <TextField label="As of" type="date" value={asOf} onChange={setAsOf} required />
@@ -479,6 +521,113 @@ export default function AccountingIndex({ company, trialBalance, currencies, acc
                 {trialBalance.totalDebit !== trialBalance.totalCredit && (
                     <ErrorText>The trial balance is out of balance. Review posted journal entries before proceeding.</ErrorText>
                 )}
+            </Panel>
+
+            <Panel title="General ledger">
+                <form
+                    className="grid items-end gap-3 sm:grid-cols-2 lg:grid-cols-4"
+                    onSubmit={(event) => {
+                        event.preventDefault();
+                        if (ledgerTo < ledgerFrom) {
+                            return;
+                        }
+                        router.get(
+                            route('erp.accounting.index'),
+                            {
+                                as_of: asOf,
+                                ledger_from: ledgerFrom,
+                                ledger_to: ledgerTo,
+                                ledger_account_id: ledgerAccountId || undefined,
+                            },
+                            { preserveState: true, preserveScroll: true },
+                        );
+                    }}
+                >
+                    <TextField label="From" type="date" value={ledgerFrom} onChange={setLedgerFrom} required />
+                    <TextField
+                        label="To"
+                        type="date"
+                        value={ledgerTo}
+                        onChange={setLedgerTo}
+                        error={ledgerTo < ledgerFrom ? 'End date must be on or after the start date.' : undefined}
+                        required
+                    />
+                    <SelectField
+                        label="Account"
+                        value={ledgerAccountId}
+                        options={[
+                            { value: '', label: 'All accounts' },
+                            ...accounts
+                                .filter((account) => !account.is_group)
+                                .map((account) => ({ value: account.id.toString(), label: `${account.code} — ${account.name}` })),
+                        ]}
+                        onChange={setLedgerAccountId}
+                    />
+                    <SubmitButton processing={false}>Run report</SubmitButton>
+                </form>
+                {generalLedger.accounts.map((account) => (
+                    <section key={account.accountId} className="space-y-2 border-t pt-4">
+                        <div className="flex flex-wrap items-baseline justify-between gap-2">
+                            <h3 className="font-medium">
+                                {account.code} — {account.name}
+                            </h3>
+                            <p className="text-muted-foreground text-xs">
+                                Opening {company.default_currency} {account.openingBalance} · Debits {account.debitTotal} · Credits{' '}
+                                {account.creditTotal} · Closing {company.default_currency} {account.closingBalance}
+                            </p>
+                        </div>
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-left text-xs">
+                                <thead>
+                                    <tr className="text-muted-foreground border-b">
+                                        <th className="py-2">Date</th>
+                                        <th className="py-2">Entry</th>
+                                        <th className="py-2">Description</th>
+                                        <th className="py-2 text-right">Debit</th>
+                                        <th className="py-2 text-right">Credit</th>
+                                        <th className="py-2 text-right">Balance</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr className="border-b font-medium">
+                                        <td className="py-2">{generalLedger.from}</td>
+                                        <td className="py-2" colSpan={2}>
+                                            Opening balance
+                                        </td>
+                                        <td className="py-2 text-right">—</td>
+                                        <td className="py-2 text-right">—</td>
+                                        <td className="py-2 text-right">{account.openingBalance}</td>
+                                    </tr>
+                                    {account.lines.map((line, index) => (
+                                        <tr key={`${line.documentNumber}-${index}`} className="border-b last:border-0">
+                                            <td className="py-2">{line.date}</td>
+                                            <td className="py-2">
+                                                {line.documentNumber} · {line.journalCode}
+                                            </td>
+                                            <td className="py-2">
+                                                {line.description}
+                                                {line.reference ? ` · Ref ${line.reference}` : ''}
+                                            </td>
+                                            <td className="py-2 text-right">{line.debit}</td>
+                                            <td className="py-2 text-right">{line.credit}</td>
+                                            <td className="py-2 text-right">{line.balance}</td>
+                                        </tr>
+                                    ))}
+                                    <tr className="border-t font-semibold">
+                                        <td className="py-2">{generalLedger.to}</td>
+                                        <td className="py-2" colSpan={2}>
+                                            Closing balance
+                                        </td>
+                                        <td className="py-2 text-right">{account.debitTotal}</td>
+                                        <td className="py-2 text-right">{account.creditTotal}</td>
+                                        <td className="py-2 text-right">{account.closingBalance}</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </section>
+                ))}
+                {generalLedger.accounts.length === 0 && <Empty>No posted account activity in this date range.</Empty>}
             </Panel>
 
             <Panel title="Fiscal periods">
