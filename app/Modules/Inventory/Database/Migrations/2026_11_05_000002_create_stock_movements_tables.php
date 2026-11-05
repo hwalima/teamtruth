@@ -34,8 +34,14 @@ return new class extends Migration
             $table->string('lot_code', 120)->nullable();
             $table->timestamps();
 
-            $table->index(['company_id', 'product_id', 'from_location_id', 'lot_code']);
-            $table->index(['company_id', 'product_id', 'to_location_id', 'lot_code']);
+            $table->index(
+                ['company_id', 'product_id', 'from_location_id', 'lot_code'],
+                'stock_move_lines_from_lookup',
+            );
+            $table->index(
+                ['company_id', 'product_id', 'to_location_id', 'lot_code'],
+                'stock_move_lines_to_lookup',
+            );
         });
     }
 
