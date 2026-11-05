@@ -6,6 +6,7 @@ import '../css/dark-mode.css';
 import AppLayout from '@/layouts/app-layout';
 import { createInertiaApp, router } from '@inertiajs/react';
 import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
+import type { ComponentType, ReactNode } from 'react';
 import { Suspense } from 'react';
 import { createRoot } from 'react-dom/client';
 import { BrandProvider } from './contexts/BrandContext';
@@ -21,6 +22,8 @@ import { getCookie, isDemoMode } from './utils/cookie-utils';
 import { initializeGlobalSettings } from './utils/globalSettings';
 
 const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
+type PageWithLayout = ComponentType & { layout?: (page: ReactNode) => ReactNode };
+const pages = import.meta.glob<{ default: PageWithLayout }>('./pages/**/*.tsx');
 
 // const syncLanguage = (pageProps: any) => {
 //     const userLanguage = pageProps?.props?.userLanguage;
@@ -31,7 +34,14 @@ const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
 // };
 
 createInertiaApp({
-    resolve: (name) => resolvePageComponent(`./pages/${name}.tsx`, import.meta.glob('./pages/**/*.tsx')),
+    resolve: async (name) => {
+        const page = await resolvePageComponent<{ default: PageWithLayout }>(`./pages/${name}.tsx`, pages);
+        if (name.startsWith('Erp/')) {
+            page.default.layout = (content) => <AppLayout>{content}</AppLayout>;
+        }
+
+        return page;
+    },
     setup({ el, App, props }) {
         const root = createRoot(el);
 
@@ -92,8 +102,6 @@ createInertiaApp({
         const renderApp = (appProps: any) => {
             const currentGlobalSettings = appProps.initialPage.props.globalSettings || {};
             const user = appProps.initialPage.props.auth?.user;
-            const page = <App {...appProps} />;
-            const content = appProps.initialPage.component.startsWith('Erp/') ? <AppLayout>{page}</AppLayout> : page;
 
             return (
                 <ModalStackProvider>
@@ -101,7 +109,7 @@ createInertiaApp({
                         <SidebarProvider globalSettings={currentGlobalSettings} workspaceId={user?.current_workspace_id}>
                             <BrandProvider globalSettings={currentGlobalSettings} user={user}>
                                 <Suspense fallback={<div className="flex h-screen w-full items-center justify-center">Loading...</div>}>
-                                    {content}
+                                    <App {...appProps} />
                                 </Suspense>
                                 <CustomToast />
                             </BrandProvider>
