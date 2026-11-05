@@ -1,5 +1,9 @@
+import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { router, useForm } from '@inertiajs/react';
+import { AlertTriangle, FileCheck2 } from 'lucide-react';
 import type { FormEvent } from 'react';
+import { useState } from 'react';
 import { route } from 'ziggy-js';
 
 type Requisition = {
@@ -40,6 +44,7 @@ type Props = {
 };
 
 export default function Show({ requisition, canEdit, canSubmit, canCancel }: Props) {
+    const [dialogAction, setDialogAction] = useState<'submit' | 'cancel' | null>(null);
     const upload = useForm<{ attachments: File[] }>({ attachments: [] });
     const errors = upload.errors as Record<string, string>;
     const submitFiles = (event: FormEvent<HTMLFormElement>) => {
@@ -67,11 +72,7 @@ export default function Show({ requisition, canEdit, canSubmit, canCancel }: Pro
                     {canSubmit && (
                         <button
                             type="button"
-                            onClick={() => {
-                                if (window.confirm('Submit this requisition to the active approval workflow?')) {
-                                    router.post(route('erp.requisitions.submit', requisition.id));
-                                }
-                            }}
+                            onClick={() => setDialogAction('submit')}
                             className="bg-primary text-primary-foreground rounded-md px-4 py-2 text-sm font-medium"
                         >
                             Submit for approval
@@ -80,11 +81,7 @@ export default function Show({ requisition, canEdit, canSubmit, canCancel }: Pro
                     {canCancel && (
                         <button
                             type="button"
-                            onClick={() => {
-                                if (window.confirm('Cancel this requisition?')) {
-                                    router.post(route('erp.requisitions.cancel', requisition.id));
-                                }
-                            }}
+                            onClick={() => setDialogAction('cancel')}
                             className="border-destructive text-destructive rounded-md border px-4 py-2 text-sm"
                         >
                             Cancel requisition
@@ -92,6 +89,55 @@ export default function Show({ requisition, canEdit, canSubmit, canCancel }: Pro
                     )}
                 </div>
             </header>
+
+            <Dialog open={dialogAction !== null} onOpenChange={(open) => !open && setDialogAction(null)}>
+                <DialogContent className="overflow-hidden p-0 sm:max-w-md">
+                    <div className={`h-1.5 ${dialogAction === 'cancel' ? 'bg-destructive' : 'bg-primary'}`} />
+                    <div className="space-y-5 p-6">
+                        <DialogHeader className="border-0 pb-0">
+                            <div
+                                className={`mb-3 flex size-12 items-center justify-center rounded-full ${
+                                    dialogAction === 'cancel' ? 'bg-destructive/10 text-destructive' : 'bg-primary/10 text-primary'
+                                }`}
+                            >
+                                {dialogAction === 'cancel' ? <AlertTriangle className="size-6" /> : <FileCheck2 className="size-6" />}
+                            </div>
+                            <DialogTitle>{dialogAction === 'cancel' ? 'Cancel this requisition?' : 'Submit for approval?'}</DialogTitle>
+                            <DialogDescription className="pt-2">
+                                {dialogAction === 'cancel'
+                                    ? `Requisition ${requisition.document_number} will be cancelled. You cannot resume this request afterward.`
+                                    : `Requisition ${requisition.document_number} will be sent to your company’s active approval workflow. You will no longer be able to edit it while it is under review.`}
+                            </DialogDescription>
+                        </DialogHeader>
+                        <div className="bg-muted/30 rounded-md border p-3 text-sm">
+                            <p className="font-medium">{requisition.type_label}</p>
+                            <p className="text-muted-foreground mt-1">
+                                {requisition.currency_code} {requisition.estimated_total} · {requisition.lines.length}{' '}
+                                {requisition.lines.length === 1 ? 'line' : 'lines'}
+                            </p>
+                        </div>
+                        <DialogFooter className="border-0 pt-0">
+                            <Button type="button" variant="outline" onClick={() => setDialogAction(null)}>
+                                Keep editing
+                            </Button>
+                            <Button
+                                type="button"
+                                variant={dialogAction === 'cancel' ? 'destructive' : 'default'}
+                                onClick={() => {
+                                    if (dialogAction === 'submit') {
+                                        router.post(route('erp.requisitions.submit', requisition.id));
+                                    } else if (dialogAction === 'cancel') {
+                                        router.post(route('erp.requisitions.cancel', requisition.id));
+                                    }
+                                    setDialogAction(null);
+                                }}
+                            >
+                                {dialogAction === 'cancel' ? 'Yes, cancel requisition' : 'Submit requisition'}
+                            </Button>
+                        </DialogFooter>
+                    </div>
+                </DialogContent>
+            </Dialog>
 
             {requisition.approval && (
                 <p className="rounded-md border p-3 text-sm">

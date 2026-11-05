@@ -101,6 +101,29 @@ test('requisitions are isolated by company and only visible to the requester or 
         ->assertNotFound();
 });
 
+test('requisition pdf downloads use a safe filename for slash-delimited document numbers', function () {
+    $requester = User::factory()->create();
+    $company = createRequisitionCompany('REQ-A', $requester);
+    setRequisitionCompany($company);
+    $requisition = Requisition::create([
+        'document_number' => 'REQ-A/REQ/2026/00001',
+        'requisition_type' => 'purchase',
+        'status' => RequisitionStatus::Draft,
+        'requested_by' => $requester->id,
+        'justification' => 'Office supplies.',
+        'currency_code' => 'USD',
+        'estimated_total' => '10.0000',
+    ]);
+
+    $response = $this->actingAs($requester)
+        ->withSession(['active_erp_company_id' => $company->id])
+        ->get(route('erp.requisitions.pdf', $requisition));
+
+    $response->assertOk();
+    expect($response->headers->get('content-disposition'))
+        ->toContain('req-a-req-2026-00001.pdf');
+});
+
 test('submitted requisitions progress through approval and adopt the decision status', function () {
     $requester = User::factory()->create();
     $approver = User::factory()->create();

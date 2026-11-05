@@ -17,6 +17,7 @@ use App\Modules\Requisitions\Services\RequisitionService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -220,7 +221,9 @@ class RequisitionController extends Controller
             ['documentType' => Requisition::TYPES[$requisition->requisition_type] ?? $requisition->requisition_type],
         );
 
-        return $pdf->download($requisition->document_number.'.pdf');
+        $filename = Str::slug(str_replace(['/', '\\'], '-', $requisition->document_number)).'.pdf';
+
+        return $pdf->download($filename);
     }
 
     private function validateRequisition(Request $request): array
