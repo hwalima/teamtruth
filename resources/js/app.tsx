@@ -2,6 +2,7 @@
 
 import '../css/app.css';
 import '../css/dark-mode.css';
+import '../css/erp.css';
 
 import AppLayout from '@/layouts/app-layout';
 import { createInertiaApp, router } from '@inertiajs/react';
@@ -37,7 +38,11 @@ createInertiaApp({
     resolve: async (name) => {
         const page = await resolvePageComponent<{ default: PageWithLayout }>(`./pages/${name}.tsx`, pages);
         if (name.startsWith('Erp/')) {
-            page.default.layout = (content) => <AppLayout>{content}</AppLayout>;
+            page.default.layout = (content) => (
+                <div className="erp-shell">
+                    <AppLayout>{content}</AppLayout>
+                </div>
+            );
         }
 
         return page;
