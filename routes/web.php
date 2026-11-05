@@ -113,6 +113,55 @@ Route::middleware(['auth', 'verified'])->prefix('erp')->name('erp.')->group(func
         Route::get('requisitions/{requisition}', [\App\Modules\Requisitions\Http\Controllers\RequisitionController::class, 'show'])
             ->name('requisitions.show');
 
+        Route::get('inventory/setup', [\App\Modules\Inventory\Http\Controllers\InventorySetupController::class, 'index'])
+            ->name('inventory.setup');
+        Route::post('inventory/units', [\App\Modules\Inventory\Http\Controllers\InventorySetupController::class, 'storeUnit'])
+            ->name('inventory.units.store');
+        Route::post('inventory/categories', [\App\Modules\Inventory\Http\Controllers\InventorySetupController::class, 'storeCategory'])
+            ->name('inventory.categories.store');
+        Route::post('inventory/products', [\App\Modules\Inventory\Http\Controllers\InventorySetupController::class, 'storeProduct'])
+            ->name('inventory.products.store');
+        Route::post('inventory/warehouses', [\App\Modules\Inventory\Http\Controllers\InventorySetupController::class, 'storeWarehouse'])
+            ->name('inventory.warehouses.store');
+        Route::post('inventory/locations', [\App\Modules\Inventory\Http\Controllers\InventorySetupController::class, 'storeLocation'])
+            ->name('inventory.locations.store');
+        Route::get('inventory/stock', [\App\Modules\Inventory\Http\Controllers\StockMovementController::class, 'index'])
+            ->name('inventory.stock.index');
+        Route::post('inventory/stock/movements', [\App\Modules\Inventory\Http\Controllers\StockMovementController::class, 'store'])
+            ->name('inventory.stock.movements.store');
+
+        Route::get('purchase', [\App\Modules\Purchase\Http\Controllers\PurchaseController::class, 'index'])
+            ->name('purchase.index');
+        Route::post('purchase/vendors', [\App\Modules\Purchase\Http\Controllers\PurchaseController::class, 'storeVendor'])
+            ->name('purchase.vendors.store');
+        Route::post('purchase/rfqs', [\App\Modules\Purchase\Http\Controllers\PurchaseController::class, 'storeRfq'])
+            ->name('purchase.rfqs.store');
+        Route::post('purchase/requisitions/{requisition}/rfq', [\App\Modules\Purchase\Http\Controllers\PurchaseController::class, 'convertRequisitionToRfq'])
+            ->name('purchase.requisitions.rfqs.store');
+        Route::post('purchase/requisitions/{requisition}/issue-stock', [\App\Modules\Purchase\Http\Controllers\PurchaseController::class, 'issueStoreRequisition'])
+            ->name('purchase.requisitions.issue-stock');
+        Route::post('purchase/rfqs/{rfq}/quotations', [\App\Modules\Purchase\Http\Controllers\PurchaseController::class, 'storeQuotation'])
+            ->name('purchase.rfqs.quotations.store');
+        Route::post('purchase/quotations/{quotation}/orders', [\App\Modules\Purchase\Http\Controllers\PurchaseController::class, 'createOrder'])
+            ->name('purchase.quotations.orders.store');
+        Route::post('purchase/orders/{order}/lines/{line}/receipts', [\App\Modules\Purchase\Http\Controllers\PurchaseController::class, 'receive'])
+            ->name('purchase.orders.receive');
+
+        Route::get('accounting', [\App\Modules\Accounting\Http\Controllers\AccountingController::class, 'index'])
+            ->name('accounting.index');
+        Route::post('accounting/accounts', [\App\Modules\Accounting\Http\Controllers\AccountingController::class, 'storeAccount'])
+            ->name('accounting.accounts.store');
+        Route::post('accounting/journals', [\App\Modules\Accounting\Http\Controllers\AccountingController::class, 'storeJournal'])
+            ->name('accounting.journals.store');
+        Route::post('accounting/fiscal-years', [\App\Modules\Accounting\Http\Controllers\AccountingController::class, 'storeFiscalYear'])
+            ->name('accounting.fiscal-years.store');
+        Route::post('accounting/periods/{period}/lock', [\App\Modules\Accounting\Http\Controllers\AccountingController::class, 'lockPeriod'])
+            ->name('accounting.periods.lock');
+        Route::post('accounting/entries', [\App\Modules\Accounting\Http\Controllers\AccountingController::class, 'postJournalEntry'])
+            ->name('accounting.entries.store');
+        Route::post('accounting/entries/{entry}/reverse', [\App\Modules\Accounting\Http\Controllers\AccountingController::class, 'reverseJournalEntry'])
+            ->name('accounting.entries.reverse');
+
         Route::get('settings/branding', [\App\Modules\Core\Http\Controllers\CompanyBrandingController::class, 'edit'])
             ->name('settings.branding.edit');
         Route::patch('settings/branding', [\App\Modules\Core\Http\Controllers\CompanyBrandingController::class, 'update'])

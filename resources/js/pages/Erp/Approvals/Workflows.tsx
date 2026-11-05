@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { route } from 'ziggy-js';
 
 const REQUISITION_MODEL = 'App\\Modules\\Requisitions\\Models\\Requisition';
+const PURCHASE_ORDER_MODEL = 'App\\Modules\\Purchase\\Models\\PurchaseOrder';
 
 type Member = { id: number; name: string; email: string; role: string };
 type Currency = { code: string; name: string };
@@ -221,8 +222,8 @@ function WorkflowForm({
                 />
                 {!initial && (
                     <p className="text-muted-foreground text-sm sm:col-span-2">
-                        A requisition workflow is selected by default. Keep the model class as shown to route Phase 2 requisitions through this
-                        workflow.
+                        A requisition workflow is selected by default. Use <code>{REQUISITION_MODEL}</code> for requisitions or{' '}
+                        <code>{PURCHASE_ORDER_MODEL}</code> for purchase orders.
                     </p>
                 )}
                 <label className="grid gap-1 text-sm">

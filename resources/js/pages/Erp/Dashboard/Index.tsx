@@ -44,6 +44,22 @@ export default function Index({ company }: Props) {
                 Requisitions
             </a>
             <br />
+            <a className="text-primary mt-2 inline-block text-sm font-medium underline" href={route('erp.inventory.setup')}>
+                Inventory setup
+            </a>
+            <br />
+            <a className="text-primary mt-2 inline-block text-sm font-medium underline" href={route('erp.inventory.stock.index')}>
+                Stock on hand and movements
+            </a>
+            <br />
+            <a className="text-primary mt-2 inline-block text-sm font-medium underline" href={route('erp.purchase.index')}>
+                Vendors and purchasing
+            </a>
+            <br />
+            <a className="text-primary mt-2 inline-block text-sm font-medium underline" href={route('erp.accounting.index')}>
+                Accounting ledger
+            </a>
+            <br />
             <a className="text-primary mt-2 inline-block text-sm font-medium underline" href={route('erp.documents.sample')}>
                 Download branded PDF sample
             </a>
