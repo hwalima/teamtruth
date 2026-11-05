@@ -93,6 +93,7 @@ test('requisitions are isolated by company and only visible to the requester or 
         'currency_code' => 'USD',
         'estimated_total' => '10.0000',
     ]);
+    app(CompanyContext::class)->setActiveCompany(null);
 
     $this->actingAs($otherMember)
         ->withSession(['active_erp_company_id' => $companyB->id])

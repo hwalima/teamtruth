@@ -41,6 +41,11 @@ return Application::configure(basePath: dirname(__DIR__))
             'saas.only' => \App\Http\Middleware\SaasOnly::class,
         ]);
 
+        $middleware->prependToPriorityList(
+            \Illuminate\Routing\Middleware\SubstituteBindings::class,
+            \App\Modules\Core\Http\Middleware\ResolveActiveCompany::class,
+        );
+
         $middleware->validateCsrfTokens(
         except: [
             'install/*',
