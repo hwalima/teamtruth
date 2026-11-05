@@ -1,4 +1,5 @@
 import { router, useForm } from '@inertiajs/react';
+import { BookOpenCheck, Building2, CalendarDays, ChartNoAxesCombined, CircleDollarSign, FilePlus2, Landmark } from 'lucide-react';
 import type { FormEvent, ReactNode } from 'react';
 import { useEffect, useState } from 'react';
 import { route } from 'ziggy-js';
@@ -154,23 +155,48 @@ export default function AccountingIndex({ company, trialBalance, generalLedger, 
         lines: [emptyLine(), emptyLine()],
     });
     const entryErrors = entryForm.errors as Record<string, string>;
+    const activeJournalCount = journals.filter((journal) => journal.is_active).length;
+    const openPeriodCount = fiscalYears.flatMap((year) => year.periods).filter((period) => period.status === 'open').length;
 
     return (
-        <main className="mx-auto max-w-7xl space-y-8 p-6">
-            <header>
-                <p className="text-muted-foreground text-sm">{company.code}</p>
-                <h1 className="text-2xl font-semibold">{company.name} accounting</h1>
-                <p className="text-muted-foreground mt-2 max-w-4xl text-sm">
-                    Set up this company’s chart of accounts, journals, and monthly fiscal periods. Manual entries are posted only when balanced in the
-                    company currency; posted entries are immutable.
-                </p>
-                <p className="mt-2 text-sm">
-                    Company currency: <strong>{company.default_currency}</strong>
-                </p>
+        <main className="relative isolate mx-auto w-full max-w-[1500px] space-y-6 overflow-hidden p-4 sm:p-6 xl:p-8">
+            <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[34rem] overflow-hidden">
+                <div className="bg-primary/15 absolute -top-32 left-1/4 h-80 w-80 rounded-full blur-3xl" />
+                <div className="absolute top-20 -right-32 h-96 w-96 rounded-full bg-blue-400/10 blur-3xl" />
+            </div>
+
+            <header className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#001a4d] via-[#08275c] to-[#174079] p-6 text-white shadow-xl shadow-blue-950/10 sm:p-8">
+                <div aria-hidden="true" className="bg-primary/20 absolute -top-24 right-10 h-64 w-64 rounded-full blur-3xl" />
+                <div aria-hidden="true" className="absolute -right-20 -bottom-40 h-80 w-80 rounded-full bg-sky-300/10 blur-3xl" />
+                <div className="relative">
+                    <div className="flex flex-wrap items-start justify-between gap-5">
+                        <div className="max-w-3xl">
+                            <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-xs font-medium text-white/85 backdrop-blur">
+                                <Building2 className="text-primary h-3.5 w-3.5" />
+                                {company.code} <span className="text-white/40">/</span> Finance workspace
+                            </div>
+                            <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">{company.name}</h1>
+                            <p className="mt-2 text-lg font-medium text-white/90">Accounting</p>
+                            <p className="mt-3 max-w-2xl text-sm leading-6 text-white/65 sm:text-base">
+                                Manage the chart of accounts, journals, fiscal periods, and company ledger from one place.
+                            </p>
+                        </div>
+                        <div className="inline-flex items-center gap-2 rounded-2xl border border-white/15 bg-white/10 px-4 py-3 text-sm shadow-inner shadow-white/5 backdrop-blur-xl">
+                            <CircleDollarSign className="text-primary h-5 w-5" />
+                            <span className="text-white/65">Base currency</span>
+                            <strong className="font-semibold">{company.default_currency}</strong>
+                        </div>
+                    </div>
+                    <div className="mt-7 grid gap-3 sm:grid-cols-3">
+                        <OverviewStat icon={<Landmark className="h-4 w-4" />} label="Ledger accounts" value={accounts.length} />
+                        <OverviewStat icon={<BookOpenCheck className="h-4 w-4" />} label="Active journals" value={activeJournalCount} />
+                        <OverviewStat icon={<CalendarDays className="h-4 w-4" />} label="Open periods" value={openPeriodCount} />
+                    </div>
+                </div>
             </header>
 
             <section className="grid gap-6 lg:grid-cols-3">
-                <Panel title="Add account">
+                <Panel title="Add account" icon={<Landmark className="h-4 w-4" />}>
                     <form
                         onSubmit={(event: FormEvent<HTMLFormElement>) => {
                             event.preventDefault();
@@ -226,7 +252,7 @@ export default function AccountingIndex({ company, trialBalance, generalLedger, 
                     </form>
                 </Panel>
 
-                <Panel title="Add journal">
+                <Panel title="Add journal" icon={<BookOpenCheck className="h-4 w-4" />}>
                     <form
                         onSubmit={(event: FormEvent<HTMLFormElement>) => {
                             event.preventDefault();
@@ -257,9 +283,9 @@ export default function AccountingIndex({ company, trialBalance, generalLedger, 
                         />
                         <SubmitButton processing={journalForm.processing}>Add journal</SubmitButton>
                     </form>
-                    <ul className="divide-y">
+                    <ul className="divide-border/70 divide-y">
                         {journals.map((journal) => (
-                            <li key={journal.id} className="py-2 text-sm">
+                            <li key={journal.id} className="py-2.5 text-sm">
                                 <strong>{journal.code}</strong> — {journal.name}{' '}
                                 <span className="text-muted-foreground">({titleCase(journal.journal_type)})</span>
                             </li>
@@ -268,7 +294,7 @@ export default function AccountingIndex({ company, trialBalance, generalLedger, 
                     </ul>
                 </Panel>
 
-                <Panel title="Fiscal year">
+                <Panel title="Fiscal year" icon={<CalendarDays className="h-4 w-4" />}>
                     <p className="text-muted-foreground text-sm">
                         Creating a fiscal year creates consecutive monthly periods for its full date range.
                     </p>
@@ -307,8 +333,8 @@ export default function AccountingIndex({ company, trialBalance, generalLedger, 
                 </Panel>
             </section>
 
-            <section className="grid gap-6 xl:grid-cols-[1.4fr_1fr]">
-                <Panel title="Post manual journal entry">
+            <section className="grid gap-5 xl:grid-cols-[1.35fr_.85fr]">
+                <Panel title="Post manual journal entry" icon={<FilePlus2 className="h-4 w-4" />}>
                     {journals.length === 0 || postingAccounts.length === 0 || fiscalYears.length === 0 ? (
                         <Empty>Set up at least one posting account, journal, and open fiscal year before posting an entry.</Empty>
                     ) : (
@@ -364,7 +390,7 @@ export default function AccountingIndex({ company, trialBalance, generalLedger, 
                                 {entryForm.data.lines.map((line, index) => (
                                     <div
                                         key={index}
-                                        className="grid gap-2 rounded-md border p-3 sm:grid-cols-2 xl:grid-cols-[1.5fr_1fr_1fr_1fr_auto]"
+                                        className="border-border/70 bg-background/35 grid gap-2.5 rounded-xl border p-3 sm:grid-cols-2 xl:grid-cols-[1.5fr_1fr_1fr_1fr_auto]"
                                     >
                                         <SelectField
                                             label="Account"
@@ -446,10 +472,10 @@ export default function AccountingIndex({ company, trialBalance, generalLedger, 
                     )}
                 </Panel>
 
-                <Panel title="Chart of accounts">
-                    <div className="max-h-[36rem] divide-y overflow-y-auto">
+                <Panel title="Chart of accounts" icon={<Landmark className="h-4 w-4" />}>
+                    <div className="divide-border/70 max-h-[36rem] divide-y overflow-y-auto">
                         {accounts.map((account) => (
-                            <div key={account.id} className={`py-2 text-sm ${account.parent ? 'pl-5' : ''}`}>
+                            <div key={account.id} className={`py-2.5 text-sm ${account.parent ? 'pl-5' : ''}`}>
                                 <strong>{account.code}</strong> — {account.name}
                                 <span className="text-muted-foreground">
                                     {' '}
@@ -464,7 +490,7 @@ export default function AccountingIndex({ company, trialBalance, generalLedger, 
                 </Panel>
             </section>
 
-            <Panel title="Trial balance">
+            <Panel title="Trial balance" icon={<ChartNoAxesCombined className="h-4 w-4" />}>
                 <form
                     className="flex flex-wrap items-end gap-3"
                     onSubmit={(event) => {
@@ -484,34 +510,34 @@ export default function AccountingIndex({ company, trialBalance, generalLedger, 
                     <TextField label="As of" type="date" value={asOf} onChange={setAsOf} required />
                     <SubmitButton processing={false}>Run report</SubmitButton>
                 </form>
-                <div className="overflow-x-auto">
+                <div className="border-border/70 bg-background/25 overflow-x-auto rounded-xl border">
                     <table className="w-full text-left text-sm">
                         <thead>
-                            <tr className="text-muted-foreground border-b">
-                                <th className="py-2">Account</th>
-                                <th className="py-2">Type</th>
-                                <th className="py-2 text-right">Debit</th>
-                                <th className="py-2 text-right">Credit</th>
+                            <tr className="text-muted-foreground bg-muted/40 border-b">
+                                <th className="px-3 py-3 font-medium">Account</th>
+                                <th className="px-3 py-3 font-medium">Type</th>
+                                <th className="px-3 py-3 text-right font-medium">Debit</th>
+                                <th className="px-3 py-3 text-right font-medium">Credit</th>
                             </tr>
                         </thead>
                         <tbody>
                             {trialBalance.rows.map((row) => (
-                                <tr key={row.accountId} className="border-b last:border-0">
-                                    <td className="py-2">
+                                <tr key={row.accountId} className="border-border/60 hover:bg-muted/30 border-b transition-colors last:border-0">
+                                    <td className="px-3 py-2.5">
                                         <strong>{row.code}</strong> — {row.name}
                                     </td>
-                                    <td className="py-2">{titleCase(row.accountType)}</td>
-                                    <td className="py-2 text-right">{row.debit}</td>
-                                    <td className="py-2 text-right">{row.credit}</td>
+                                    <td className="px-3 py-2.5">{titleCase(row.accountType)}</td>
+                                    <td className="px-3 py-2.5 text-right tabular-nums">{row.debit}</td>
+                                    <td className="px-3 py-2.5 text-right tabular-nums">{row.credit}</td>
                                 </tr>
                             ))}
                             {trialBalance.rows.length > 0 && (
-                                <tr className="border-t font-semibold">
-                                    <td className="py-2" colSpan={2}>
+                                <tr className="bg-muted/30 border-t font-semibold">
+                                    <td className="px-3 py-3" colSpan={2}>
                                         Total
                                     </td>
-                                    <td className="py-2 text-right">{trialBalance.totalDebit}</td>
-                                    <td className="py-2 text-right">{trialBalance.totalCredit}</td>
+                                    <td className="px-3 py-3 text-right tabular-nums">{trialBalance.totalDebit}</td>
+                                    <td className="px-3 py-3 text-right tabular-nums">{trialBalance.totalCredit}</td>
                                 </tr>
                             )}
                         </tbody>
@@ -523,7 +549,7 @@ export default function AccountingIndex({ company, trialBalance, generalLedger, 
                 )}
             </Panel>
 
-            <Panel title="General ledger">
+            <Panel title="General ledger" icon={<BookOpenCheck className="h-4 w-4" />}>
                 <form
                     className="grid items-end gap-3 sm:grid-cols-2 lg:grid-cols-4"
                     onSubmit={(event) => {
@@ -566,7 +592,7 @@ export default function AccountingIndex({ company, trialBalance, generalLedger, 
                     <SubmitButton processing={false}>Run report</SubmitButton>
                 </form>
                 {generalLedger.accounts.map((account) => (
-                    <section key={account.accountId} className="space-y-2 border-t pt-4">
+                    <section key={account.accountId} className="border-border/70 bg-background/25 space-y-3 rounded-xl border p-4">
                         <div className="flex flex-wrap items-baseline justify-between gap-2">
                             <h3 className="font-medium">
                                 {account.code} — {account.name}
@@ -577,50 +603,53 @@ export default function AccountingIndex({ company, trialBalance, generalLedger, 
                             </p>
                         </div>
                         <div className="overflow-x-auto">
-                            <table className="w-full text-left text-xs">
+                            <table className="w-full min-w-[760px] text-left text-xs">
                                 <thead>
-                                    <tr className="text-muted-foreground border-b">
-                                        <th className="py-2">Date</th>
-                                        <th className="py-2">Entry</th>
-                                        <th className="py-2">Description</th>
-                                        <th className="py-2 text-right">Debit</th>
-                                        <th className="py-2 text-right">Credit</th>
-                                        <th className="py-2 text-right">Balance</th>
+                                    <tr className="text-muted-foreground bg-muted/40 border-b">
+                                        <th className="px-3 py-2.5 font-medium">Date</th>
+                                        <th className="px-3 py-2.5 font-medium">Entry</th>
+                                        <th className="px-3 py-2.5 font-medium">Description</th>
+                                        <th className="px-3 py-2.5 text-right font-medium">Debit</th>
+                                        <th className="px-3 py-2.5 text-right font-medium">Credit</th>
+                                        <th className="px-3 py-2.5 text-right font-medium">Balance</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    <tr className="border-b font-medium">
-                                        <td className="py-2">{generalLedger.from}</td>
-                                        <td className="py-2" colSpan={2}>
+                                    <tr className="border-border/60 bg-primary/5 border-b font-medium">
+                                        <td className="px-3 py-2.5">{generalLedger.from}</td>
+                                        <td className="px-3 py-2.5" colSpan={2}>
                                             Opening balance
                                         </td>
-                                        <td className="py-2 text-right">—</td>
-                                        <td className="py-2 text-right">—</td>
-                                        <td className="py-2 text-right">{account.openingBalance}</td>
+                                        <td className="px-3 py-2.5 text-right">—</td>
+                                        <td className="px-3 py-2.5 text-right">—</td>
+                                        <td className="px-3 py-2.5 text-right tabular-nums">{account.openingBalance}</td>
                                     </tr>
                                     {account.lines.map((line, index) => (
-                                        <tr key={`${line.documentNumber}-${index}`} className="border-b last:border-0">
-                                            <td className="py-2">{line.date}</td>
-                                            <td className="py-2">
+                                        <tr
+                                            key={`${line.documentNumber}-${index}`}
+                                            className="border-border/60 hover:bg-muted/30 border-b transition-colors last:border-0"
+                                        >
+                                            <td className="px-3 py-2.5">{line.date}</td>
+                                            <td className="px-3 py-2.5 font-medium">
                                                 {line.documentNumber} · {line.journalCode}
                                             </td>
-                                            <td className="py-2">
+                                            <td className="px-3 py-2.5">
                                                 {line.description}
                                                 {line.reference ? ` · Ref ${line.reference}` : ''}
                                             </td>
-                                            <td className="py-2 text-right">{line.debit}</td>
-                                            <td className="py-2 text-right">{line.credit}</td>
-                                            <td className="py-2 text-right">{line.balance}</td>
+                                            <td className="px-3 py-2.5 text-right tabular-nums">{line.debit}</td>
+                                            <td className="px-3 py-2.5 text-right tabular-nums">{line.credit}</td>
+                                            <td className="px-3 py-2.5 text-right font-medium tabular-nums">{line.balance}</td>
                                         </tr>
                                     ))}
-                                    <tr className="border-t font-semibold">
-                                        <td className="py-2">{generalLedger.to}</td>
-                                        <td className="py-2" colSpan={2}>
+                                    <tr className="bg-muted/30 border-t font-semibold">
+                                        <td className="px-3 py-2.5">{generalLedger.to}</td>
+                                        <td className="px-3 py-2.5" colSpan={2}>
                                             Closing balance
                                         </td>
-                                        <td className="py-2 text-right">{account.debitTotal}</td>
-                                        <td className="py-2 text-right">{account.creditTotal}</td>
-                                        <td className="py-2 text-right">{account.closingBalance}</td>
+                                        <td className="px-3 py-2.5 text-right tabular-nums">{account.debitTotal}</td>
+                                        <td className="px-3 py-2.5 text-right tabular-nums">{account.creditTotal}</td>
+                                        <td className="px-3 py-2.5 text-right tabular-nums">{account.closingBalance}</td>
                                     </tr>
                                 </tbody>
                             </table>
@@ -630,15 +659,18 @@ export default function AccountingIndex({ company, trialBalance, generalLedger, 
                 {generalLedger.accounts.length === 0 && <Empty>No posted account activity in this date range.</Empty>}
             </Panel>
 
-            <Panel title="Fiscal periods">
+            <Panel title="Fiscal periods" icon={<CalendarDays className="h-4 w-4" />}>
                 {fiscalYears.map((year) => (
-                    <div key={year.id} className="space-y-2 border-b py-3 last:border-0">
-                        <h3 className="font-medium">
+                    <div key={year.id} className="border-border/70 space-y-3 border-b py-4 last:border-0">
+                        <h3 className="font-semibold">
                             {year.name} · {year.starts_on} to {year.ends_on}
                         </h3>
                         <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
                             {year.periods.map((period) => (
-                                <div key={period.id} className="flex flex-wrap items-center justify-between gap-2 rounded border p-2 text-sm">
+                                <div
+                                    key={period.id}
+                                    className="border-border/70 bg-background/35 flex flex-wrap items-center justify-between gap-3 rounded-xl border p-3 text-sm"
+                                >
                                     <span>
                                         {period.name}
                                         <span className="text-muted-foreground block">
@@ -671,10 +703,13 @@ export default function AccountingIndex({ company, trialBalance, generalLedger, 
                 {fiscalYears.length === 0 && <Empty>No fiscal years set up.</Empty>}
             </Panel>
 
-            <Panel title="Posted journal entries">
+            <Panel title="Posted journal entries" icon={<BookOpenCheck className="h-4 w-4" />}>
                 <div className="space-y-3">
                     {entries.map((entry) => (
-                        <article key={entry.id} className="rounded border p-3">
+                        <article
+                            key={entry.id}
+                            className="border-border/70 bg-background/30 hover:bg-background/50 rounded-2xl border p-4 transition-colors"
+                        >
                             <header className="flex flex-wrap justify-between gap-2">
                                 <div>
                                     <h3 className="font-medium">
@@ -712,24 +747,24 @@ export default function AccountingIndex({ company, trialBalance, generalLedger, 
                                 </button>
                             )}
                             <div className="mt-3 overflow-x-auto">
-                                <table className="w-full text-left text-xs">
+                                <table className="w-full min-w-[520px] text-left text-xs">
                                     <thead>
-                                        <tr className="text-muted-foreground border-b">
-                                            <th className="py-1">Account</th>
-                                            <th className="py-1">Memo</th>
-                                            <th className="py-1 text-right">Debit</th>
-                                            <th className="py-1 text-right">Credit</th>
+                                        <tr className="text-muted-foreground bg-muted/40 border-b">
+                                            <th className="px-3 py-2.5 font-medium">Account</th>
+                                            <th className="px-3 py-2.5 font-medium">Memo</th>
+                                            <th className="px-3 py-2.5 text-right font-medium">Debit</th>
+                                            <th className="px-3 py-2.5 text-right font-medium">Credit</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         {entry.lines.map((line) => (
-                                            <tr key={line.id} className="border-b last:border-0">
-                                                <td className="py-1">
+                                            <tr key={line.id} className="border-border/60 border-b last:border-0">
+                                                <td className="px-3 py-2.5">
                                                     {line.account.code} — {line.account.name}
                                                 </td>
-                                                <td className="py-1">{line.description}</td>
-                                                <td className="py-1 text-right">{line.debit}</td>
-                                                <td className="py-1 text-right">{line.credit}</td>
+                                                <td className="px-3 py-2.5">{line.description}</td>
+                                                <td className="px-3 py-2.5 text-right tabular-nums">{line.debit}</td>
+                                                <td className="px-3 py-2.5 text-right tabular-nums">{line.credit}</td>
                                             </tr>
                                         ))}
                                     </tbody>
@@ -757,12 +792,27 @@ function localDate(date: Date) {
     return new Date(date.getTime() - offset).toISOString().slice(0, 10);
 }
 
-function Panel({ title, children }: { title: string; children: ReactNode }) {
+function Panel({ title, icon, children }: { title: string; icon: ReactNode; children: ReactNode }) {
     return (
-        <section className="space-y-3 rounded-md border p-4">
-            <h2 className="text-lg font-medium">{title}</h2>
+        <section className="bg-card/70 space-y-4 rounded-2xl border border-white/60 p-5 shadow-[0_8px_32px_rgba(0,26,77,0.06)] backdrop-blur-xl transition-shadow hover:shadow-[0_12px_40px_rgba(0,26,77,0.09)] sm:p-6 dark:border-white/10">
+            <div className="flex items-center gap-3">
+                <span className="bg-primary/15 text-primary flex h-9 w-9 shrink-0 items-center justify-center rounded-xl">{icon}</span>
+                <h2 className="text-lg font-semibold tracking-tight">{title}</h2>
+            </div>
             {children}
         </section>
+    );
+}
+
+function OverviewStat({ icon, label, value }: { icon: ReactNode; label: string; value: number }) {
+    return (
+        <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.08] px-4 py-3 backdrop-blur-xl">
+            <span className="text-primary flex h-9 w-9 items-center justify-center rounded-xl bg-white/10">{icon}</span>
+            <div>
+                <p className="text-xs text-white/60">{label}</p>
+                <p className="mt-0.5 text-xl font-semibold tabular-nums">{value.toLocaleString()}</p>
+            </div>
+        </div>
     );
 }
 
@@ -782,8 +832,8 @@ function TextField({
     required?: boolean;
 }) {
     return (
-        <label className="grid gap-1 text-sm">
-            {label}
+        <label className="grid gap-1.5 text-sm">
+            <span className="text-foreground/85 font-medium">{label}</span>
             <input
                 required={required}
                 min={type === 'number' ? '0' : undefined}
@@ -791,7 +841,7 @@ function TextField({
                 type={type}
                 value={value}
                 onChange={(event) => onChange(event.target.value)}
-                className="bg-background rounded-md border px-3 py-2"
+                className="border-input bg-background/70 text-foreground focus:border-primary/60 focus:ring-primary/10 w-full rounded-xl border px-3 py-2.5 shadow-sm transition outline-none focus:ring-4"
             />
             {error && <ErrorText>{error}</ErrorText>}
         </label>
@@ -812,9 +862,13 @@ function SelectField({
     error?: string;
 }) {
     return (
-        <label className="grid gap-1 text-sm">
-            {label}
-            <select value={value} onChange={(event) => onChange(event.target.value)} className="bg-background rounded-md border px-3 py-2">
+        <label className="grid gap-1.5 text-sm">
+            <span className="text-foreground/85 font-medium">{label}</span>
+            <select
+                value={value}
+                onChange={(event) => onChange(event.target.value)}
+                className="border-input bg-background/70 text-foreground focus:border-primary/60 focus:ring-primary/10 w-full rounded-xl border px-3 py-2.5 shadow-sm transition outline-none focus:ring-4"
+            >
                 {options.map((option) => (
                     <option key={option.value} value={option.value}>
                         {option.label}
@@ -828,9 +882,14 @@ function SelectField({
 
 function CheckboxField({ label, checked, onChange }: { label: string; checked: boolean; onChange: (checked: boolean) => void }) {
     return (
-        <label className="flex items-center gap-2 text-sm">
-            <input type="checkbox" checked={checked} onChange={(event) => onChange(event.target.checked)} />
-            {label}
+        <label className="text-foreground/85 flex items-center gap-2.5 text-sm">
+            <input
+                type="checkbox"
+                checked={checked}
+                onChange={(event) => onChange(event.target.checked)}
+                className="border-input accent-primary focus:ring-primary h-4 w-4 rounded"
+            />
+            <span>{label}</span>
         </label>
     );
 }
@@ -840,7 +899,7 @@ function SubmitButton({ processing, children }: { processing: boolean; children:
         <button
             type="submit"
             disabled={processing}
-            className="bg-primary text-primary-foreground rounded-md px-4 py-2 text-sm font-medium disabled:opacity-50"
+            className="bg-primary text-primary-foreground inline-flex min-h-10 items-center justify-center rounded-xl px-4 py-2 text-sm font-semibold shadow-sm transition hover:-translate-y-0.5 hover:shadow-md active:translate-y-0 disabled:pointer-events-none disabled:opacity-50"
         >
             {children}
         </button>
@@ -852,5 +911,7 @@ function ErrorText({ children }: { children: ReactNode }) {
 }
 
 function Empty({ children }: { children: ReactNode }) {
-    return <p className="text-muted-foreground py-2 text-sm">{children}</p>;
+    return (
+        <p className="border-border/80 bg-muted/20 text-muted-foreground rounded-xl border border-dashed px-4 py-5 text-sm leading-6">{children}</p>
+    );
 }
