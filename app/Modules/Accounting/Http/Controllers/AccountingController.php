@@ -40,6 +40,8 @@ class AccountingController extends Controller
                     ->where('company_id', $company->id)
                     ->where('is_group', false),
             ],
+            'profit_from' => ['nullable', 'date_format:Y-m-d', 'required_with:profit_to'],
+            'profit_to' => ['nullable', 'date_format:Y-m-d', 'required_with:profit_from', 'after_or_equal:profit_from'],
         ]);
         $asOf = isset($validated['as_of'])
             ? CarbonImmutable::parse($validated['as_of'])->toDateString()
@@ -47,11 +49,14 @@ class AccountingController extends Controller
         $ledgerFrom = $validated['ledger_from'] ?? today()->startOfYear()->toDateString();
         $ledgerTo = $validated['ledger_to'] ?? today()->toDateString();
         $ledgerAccountId = isset($validated['ledger_account_id']) ? (int) $validated['ledger_account_id'] : null;
+        $profitFrom = $validated['profit_from'] ?? today()->startOfYear()->toDateString();
+        $profitTo = $validated['profit_to'] ?? today()->toDateString();
 
         return Inertia::render('Erp/Accounting/Index', [
             'company' => $company->only(['id', 'code', 'name', 'default_currency']),
             'trialBalance' => app(AccountingReportService::class)->trialBalance($company, $asOf),
             'generalLedger' => app(AccountingReportService::class)->generalLedger($company, $ledgerFrom, $ledgerTo, $ledgerAccountId),
+            'profitAndLoss' => app(AccountingReportService::class)->profitAndLoss($company, $profitFrom, $profitTo),
             'currencies' => Currency::query()->orderBy('code')->get(['code', 'name']),
             'accounts' => AccountingAccount::query()
                 ->with('parent:id,code,name')

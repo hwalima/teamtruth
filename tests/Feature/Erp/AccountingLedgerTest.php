@@ -280,6 +280,65 @@ test('general ledger shows opening and running balances for the selected account
             ->where('generalLedger.accounts.0.lines.1.balance', '-130.0000'));
 });
 
+test('profit and loss reports posted income and expenses for the selected date range', function () {
+    [$user, $company, $cash, $equity, $journal] = accountingLedgerFixture('APL');
+    app(CompanyContext::class)->setActiveCompany($company);
+    $income = AccountingAccount::create([
+        'code' => '4000',
+        'name' => 'Service income',
+        'account_type' => 'income',
+    ]);
+    $expense = AccountingAccount::create([
+        'code' => '5000',
+        'name' => 'Operating expense',
+        'account_type' => 'expense',
+    ]);
+    app(CompanyContext::class)->setActiveCompany(null);
+
+    $this->actingAs($user)->withSession(['active_erp_company_id' => $company->id])
+        ->post(route('erp.accounting.fiscal-years.store'), [
+            'name' => 'FY 2026',
+            'starts_on' => '2026-01-01',
+            'ends_on' => '2026-12-31',
+        ])->assertRedirect();
+
+    foreach ([
+        ['date' => '2026-06-15', 'debit_account' => $cash->id, 'credit_account' => $income->id, 'amount' => '100'],
+        ['date' => '2026-07-15', 'debit_account' => $expense->id, 'credit_account' => $cash->id, 'amount' => '30'],
+        ['date' => '2026-08-15', 'debit_account' => $cash->id, 'credit_account' => $income->id, 'amount' => '500'],
+    ] as $transaction) {
+        $this->post(route('erp.accounting.entries.store'), [
+            'journal_id' => $journal->id,
+            'entry_date' => $transaction['date'],
+            'currency_code' => 'USD',
+            'description' => 'P&L test entry',
+            'lines' => [
+                ['account_id' => $transaction['debit_account'], 'debit' => $transaction['amount'], 'credit' => '0'],
+                ['account_id' => $transaction['credit_account'], 'debit' => '0', 'credit' => $transaction['amount']],
+            ],
+        ])->assertRedirect()->assertSessionHas('success');
+    }
+
+    $this->get(route('erp.accounting.index', [
+        'profit_from' => '2026-06-01',
+        'profit_to' => '2026-07-31',
+    ]))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->component('Erp/Accounting/Index')
+            ->where('profitAndLoss.from', '2026-06-01')
+            ->where('profitAndLoss.to', '2026-07-31')
+            ->has('profitAndLoss.income', 1)
+            ->where('profitAndLoss.income.0.code', '4000')
+            ->where('profitAndLoss.income.0.amount', '100.0000')
+            ->has('profitAndLoss.expenses', 1)
+            ->where('profitAndLoss.expenses.0.code', '5000')
+            ->where('profitAndLoss.expenses.0.amount', '30.0000')
+            ->where('profitAndLoss.incomeTotal', '100.0000')
+            ->where('profitAndLoss.expenseTotal', '30.0000')
+            ->where('profitAndLoss.netProfit', '70.0000'));
+});
+
 test('foreign-currency journal entries use the recorded rate for company-currency totals', function () {
     [$user, $company, $cash, $equity, $journal] = accountingLedgerFixture('ACF');
     app(CompanyContext::class)->setActiveCompany($company);

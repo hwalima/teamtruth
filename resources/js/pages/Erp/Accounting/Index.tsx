@@ -92,10 +92,20 @@ type GeneralLedger = {
         }>;
     }>;
 };
+type ProfitAndLoss = {
+    from: string;
+    to: string;
+    income: Array<{ accountId: number; code: string; name: string; debit: string; credit: string; amount: string }>;
+    expenses: Array<{ accountId: number; code: string; name: string; debit: string; credit: string; amount: string }>;
+    incomeTotal: string;
+    expenseTotal: string;
+    netProfit: string;
+};
 type Props = {
     company: { id: number; code: string; name: string; default_currency: string };
     trialBalance: TrialBalance;
     generalLedger: GeneralLedger;
+    profitAndLoss: ProfitAndLoss;
     currencies: Array<{ code: string; name: string }>;
     accounts: Account[];
     journals: Journal[];
@@ -116,17 +126,33 @@ const accountTypes = ['asset', 'liability', 'equity', 'income', 'expense'];
 const journalTypes = ['general', 'sales', 'purchase', 'bank', 'cash', 'stock', 'payroll'];
 const emptyLine = (): EntryLineInput => ({ account_id: '', description: '', debit: '0', credit: '0' });
 
-export default function AccountingIndex({ company, trialBalance, generalLedger, currencies, accounts, journals, fiscalYears, entries }: Props) {
+export default function AccountingIndex({
+    company,
+    trialBalance,
+    generalLedger,
+    profitAndLoss,
+    currencies,
+    accounts,
+    journals,
+    fiscalYears,
+    entries,
+}: Props) {
     const [asOf, setAsOf] = useState(trialBalance.asOf);
     const [ledgerFrom, setLedgerFrom] = useState(generalLedger.from);
     const [ledgerTo, setLedgerTo] = useState(generalLedger.to);
     const [ledgerAccountId, setLedgerAccountId] = useState(generalLedger.accountId?.toString() ?? '');
+    const [profitFrom, setProfitFrom] = useState(profitAndLoss.from);
+    const [profitTo, setProfitTo] = useState(profitAndLoss.to);
     useEffect(() => setAsOf(trialBalance.asOf), [trialBalance.asOf]);
     useEffect(() => {
         setLedgerFrom(generalLedger.from);
         setLedgerTo(generalLedger.to);
         setLedgerAccountId(generalLedger.accountId?.toString() ?? '');
     }, [generalLedger]);
+    useEffect(() => {
+        setProfitFrom(profitAndLoss.from);
+        setProfitTo(profitAndLoss.to);
+    }, [profitAndLoss]);
     const accountForm = useForm<AccountInput>({
         code: '',
         name: '',
@@ -502,6 +528,8 @@ export default function AccountingIndex({ company, trialBalance, generalLedger, 
                                 ledger_from: ledgerFrom,
                                 ledger_to: ledgerTo,
                                 ledger_account_id: ledgerAccountId || undefined,
+                                profit_from: profitFrom,
+                                profit_to: profitTo,
                             },
                             { preserveState: true, preserveScroll: true },
                         );
@@ -549,6 +577,63 @@ export default function AccountingIndex({ company, trialBalance, generalLedger, 
                 )}
             </Panel>
 
+            <Panel title="Profit & loss" icon={<ChartNoAxesCombined className="h-4 w-4" />}>
+                <form
+                    className="grid items-end gap-3 sm:grid-cols-2 lg:grid-cols-[1fr_1fr_auto]"
+                    onSubmit={(event) => {
+                        event.preventDefault();
+                        if (profitTo < profitFrom) {
+                            return;
+                        }
+                        router.get(
+                            route('erp.accounting.index'),
+                            {
+                                as_of: asOf,
+                                ledger_from: ledgerFrom,
+                                ledger_to: ledgerTo,
+                                ledger_account_id: ledgerAccountId || undefined,
+                                profit_from: profitFrom,
+                                profit_to: profitTo,
+                            },
+                            { preserveState: true, preserveScroll: true },
+                        );
+                    }}
+                >
+                    <TextField label="From" type="date" value={profitFrom} onChange={setProfitFrom} required />
+                    <TextField
+                        label="To"
+                        type="date"
+                        value={profitTo}
+                        onChange={setProfitTo}
+                        error={profitTo < profitFrom ? 'End date must be on or after the start date.' : undefined}
+                        required
+                    />
+                    <SubmitButton processing={false}>Run report</SubmitButton>
+                </form>
+
+                <div className="grid gap-3 sm:grid-cols-3">
+                    <ReportTotal label="Income" currency={company.default_currency} value={profitAndLoss.incomeTotal} />
+                    <ReportTotal label="Expenses" currency={company.default_currency} value={profitAndLoss.expenseTotal} />
+                    <ReportTotal
+                        label={profitAndLoss.netProfit.startsWith('-') ? 'Net loss' : 'Net profit'}
+                        currency={company.default_currency}
+                        value={profitAndLoss.netProfit}
+                        emphasis
+                    />
+                </div>
+
+                <ProfitLossSection title="Income" rows={profitAndLoss.income} total={profitAndLoss.incomeTotal} currency={company.default_currency} />
+                <ProfitLossSection
+                    title="Expenses"
+                    rows={profitAndLoss.expenses}
+                    total={profitAndLoss.expenseTotal}
+                    currency={company.default_currency}
+                />
+                {profitAndLoss.income.length === 0 && profitAndLoss.expenses.length === 0 && (
+                    <Empty>No posted income or expense activity in this date range.</Empty>
+                )}
+            </Panel>
+
             <Panel title="General ledger" icon={<BookOpenCheck className="h-4 w-4" />}>
                 <form
                     className="grid items-end gap-3 sm:grid-cols-2 lg:grid-cols-4"
@@ -564,6 +649,8 @@ export default function AccountingIndex({ company, trialBalance, generalLedger, 
                                 ledger_from: ledgerFrom,
                                 ledger_to: ledgerTo,
                                 ledger_account_id: ledgerAccountId || undefined,
+                                profit_from: profitFrom,
+                                profit_to: profitTo,
                             },
                             { preserveState: true, preserveScroll: true },
                         );
@@ -813,6 +900,63 @@ function OverviewStat({ icon, label, value }: { icon: ReactNode; label: string; 
                 <p className="mt-0.5 text-xl font-semibold tabular-nums">{value.toLocaleString()}</p>
             </div>
         </div>
+    );
+}
+
+function ReportTotal({ label, currency, value, emphasis = false }: { label: string; currency: string; value: string; emphasis?: boolean }) {
+    return (
+        <div className={`rounded-2xl border p-4 ${emphasis ? 'border-primary/25 bg-primary/10' : 'border-border/70 bg-background/35'}`}>
+            <p className="text-muted-foreground text-xs font-medium tracking-wide uppercase">{label}</p>
+            <p className="mt-1 text-xl font-semibold tabular-nums sm:text-2xl">
+                <span className="text-muted-foreground mr-1 text-sm font-medium">{currency}</span>
+                {value}
+            </p>
+        </div>
+    );
+}
+
+function ProfitLossSection({ title, rows, total, currency }: { title: string; rows: ProfitAndLoss['income']; total: string; currency: string }) {
+    return (
+        <section className="space-y-2">
+            <h3 className="text-sm font-semibold tracking-tight">{title}</h3>
+            {rows.length === 0 ? (
+                <p className="text-muted-foreground border-border/70 rounded-xl border border-dashed px-4 py-3 text-sm">
+                    No {title.toLowerCase()} activity.
+                </p>
+            ) : (
+                <div className="border-border/70 bg-background/25 overflow-x-auto rounded-xl border">
+                    <table className="w-full min-w-[560px] text-left text-sm">
+                        <thead>
+                            <tr className="border-b">
+                                <th>Account</th>
+                                <th className="text-right">Debit</th>
+                                <th className="text-right">Credit</th>
+                                <th className="text-right">Net {title.toLowerCase()}</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {rows.map((row) => (
+                                <tr key={row.accountId} className="border-border/60 border-b last:border-0">
+                                    <td>
+                                        <span className="font-medium">{row.code}</span> — {row.name}
+                                    </td>
+                                    <td className="text-right tabular-nums">{row.debit}</td>
+                                    <td className="text-right tabular-nums">{row.credit}</td>
+                                    <td className="text-right font-medium tabular-nums">{row.amount}</td>
+                                </tr>
+                            ))}
+                            <tr className="bg-muted/30 font-semibold">
+                                <td>{title} total</td>
+                                <td colSpan={2} className="text-muted-foreground text-right text-xs font-normal">
+                                    {currency}
+                                </td>
+                                <td className="text-right tabular-nums">{total}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            )}
+        </section>
     );
 }
 

@@ -77,6 +77,94 @@ class AccountingReportService
      * @return array{
      *     from: string,
      *     to: string,
+     *     income: array<int, array{accountId: int, code: string, name: string, debit: string, credit: string, amount: string}>,
+     *     expenses: array<int, array{accountId: int, code: string, name: string, debit: string, credit: string, amount: string}>,
+     *     incomeTotal: string,
+     *     expenseTotal: string,
+     *     netProfit: string
+     * }
+     */
+    public function profitAndLoss(Company $company, string $from, string $to): array
+    {
+        $activity = DB::table('accounting_journal_entry_lines as lines')
+            ->join('accounting_journal_entries as entries', 'entries.id', '=', 'lines.journal_entry_id')
+            ->join('accounting_accounts as accounts', 'accounts.id', '=', 'lines.account_id')
+            ->where('lines.company_id', $company->id)
+            ->where('entries.company_id', $company->id)
+            ->where('accounts.company_id', $company->id)
+            ->where('entries.status', 'posted')
+            ->whereBetween('entries.entry_date', [$from, $to])
+            ->where('accounts.is_group', false)
+            ->whereIn('accounts.account_type', ['income', 'expense'])
+            ->groupBy('accounts.id', 'accounts.code', 'accounts.name', 'accounts.account_type')
+            ->orderBy('accounts.code')
+            ->selectRaw('SUM(lines.debit) as debit_total')
+            ->selectRaw('SUM(lines.credit) as credit_total')
+            ->addSelect([
+                'accounts.id as account_id',
+                'accounts.code',
+                'accounts.name',
+                'accounts.account_type',
+            ])
+            ->get()
+            ->map(function (object $account): array {
+                $debit = self::normalizeAmount($account->debit_total);
+                $credit = self::normalizeAmount($account->credit_total);
+                $amount = $account->account_type === 'income'
+                    ? self::addSigned($credit, self::negate($debit))
+                    : self::addSigned($debit, self::negate($credit));
+
+                return [
+                    'accountId' => (int) $account->account_id,
+                    'code' => $account->code,
+                    'name' => $account->name,
+                    'type' => $account->account_type,
+                    'debit' => self::formatScaled($debit),
+                    'credit' => self::formatScaled($credit),
+                    'amount' => self::formatSigned($amount),
+                    '_amount' => $amount,
+                ];
+            })
+            ->all();
+
+        $income = array_values(array_filter(
+            $activity,
+            fn (array $account): bool => $account['type'] === 'income',
+        ));
+        $expenses = array_values(array_filter(
+            $activity,
+            fn (array $account): bool => $account['type'] === 'expense',
+        ));
+        $incomeTotal = '0';
+        foreach ($income as $account) {
+            $incomeTotal = self::addSigned($incomeTotal, $account['_amount']);
+        }
+        $expenseTotal = '0';
+        foreach ($expenses as $account) {
+            $expenseTotal = self::addSigned($expenseTotal, $account['_amount']);
+        }
+
+        $clean = fn (array $rows): array => array_map(function (array $row): array {
+            unset($row['type'], $row['_amount']);
+
+            return $row;
+        }, $rows);
+
+        return [
+            'from' => $from,
+            'to' => $to,
+            'income' => $clean($income),
+            'expenses' => $clean($expenses),
+            'incomeTotal' => self::formatSigned($incomeTotal),
+            'expenseTotal' => self::formatSigned($expenseTotal),
+            'netProfit' => self::formatSigned(self::addSigned($incomeTotal, self::negate($expenseTotal))),
+        ];
+    }
+
+    /**
+     * @return array{
+     *     from: string,
+     *     to: string,
      *     accountId: int|null,
      *     accounts: array<int, array{
      *         accountId: int,
