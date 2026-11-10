@@ -106,7 +106,7 @@ return new class extends Migration
             $table->unsignedInteger('rejected_receipts')->default(0);
             $table->timestamps();
 
-            $table->unique(['company_id', 'vendor_id', 'period_year', 'period_month']);
+            $table->unique(['company_id', 'vendor_id', 'period_year', 'period_month'], 'pur_vendor_eval_unique');
             $table->index(['company_id', 'period_year', 'period_month']);
         });
 
@@ -122,7 +122,7 @@ return new class extends Migration
             $table->date('valid_to')->nullable();
             $table->timestamps();
 
-            $table->index(['company_id', 'vendor_id', 'product_id', 'valid_from']);
+            $table->index(['company_id', 'vendor_id', 'product_id', 'valid_from'], 'pur_vendor_pricelist_idx');
         });
 
         Schema::create('purchase_blanket_orders', function (Blueprint $table) {
