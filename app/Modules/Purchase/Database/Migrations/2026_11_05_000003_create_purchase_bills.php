@@ -3,11 +3,14 @@
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\DB;
 
 return new class extends Migration
 {
     public function up(): void
     {
+        $driver = DB::getDriverName();
+
         // Helper to create table only if not exists
         $createIfNotExists = function (string $table, callable $callback) {
             if (!Schema::hasTable($table)) {
@@ -16,33 +19,43 @@ return new class extends Migration
         };
 
         // Helper to add indexes if table exists but index might be missing
-        $addIndexesIfMissing = function (string $table, array $indexes) {
-            if (Schema::hasTable($table)) {
-                foreach ($indexes as $index) {
-                    $columns = $index['columns'];
-                    $name = $index['name'];
-                    $unique = $index['unique'] ?? false;
+        $addIndexesIfMissing = function (string $table, array $indexes) use ($driver) {
+            if (!Schema::hasTable($table)) {
+                return;
+            }
 
-                    // Check if index exists
-                    $indexExists = Schema::getColumnListing($table); // This doesn't check indexes directly
-                    // Use a more direct approach: try to get index info from information_schema
-                    $indexExists = \DB::selectOne("
+            foreach ($indexes as $index) {
+                $columns = $index['columns'];
+                $name = $index['name'];
+                $unique = $index['unique'] ?? false;
+
+                $indexExists = false;
+
+                if ($driver === 'mysql') {
+                    $indexExists = DB::selectOne("
                         SELECT 1 FROM information_schema.STATISTICS
                         WHERE TABLE_SCHEMA = DATABASE()
                         AND TABLE_NAME = ?
                         AND INDEX_NAME = ?
                     ", [$table, $name]);
+                } elseif ($driver === 'sqlite') {
+                    $indexExists = DB::selectOne("
+                        SELECT 1 FROM sqlite_master
+                        WHERE type = 'index'
+                        AND tbl_name = ?
+                        AND name = ?
+                    ", [$table, $name]);
+                }
 
-                    if (!$indexExists) {
-                        if ($unique) {
-                            Schema::table($table, function (Blueprint $table) use ($columns, $name) {
-                                $table->unique($columns, $name);
-                            });
-                        } else {
-                            Schema::table($table, function (Blueprint $table) use ($columns, $name) {
-                                $table->index($columns, $name);
-                            });
-                        }
+                if (!$indexExists) {
+                    if ($unique) {
+                        Schema::table($table, function (Blueprint $table) use ($columns, $name) {
+                            $table->unique($columns, $name);
+                        });
+                    } else {
+                        Schema::table($table, function (Blueprint $table) use ($columns, $name) {
+                            $table->index($columns, $name);
+                        });
                     }
                 }
             }
