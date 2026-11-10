@@ -8,7 +8,48 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('purchase_bills', function (Blueprint $table) {
+        // Helper to create table only if not exists
+        $createIfNotExists = function (string $table, callable $callback) {
+            if (!Schema::hasTable($table)) {
+                Schema::create($table, $callback);
+            }
+        };
+
+        // Helper to add indexes if table exists but index might be missing
+        $addIndexesIfMissing = function (string $table, array $indexes) {
+            if (Schema::hasTable($table)) {
+                foreach ($indexes as $index) {
+                    $columns = $index['columns'];
+                    $name = $index['name'];
+                    $unique = $index['unique'] ?? false;
+
+                    // Check if index exists
+                    $indexExists = Schema::getColumnListing($table); // This doesn't check indexes directly
+                    // Use a more direct approach: try to get index info from information_schema
+                    $indexExists = \DB::selectOne("
+                        SELECT 1 FROM information_schema.STATISTICS
+                        WHERE TABLE_SCHEMA = DATABASE()
+                        AND TABLE_NAME = ?
+                        AND INDEX_NAME = ?
+                    ", [$table, $name]);
+
+                    if (!$indexExists) {
+                        if ($unique) {
+                            Schema::table($table, function (Blueprint $table) use ($columns, $name) {
+                                $table->unique($columns, $name);
+                            });
+                        } else {
+                            Schema::table($table, function (Blueprint $table) use ($columns, $name) {
+                                $table->index($columns, $name);
+                            });
+                        }
+                    }
+                }
+            }
+        };
+
+        // purchase_bills
+        $createIfNotExists('purchase_bills', function (Blueprint $table) {
             $table->id();
             $table->foreignId('company_id')->constrained()->restrictOnDelete();
             $table->string('document_number', 100);
@@ -38,8 +79,15 @@ return new class extends Migration
             $table->index(['company_id', 'purchase_order_id'], 'pur_bill_order_idx');
             $table->index(['company_id', 'purchase_receipt_id'], 'pur_bill_receipt_idx');
         });
+        $addIndexesIfMissing('purchase_bills', [
+            ['columns' => ['company_id', 'document_number'], 'name' => 'purchase_bills_company_id_document_number_unique', 'unique' => true],
+            ['columns' => ['company_id', 'vendor_id', 'status'], 'name' => 'pur_bill_vendor_idx'],
+            ['columns' => ['company_id', 'purchase_order_id'], 'name' => 'pur_bill_order_idx'],
+            ['columns' => ['company_id', 'purchase_receipt_id'], 'name' => 'pur_bill_receipt_idx'],
+        ]);
 
-        Schema::create('purchase_bill_lines', function (Blueprint $table) {
+        // purchase_bill_lines
+        $createIfNotExists('purchase_bill_lines', function (Blueprint $table) {
             $table->id();
             $table->foreignId('company_id')->constrained()->restrictOnDelete();
             $table->foreignId('purchase_bill_id')->constrained('purchase_bills')->cascadeOnDelete();
@@ -57,8 +105,12 @@ return new class extends Migration
 
             $table->index(['company_id', 'purchase_bill_id', 'sort_order'], 'pur_bill_line_idx');
         });
+        $addIndexesIfMissing('purchase_bill_lines', [
+            ['columns' => ['company_id', 'purchase_bill_id', 'sort_order'], 'name' => 'pur_bill_line_idx'],
+        ]);
 
-        Schema::create('purchase_payments', function (Blueprint $table) {
+        // purchase_payments
+        $createIfNotExists('purchase_payments', function (Blueprint $table) {
             $table->id();
             $table->foreignId('company_id')->constrained()->restrictOnDelete();
             $table->string('document_number', 100);
@@ -80,8 +132,14 @@ return new class extends Migration
             $table->index(['company_id', 'vendor_id', 'status'], 'pur_payment_vendor_idx');
             $table->index(['company_id', 'payment_date'], 'pur_payment_date_idx');
         });
+        $addIndexesIfMissing('purchase_payments', [
+            ['columns' => ['company_id', 'document_number'], 'name' => 'purchase_payments_company_id_document_number_unique', 'unique' => true],
+            ['columns' => ['company_id', 'vendor_id', 'status'], 'name' => 'pur_payment_vendor_idx'],
+            ['columns' => ['company_id', 'payment_date'], 'name' => 'pur_payment_date_idx'],
+        ]);
 
-        Schema::create('purchase_payment_allocations', function (Blueprint $table) {
+        // purchase_payment_allocations
+        $createIfNotExists('purchase_payment_allocations', function (Blueprint $table) {
             $table->id();
             $table->foreignId('company_id')->constrained()->restrictOnDelete();
             $table->foreignId('purchase_payment_id')->constrained('purchase_payments')->cascadeOnDelete();
@@ -91,7 +149,8 @@ return new class extends Migration
             $table->timestamps();
         });
 
-        Schema::create('purchase_vendor_evaluations', function (Blueprint $table) {
+        // purchase_vendor_evaluations
+        $createIfNotExists('purchase_vendor_evaluations', function (Blueprint $table) {
             $table->id();
             $table->foreignId('company_id')->constrained()->restrictOnDelete();
             $table->foreignId('vendor_id')->constrained('purchase_vendors')->restrictOnDelete();
@@ -109,8 +168,13 @@ return new class extends Migration
             $table->unique(['company_id', 'vendor_id', 'period_year', 'period_month'], 'pur_vendor_eval_unique');
             $table->index(['company_id', 'period_year', 'period_month'], 'pur_vendor_eval_period_idx');
         });
+        $addIndexesIfMissing('purchase_vendor_evaluations', [
+            ['columns' => ['company_id', 'vendor_id', 'period_year', 'period_month'], 'name' => 'pur_vendor_eval_unique', 'unique' => true],
+            ['columns' => ['company_id', 'period_year', 'period_month'], 'name' => 'pur_vendor_eval_period_idx'],
+        ]);
 
-        Schema::create('purchase_vendor_price_lists', function (Blueprint $table) {
+        // purchase_vendor_price_lists
+        $createIfNotExists('purchase_vendor_price_lists', function (Blueprint $table) {
             $table->id();
             $table->foreignId('company_id')->constrained()->restrictOnDelete();
             $table->foreignId('vendor_id')->constrained('purchase_vendors')->restrictOnDelete();
@@ -124,8 +188,12 @@ return new class extends Migration
 
             $table->index(['company_id', 'vendor_id', 'product_id', 'valid_from'], 'pur_vendor_pricelist_idx');
         });
+        $addIndexesIfMissing('purchase_vendor_price_lists', [
+            ['columns' => ['company_id', 'vendor_id', 'product_id', 'valid_from'], 'name' => 'pur_vendor_pricelist_idx'],
+        ]);
 
-        Schema::create('purchase_blanket_orders', function (Blueprint $table) {
+        // purchase_blanket_orders
+        $createIfNotExists('purchase_blanket_orders', function (Blueprint $table) {
             $table->id();
             $table->foreignId('company_id')->constrained()->restrictOnDelete();
             $table->string('document_number', 100);
@@ -142,8 +210,13 @@ return new class extends Migration
             $table->unique(['company_id', 'document_number']);
             $table->index(['company_id', 'vendor_id', 'status'], 'pur_blanket_order_vendor_idx');
         });
+        $addIndexesIfMissing('purchase_blanket_orders', [
+            ['columns' => ['company_id', 'document_number'], 'name' => 'purchase_blanket_orders_company_id_document_number_unique', 'unique' => true],
+            ['columns' => ['company_id', 'vendor_id', 'status'], 'name' => 'pur_blanket_order_vendor_idx'],
+        ]);
 
-        Schema::create('purchase_blanket_order_lines', function (Blueprint $table) {
+        // purchase_blanket_order_lines
+        $createIfNotExists('purchase_blanket_order_lines', function (Blueprint $table) {
             $table->id();
             $table->foreignId('company_id')->constrained()->restrictOnDelete();
             $table->foreignId('purchase_blanket_order_id')->constrained('purchase_blanket_orders')->cascadeOnDelete();
@@ -156,8 +229,12 @@ return new class extends Migration
 
             $table->index(['company_id', 'purchase_blanket_order_id', 'sort_order'], 'pur_blanket_order_line_idx');
         });
+        $addIndexesIfMissing('purchase_blanket_order_lines', [
+            ['columns' => ['company_id', 'purchase_blanket_order_id', 'sort_order'], 'name' => 'pur_blanket_order_line_idx'],
+        ]);
 
-        Schema::create('purchase_landed_costs', function (Blueprint $table) {
+        // purchase_landed_costs
+        $createIfNotExists('purchase_landed_costs', function (Blueprint $table) {
             $table->id();
             $table->foreignId('company_id')->constrained()->restrictOnDelete();
             $table->string('document_number', 100);
@@ -174,8 +251,13 @@ return new class extends Migration
             $table->unique(['company_id', 'document_number']);
             $table->index(['company_id', 'purchase_receipt_id'], 'pur_landed_cost_receipt_idx');
         });
+        $addIndexesIfMissing('purchase_landed_costs', [
+            ['columns' => ['company_id', 'document_number'], 'name' => 'purchase_landed_costs_company_id_document_number_unique', 'unique' => true],
+            ['columns' => ['company_id', 'purchase_receipt_id'], 'name' => 'pur_landed_cost_receipt_idx'],
+        ]);
 
-        Schema::create('purchase_landed_cost_lines', function (Blueprint $table) {
+        // purchase_landed_cost_lines
+        $createIfNotExists('purchase_landed_cost_lines', function (Blueprint $table) {
             $table->id();
             $table->foreignId('company_id')->constrained()->restrictOnDelete();
             $table->foreignId('purchase_landed_cost_id')->constrained('purchase_landed_costs')->cascadeOnDelete();
@@ -187,7 +269,8 @@ return new class extends Migration
             $table->timestamps();
         });
 
-        Schema::create('purchase_returns', function (Blueprint $table) {
+        // purchase_returns
+        $createIfNotExists('purchase_returns', function (Blueprint $table) {
             $table->id();
             $table->foreignId('company_id')->constrained()->restrictOnDelete();
             $table->string('document_number', 100);
@@ -206,8 +289,13 @@ return new class extends Migration
             $table->unique(['company_id', 'document_number']);
             $table->index(['company_id', 'vendor_id', 'status'], 'pur_return_vendor_idx');
         });
+        $addIndexesIfMissing('purchase_returns', [
+            ['columns' => ['company_id', 'document_number'], 'name' => 'purchase_returns_company_id_document_number_unique', 'unique' => true],
+            ['columns' => ['company_id', 'vendor_id', 'status'], 'name' => 'pur_return_vendor_idx'],
+        ]);
 
-        Schema::create('purchase_return_lines', function (Blueprint $table) {
+        // purchase_return_lines
+        $createIfNotExists('purchase_return_lines', function (Blueprint $table) {
             $table->id();
             $table->foreignId('company_id')->constrained()->restrictOnDelete();
             $table->foreignId('purchase_return_id')->constrained('purchase_returns')->cascadeOnDelete();
