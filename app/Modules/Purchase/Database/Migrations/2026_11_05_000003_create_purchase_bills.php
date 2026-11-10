@@ -34,9 +34,9 @@ return new class extends Migration
             $table->timestamps();
 
             $table->unique(['company_id', 'document_number']);
-            $table->index(['company_id', 'vendor_id', 'status']);
-            $table->index(['company_id', 'purchase_order_id']);
-            $table->index(['company_id', 'purchase_receipt_id']);
+            $table->index(['company_id', 'vendor_id', 'status'], 'pur_bill_vendor_idx');
+            $table->index(['company_id', 'purchase_order_id'], 'pur_bill_order_idx');
+            $table->index(['company_id', 'purchase_receipt_id'], 'pur_bill_receipt_idx');
         });
 
         Schema::create('purchase_bill_lines', function (Blueprint $table) {
@@ -55,7 +55,7 @@ return new class extends Migration
             $table->unsignedSmallInteger('sort_order')->default(0);
             $table->timestamps();
 
-            $table->index(['company_id', 'purchase_bill_id', 'sort_order']);
+            $table->index(['company_id', 'purchase_bill_id', 'sort_order'], 'pur_bill_line_idx');
         });
 
         Schema::create('purchase_payments', function (Blueprint $table) {
@@ -77,8 +77,8 @@ return new class extends Migration
             $table->timestamps();
 
             $table->unique(['company_id', 'document_number']);
-            $table->index(['company_id', 'vendor_id', 'status']);
-            $table->index(['company_id', 'payment_date']);
+            $table->index(['company_id', 'vendor_id', 'status'], 'pur_payment_vendor_idx');
+            $table->index(['company_id', 'payment_date'], 'pur_payment_date_idx');
         });
 
         Schema::create('purchase_payment_allocations', function (Blueprint $table) {
@@ -140,7 +140,7 @@ return new class extends Migration
             $table->timestamps();
 
             $table->unique(['company_id', 'document_number']);
-            $table->index(['company_id', 'vendor_id', 'status']);
+            $table->index(['company_id', 'vendor_id', 'status'], 'pur_blanket_order_vendor_idx');
         });
 
         Schema::create('purchase_blanket_order_lines', function (Blueprint $table) {
@@ -154,7 +154,7 @@ return new class extends Migration
             $table->unsignedSmallInteger('sort_order')->default(0);
             $table->timestamps();
 
-            $table->index(['company_id', 'purchase_blanket_order_id', 'sort_order']);
+            $table->index(['company_id', 'purchase_blanket_order_id', 'sort_order'], 'pur_blanket_order_line_idx');
         });
 
         Schema::create('purchase_landed_costs', function (Blueprint $table) {
@@ -172,7 +172,7 @@ return new class extends Migration
             $table->timestamps();
 
             $table->unique(['company_id', 'document_number']);
-            $table->index(['company_id', 'purchase_receipt_id']);
+            $table->index(['company_id', 'purchase_receipt_id'], 'pur_landed_cost_receipt_idx');
         });
 
         Schema::create('purchase_landed_cost_lines', function (Blueprint $table) {
@@ -204,7 +204,7 @@ return new class extends Migration
             $table->timestamps();
 
             $table->unique(['company_id', 'document_number']);
-            $table->index(['company_id', 'vendor_id', 'status']);
+            $table->index(['company_id', 'vendor_id', 'status'], 'pur_return_vendor_idx');
         });
 
         Schema::create('purchase_return_lines', function (Blueprint $table) {
