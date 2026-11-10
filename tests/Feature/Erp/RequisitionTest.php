@@ -8,9 +8,12 @@ use App\Modules\Core\Enums\ApprovalStatus;
 use App\Modules\Core\Models\ApprovalWorkflow;
 use App\Modules\Core\Models\ApprovalWorkflowStep;
 use App\Modules\Core\Models\Company;
+use App\Modules\Core\Models\CompanyErpRole;
 use App\Modules\Core\Services\CompanyContext;
+use App\Modules\Core\Services\ErpRoleService;
 use App\Modules\Requisitions\Enums\RequisitionStatus;
 use App\Modules\Requisitions\Models\Requisition;
+use Illuminate\Support\Facades\DB;
 
 function createRequisitionCompany(string $code, User ...$members): Company
 {
@@ -130,11 +133,15 @@ test('submitted requisitions progress through approval and adopt the decision st
     $company = createRequisitionCompany('REQ-A', $requester, $approver);
     setRequisitionCompany($company);
     Currency::create(['name' => 'US Dollar', 'code' => 'USD', 'symbol' => '$']);
-    $approver->givePermissionTo(Permission::create([
-        'name' => 'erp.approval.act',
-        'guard_name' => 'web',
-        'module' => 'erp_core',
-    ]));
+    app(ErpRoleService::class)->createDefaultRoles($company);
+    // Assign finance ERP role to approver
+    $financeRole = CompanyErpRole::where('company_id', $company->id)
+        ->where('slug', 'finance')
+        ->firstOrFail();
+    DB::table('company_user')
+        ->where('company_id', $company->id)
+        ->where('user_id', $approver->id)
+        ->update(['erp_role_id' => $financeRole->id]);
     $workflow = ApprovalWorkflow::create([
         'name' => 'Requisition approvals',
         'approvable_type' => Requisition::class,

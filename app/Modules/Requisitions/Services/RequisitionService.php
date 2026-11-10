@@ -11,6 +11,7 @@ use App\Modules\Core\Services\SequenceService;
 use App\Modules\Requisitions\Enums\RequisitionStatus;
 use App\Modules\Requisitions\Models\Requisition;
 use App\Modules\Requisitions\Models\RequisitionAttachment;
+use App\Modules\Requisitions\Services\BudgetService;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -103,6 +104,9 @@ class RequisitionService
             ]);
         }
 
+        // Validate budget (block on over-budget)
+        app(BudgetService::class)->validateRequisitionBudget($requisition, $actor, true);
+
         DB::transaction(function () use ($requisition, $actor): void {
             $oldStatus = $requisition->status->value;
             $requisition->load('lines');
@@ -127,6 +131,9 @@ class RequisitionService
                     'approval' => __($exception->getMessage()),
                 ]);
             }
+
+            // Reserve budget
+            app(BudgetService::class)->reserveBudget($requisition, $actor);
 
             app(AuditLogService::class)->record(
                 app(CompanyContext::class)->requireActiveCompany(),

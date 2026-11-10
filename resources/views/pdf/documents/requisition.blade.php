@@ -18,7 +18,7 @@
         .requisition-reference strong { color: {{ $primaryColor }}; font-size: 11px; }
         .requisition-reference span { color: #64748b; display: block; font-size: 9px; margin-top: 4px; text-transform: uppercase; }
         .requisition-details { border-collapse: collapse; margin-bottom: 14px; width: 100%; }
-        .requisition-details td { border: 1px solid #e2e8f0; padding: 8px 10px; vertical-align: top; width: 50%; }
+        .requisition-details td { border: 1px solid #e2e8f0; padding: 8px 10px; vertical-align: top; width: 33.33%; }
         .requisition-label { color: #64748b; display: block; font-size: 8px; font-weight: bold; letter-spacing: .5px; margin-bottom: 4px; text-transform: uppercase; }
         .requisition-value { color: #111827; font-size: 10px; font-weight: bold; }
         .requisition-justification { border-left: 3px solid {{ $accentColor }}; margin: 0 0 18px; padding: 8px 10px; }
@@ -54,14 +54,17 @@
         <tr>
             <td><span class="requisition-label">Requester</span><span class="requisition-value">{{ $document->requester->name }}</span></td>
             <td><span class="requisition-label">Request type</span><span class="requisition-value">{{ $requisitionType }}</span></td>
+            <td><span class="requisition-label">Project</span><span class="requisition-value">{{ $document->project->title ?? '—' }}</span></td>
         </tr>
         <tr>
             <td><span class="requisition-label">Department</span><span class="requisition-value">{{ $document->department ?: '—' }}</span></td>
             <td><span class="requisition-label">Cost center</span><span class="requisition-value">{{ $document->cost_center ?: '—' }}</span></td>
+            <td><span class="requisition-label">Budget</span><span class="requisition-value">{{ $document->budget->name ?? ($document->budget->code ?? '—') }}</span></td>
         </tr>
         <tr>
             <td><span class="requisition-label">Required by</span><span class="requisition-value">{{ $document->required_by?->format('d F Y') ?: 'Not specified' }}</span></td>
             <td><span class="requisition-label">Priority</span><span class="requisition-value">{{ ucfirst($document->priority) }}</span></td>
+            <td></td>
         </tr>
     </table>
 

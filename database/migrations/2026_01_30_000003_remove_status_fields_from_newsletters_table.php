@@ -10,6 +10,14 @@ return new class extends Migration
     {
         if (Schema::hasTable('newsletters')) {
             Schema::table('newsletters', function (Blueprint $table) {
+                // Drop index that depends on status column first (SQLite requirement)
+                if (Schema::hasColumn('newsletters', 'status')) {
+                    try {
+                        $table->dropIndex('newsletters_status_created_at_index');
+                    } catch (\Throwable) {
+                        // Index might not exist or have different name
+                    }
+                }
                 if (Schema::hasColumn('newsletters', 'subscribed_at')) {
                     $table->dropColumn('subscribed_at');
                 }

@@ -4,6 +4,7 @@ namespace App\Modules\Requisitions\Http\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Models\Currency;
+use App\Models\Project;
 use App\Models\User;
 use App\Modules\Core\Models\Company;
 use App\Modules\Core\Services\ApprovalWorkflowService;
@@ -12,6 +13,7 @@ use App\Modules\Core\Services\CompanyContext;
 use App\Modules\Core\Services\ErpRoleService;
 use App\Modules\Core\Services\DocumentRenderer;
 use App\Modules\Requisitions\Enums\RequisitionStatus;
+use App\Modules\Requisitions\Models\ErpBudget\ErpBudget;
 use App\Modules\Requisitions\Models\Requisition;
 use App\Modules\Requisitions\Models\RequisitionAttachment;
 use App\Modules\Requisitions\Services\RequisitionService;
@@ -33,7 +35,7 @@ class RequisitionController extends Controller
         $this->assertActiveMember($request->user(), $company);
         $canViewAll = $this->canManage($request->user(), $company);
         $requisitions = Requisition::query()
-            ->with('requester:id,name')
+            ->with(['requester:id,name', 'project:id,title', 'budget:id,name,code'])
             ->when(! $canViewAll, fn ($query) => $query->where('requested_by', $request->user()->id))
             ->latest()
             ->paginate(15)
@@ -48,6 +50,8 @@ class RequisitionController extends Controller
                 'currency_code' => $requisition->currency_code,
                 'estimated_total' => $requisition->estimated_total,
                 'created_at' => $requisition->created_at,
+                'project' => $requisition->project ? ['id' => $requisition->project->id, 'title' => $requisition->project->title] : null,
+                'budget' => $requisition->budget ? ['id' => $requisition->budget->id, 'name' => $requisition->budget->name, 'code' => $requisition->budget->code] : null,
             ]);
 
         return Inertia::render('Erp/Requisitions/Index', [
@@ -67,6 +71,18 @@ class RequisitionController extends Controller
             'requisition' => null,
             'types' => Requisition::TYPES,
             'currencies' => Currency::query()->orderBy('code')->get(['code', 'name']),
+            'projects' => Project::query()
+                ->where('workspace_id', $company->workspace_id ?? 0)
+                ->whereNotIn('status', ['completed', 'cancelled', 'archived'])
+                ->orderBy('title')
+                ->get(['id', 'title']),
+            'budgets' => ErpBudget::query()
+                ->where('company_id', $company->id)
+                ->where('status', 'active')
+                ->where('start_date', '<=', now())
+                ->where('end_date', '>=', now())
+                ->orderBy('name')
+                ->get(['id', 'name', 'code']),
         ]);
     }
 
@@ -75,9 +91,12 @@ class RequisitionController extends Controller
         $company = app(CompanyContext::class)->requireActiveCompany();
         $this->assertActiveMember($request->user(), $company);
         $validated = $this->validateRequisition($request);
+        $attributes = $this->attributes($validated);
+        $attributes['project_id'] = $validated['project_id'] ?? null;
+        $attributes['budget_id'] = $validated['budget_id'] ?? null;
         $requisition = $service->createDraft(
             $request->user(),
-            $this->attributes($validated),
+            $attributes,
             $validated['lines'],
         );
 
@@ -89,7 +108,7 @@ class RequisitionController extends Controller
     {
         $company = app(CompanyContext::class)->requireActiveCompany();
         $this->authorizeView($request->user(), $company, $requisition);
-        $requisition->load(['requester:id,name,email', 'lines', 'attachments.uploader:id,name']);
+        $requisition->load(['requester:id,name,email', 'lines', 'attachments.uploader:id,name', 'project:id,title', 'budget:id,name,code']);
         $approval = $requisition->approvalRequests()->latest()->first();
 
         return Inertia::render('Erp/Requisitions/Show', [
@@ -97,10 +116,12 @@ class RequisitionController extends Controller
                 ...$requisition->only([
                     'id', 'document_number', 'requisition_type', 'status', 'department', 'cost_center',
                     'required_by', 'priority', 'justification', 'currency_code', 'estimated_total',
-                    'submitted_at', 'created_at',
+                    'submitted_at', 'created_at', 'project_id', 'budget_id',
                 ]),
                 'type_label' => Requisition::TYPES[$requisition->requisition_type] ?? $requisition->requisition_type,
                 'requester' => $requisition->requester->only(['id', 'name', 'email']),
+                'project' => $requisition->project ? ['id' => $requisition->project->id, 'title' => $requisition->project->title] : null,
+                'budget' => $requisition->budget ? ['id' => $requisition->budget->id, 'name' => $requisition->budget->name, 'code' => $requisition->budget->code] : null,
                 'lines' => $requisition->lines->map(fn ($line): array => $line->only([
                     'id', 'item', 'description', 'quantity', 'unit', 'estimated_unit_price',
                     'estimated_total', 'gl_account', 'budget_line',
@@ -134,6 +155,7 @@ class RequisitionController extends Controller
                 ...$requisition->only([
                     'id', 'document_number', 'requisition_type', 'department', 'cost_center',
                     'required_by', 'priority', 'justification', 'currency_code',
+                    'project_id', 'budget_id',
                 ]),
                 'lines' => $requisition->lines->map(fn ($line): array => $line->only([
                     'item', 'description', 'quantity', 'unit', 'estimated_unit_price', 'gl_account', 'budget_line',
@@ -141,16 +163,31 @@ class RequisitionController extends Controller
             ],
             'types' => Requisition::TYPES,
             'currencies' => Currency::query()->orderBy('code')->get(['code', 'name']),
+            'projects' => Project::query()
+                ->where('workspace_id', $requisition->company->workspace_id ?? 0)
+                ->whereNotIn('status', ['completed', 'cancelled', 'archived'])
+                ->orderBy('title')
+                ->get(['id', 'title']),
+            'budgets' => ErpBudget::query()
+                ->where('company_id', $requisition->company_id)
+                ->where('status', 'active')
+                ->where('start_date', '<=', now())
+                ->where('end_date', '>=', now())
+                ->orderBy('name')
+                ->get(['id', 'name', 'code']),
         ]);
     }
 
     public function update(Request $request, Requisition $requisition, RequisitionService $service): RedirectResponse
     {
         $validated = $this->validateRequisition($request);
+        $attributes = $this->attributes($validated);
+        $attributes['project_id'] = $validated['project_id'] ?? null;
+        $attributes['budget_id'] = $validated['budget_id'] ?? null;
         $service->updateDraft(
             $requisition,
             $request->user(),
-            $this->attributes($validated),
+            $attributes,
             $validated['lines'],
         );
 
@@ -243,6 +280,8 @@ class RequisitionController extends Controller
             'priority' => ['required', Rule::in(['low', 'normal', 'high', 'urgent'])],
             'justification' => ['required', 'string', 'max:10000'],
             'currency_code' => ['required', 'string', 'size:3', Rule::exists('currencies', 'code')],
+            'project_id' => ['nullable', 'integer', Rule::exists('projects', 'id')],
+            'budget_id' => ['nullable', 'integer', Rule::exists('erp_budgets', 'id')],
             'lines' => ['required', 'array', 'min:1', 'max:50'],
             'lines.*.item' => ['required', 'string', 'max:255'],
             'lines.*.description' => ['nullable', 'string', 'max:2000'],

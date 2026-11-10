@@ -136,6 +136,9 @@ Route::middleware(['auth', 'verified'])->prefix('erp')->name('erp.')->group(func
         Route::get('requisitions/{requisition}', [\App\Modules\Requisitions\Http\Controllers\RequisitionController::class, 'show'])
             ->middleware('erp.permission:erp.requisitions.view')
             ->name('requisitions.show');
+        Route::get('requisitions/reports/{report}/{format}', \App\Modules\Requisitions\Http\Controllers\RequisitionReportExportController::class)
+            ->middleware('erp.permission:erp.requisitions.view')
+            ->name('requisitions.reports.export');
 
         Route::get('inventory/setup', [\App\Modules\Inventory\Http\Controllers\InventorySetupController::class, 'index'])
             ->middleware('erp.permission:erp.inventory.view')

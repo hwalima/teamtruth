@@ -2,11 +2,14 @@
 
 namespace App\Modules\Requisitions\Models;
 
+use App\Models\Project;
 use App\Models\User;
 use App\Modules\Core\Enums\ApprovalStatus;
 use App\Modules\Core\Models\Concerns\BelongsToCompany;
 use App\Modules\Core\Models\Concerns\HasApprovals;
 use App\Modules\Requisitions\Enums\RequisitionStatus;
+use App\Modules\Requisitions\Models\ErpBudget\ErpBudget;
+use App\Modules\Requisitions\Services\BudgetService;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -41,6 +44,8 @@ class Requisition extends Model
         'currency_code',
         'estimated_total',
         'submitted_at',
+        'project_id',
+        'budget_id',
     ];
 
     protected function casts(): array
@@ -58,6 +63,16 @@ class Requisition extends Model
         return $this->belongsTo(User::class, 'requested_by');
     }
 
+    public function project(): BelongsTo
+    {
+        return $this->belongsTo(Project::class, 'project_id');
+    }
+
+    public function budget(): BelongsTo
+    {
+        return $this->belongsTo(ErpBudget::class, 'budget_id');
+    }
+
     public function lines(): HasMany
     {
         return $this->hasMany(RequisitionLine::class)->orderBy('sort_order');
@@ -68,15 +83,31 @@ class Requisition extends Model
         return $this->hasMany(RequisitionAttachment::class);
     }
 
-    public function syncApprovalStatus(ApprovalStatus $status): void
+    public function syncApprovalStatus(ApprovalStatus $status, ?User $actor = null): void
     {
-        $this->status = match ($status) {
+        $oldStatus = $this->status;
+        $newStatus = match ($status) {
             ApprovalStatus::Approved => RequisitionStatus::Approved,
             ApprovalStatus::Rejected => RequisitionStatus::Rejected,
             ApprovalStatus::Returned => RequisitionStatus::Returned,
             ApprovalStatus::Cancelled => RequisitionStatus::Cancelled,
             ApprovalStatus::Pending => RequisitionStatus::InApproval,
         };
+
+        // Handle budget based on approval outcome
+        if ($actor) {
+            $budgetService = app(BudgetService::class);
+
+            if ($status === ApprovalStatus::Approved) {
+                // Confirm budget reservation when approved
+                $budgetService->confirmBudgetReservation($this, $actor);
+            } elseif (in_array($status, [ApprovalStatus::Rejected, ApprovalStatus::Returned, ApprovalStatus::Cancelled], true)) {
+                // Release budget reservation when rejected, returned, or cancelled
+                $budgetService->releaseBudgetReservation($this, $actor);
+            }
+        }
+
+        $this->status = $newStatus;
         $this->save();
     }
 
