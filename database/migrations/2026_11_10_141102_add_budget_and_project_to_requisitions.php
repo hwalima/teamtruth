@@ -13,10 +13,14 @@ return new class extends Migration
     {
         Schema::table('requisitions', function (Blueprint $table) {
             // project_id links to the existing projects table (SaaS projects)
-            $table->foreignId('project_id')->nullable()->constrained()->nullOnDelete();
+            if (!Schema::hasColumn('requisitions', 'project_id')) {
+                $table->foreignId('project_id')->nullable()->constrained()->nullOnDelete();
+            }
 
             // budget_id links to ERP budget (to be created) for budget validation
-            $table->foreignId('budget_id')->nullable()->constrained('erp_budgets')->nullOnDelete();
+            if (!Schema::hasColumn('requisitions', 'budget_id')) {
+                $table->foreignId('budget_id')->nullable()->constrained('erp_budgets')->nullOnDelete();
+            }
 
             // budget_line is already on requisition_lines - keep as is
         });
