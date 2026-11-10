@@ -1,5 +1,6 @@
-﻿import { useForm, useState } from '@inertiajs/react';
+﻿import { useForm } from '@inertiajs/react';
 import type { FormEvent, ReactNode } from 'react';
+import { useState } from 'react';
 import { route } from 'ziggy-js';
 
 type Unit = { id: number; name: string; abbreviation: string; category: string; factor_to_base: string; is_base: boolean };
@@ -342,7 +343,7 @@ export default function Setup({ company, units, categories, products, warehouses
                         <SelectField
                             label="Unit of measure"
                             value={productForm.data.unit_id}
-                            options={units.map((unit) => ({ value: unit.id.toString(), label: ${unit.name} () }))}
+                            options={units.map((unit) => ({ value: unit.id.toString(), label: `${unit.name} ()` }))}
                             onChange={(value) => productForm.setData('unit_id', value)}
                             error={productForm.errors.unit_id}
                         />
@@ -426,7 +427,7 @@ export default function Setup({ company, units, categories, products, warehouses
                             <SelectField
                                 label="Warehouse"
                                 value={locationForm.data.warehouse_id}
-                                options={warehouses.map((warehouse) => ({ value: warehouse.id.toString(), label: ${warehouse.code} —  }))}
+                                options={warehouses.map((warehouse) => ({ value: warehouse.id.toString(), label: `${warehouse.code} — ${warehouse.name}` }))}
                                 onChange={(value) => {
                                     locationForm.setData('warehouse_id', value);
                                     locationForm.setData('parent_id', '');
@@ -440,7 +441,7 @@ export default function Setup({ company, units, categories, products, warehouses
                                     { value: '', label: 'Top level' },
                                     ...(warehouses.find((warehouse) => warehouse.id.toString() === locationForm.data.warehouse_id)?.locations ?? [])
                                         .filter((location) => location.usage === 'internal')
-                                        .map((location) => ({ value: location.id.toString(), label: ${location.code} —  })),
+                                        .map((location) => ({ value: location.id.toString(), label: `${location.code} — ${location.name}` })),
                                 ]}
                                 onChange={(value) => locationForm.setData('parent_id', value)}
                                 error={locationForm.errors.parent_id}
