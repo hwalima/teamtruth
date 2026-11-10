@@ -48,6 +48,10 @@ function accountingLedgerFixture(string $code): array
 test('manual journal entries post atomically when balanced in base currency', function () {
     [$user, $company, $cash, $equity, $journal] = accountingLedgerFixture('ACC');
 
+    // Debug: check accounts exist with correct company_id
+    $accounts = \App\Modules\Accounting\Models\AccountingAccount::withoutGlobalScopes()->whereIn('id', [$cash->id, $equity->id])->get();
+    \Log::info('Accounts in DB', $accounts->toArray());
+
     $this->actingAs($user)->withSession(['active_erp_company_id' => $company->id])
         ->post(route('erp.accounting.fiscal-years.store'), [
             'name' => 'FY 2026',
@@ -57,7 +61,7 @@ test('manual journal entries post atomically when balanced in base currency', fu
         ->assertRedirect();
     expect(FiscalPeriod::query()->count())->toBe(12);
 
-    $this->post(route('erp.accounting.entries.store'), [
+    $response = $this->post(route('erp.accounting.entries.store'), [
         'journal_id' => $journal->id,
         'entry_date' => '2026-06-15',
         'currency_code' => 'USD',
@@ -67,7 +71,42 @@ test('manual journal entries post atomically when balanced in base currency', fu
             ['account_id' => $cash->id, 'description' => 'Cash', 'debit' => '100.0000', 'credit' => '0'],
             ['account_id' => $equity->id, 'description' => 'Opening balance', 'debit' => '0', 'credit' => '100.0000'],
         ],
-    ])->assertRedirect()->assertSessionHas('success');
+    ]);
+    \Log::info('Response status', ['status' => $response->getStatusCode()]);
+    \Log::info('Session errors', session('errors')?->all() ?? []);
+
+    // Debug: check what the middleware finds
+    $middlewareCompanies = \App\Modules\Core\Models\Company::query()
+        ->where('status', 'active')
+        ->whereHas('users', fn ($q) => $q
+            ->whereKey($user->getKey())
+            ->where('company_user.is_active', true))
+        ->orderBy('name')
+        ->get();
+    \Log::info('Middleware companies', $middlewareCompanies->toArray());
+
+    $sessionCompanyId = session('active_erp_company_id');
+    \Log::info('Session company ID', ['id' => $sessionCompanyId]);
+
+    $contextCompany = app(\App\Modules\Core\Services\CompanyContext::class)->activeCompany();
+    \Log::info('Context company', ['id' => $contextCompany?->id, 'name' => $contextCompany?->name]);
+
+    // Debug: test the validation query directly
+    $query = \DB::table('accounting_accounts')
+        ->where('id', $cash->id)
+        ->where('company_id', $contextCompany->id)
+        ->where('is_group', false)
+        ->where('is_active', true);
+    \Log::info('Validation query for cash', ['sql' => $query->toSql(), 'bindings' => $query->getBindings(), 'results' => $query->get()->toArray()]);
+
+    $query2 = \DB::table('accounting_accounts')
+        ->where('id', $equity->id)
+        ->where('company_id', $contextCompany->id)
+        ->where('is_group', false)
+        ->where('is_active', true);
+    \Log::info('Validation query for equity', ['sql' => $query2->toSql(), 'bindings' => $query2->getBindings(), 'results' => $query2->get()->toArray()]);
+
+    $response->assertRedirect()->assertSessionHas('success');
 
     $entry = JournalEntry::query()->with('lines')->firstOrFail();
     expect($entry->status)->toBe('posted')
@@ -249,8 +288,13 @@ test('trial balance report can be downloaded as CSV and PDF', function () {
     $response->assertOk()
         ->assertHeader('content-type', 'text/csv; charset=UTF-8')
         ->assertHeader('content-disposition');
-    expect($response->streamedContent())
-        ->toContain('Account code,Account name,Type,Debit,Credit')
+    $content = $response->streamedContent();
+    // Strip UTF-8 BOM if present
+    if (str_starts_with($content, "\xEF\xBB\xBF")) {
+        $content = substr($content, 3);
+    }
+    expect($content)
+        ->toContain('"Account code","Account name",Type,Debit,Credit')
         ->toContain('Service income');
 
     $pdfResponse = $this->get(route('erp.accounting.reports.export', [

@@ -2,6 +2,7 @@
 
 use App\Models\User;
 use App\Modules\Core\Models\Company;
+use App\Modules\Core\Models\CompanyErpRole;
 
 function inventoryOwner(): array
 {
@@ -69,7 +70,17 @@ test('company inventory setup creates units categories products and warehouses',
 test('inventory foundation records are isolated to the active company', function () {
     [$user, $company] = inventoryOwner();
     $otherCompany = Company::create(['code' => 'OTHERINV', 'name' => 'Other Inventory Company']);
-    $otherCompany->users()->attach($user->id, ['role' => 'admin', 'is_active' => true]);
+    $otherRole = CompanyErpRole::create([
+        'company_id' => $otherCompany->id,
+        'name' => 'Viewer',
+        'slug' => 'viewer',
+        'permissions' => ['erp.inventory.view'],
+    ]);
+    $otherCompany->users()->attach($user->id, [
+        'role' => $otherRole->slug,
+        'erp_role_id' => $otherRole->id,
+        'is_active' => true,
+    ]);
 
     $this->actingAs($user)
         ->withSession(['active_erp_company_id' => $company->id])

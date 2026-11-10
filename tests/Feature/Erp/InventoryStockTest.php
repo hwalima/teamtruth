@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\User;
 use App\Modules\Core\Models\Company;
 use Illuminate\Support\Facades\DB;
 

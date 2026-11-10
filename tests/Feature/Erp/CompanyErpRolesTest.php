@@ -80,8 +80,11 @@ test('company permissions can restrict the existing project management module', 
         'module' => 'dashboard',
     ]));
 
-    $this->actingAs($user)
+    $response = $this->actingAs($user)
         ->withSession(['active_erp_company_id' => $company->id])
-        ->get(route('dashboard'))
-        ->assertForbidden();
+        ->get(route('dashboard'));
+
+    \Log::info('Dashboard test response', ['status' => $response->getStatusCode(), 'headers' => $response->headers->all()]);
+
+    $response->assertForbidden();
 });

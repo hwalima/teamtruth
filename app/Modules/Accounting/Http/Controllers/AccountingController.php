@@ -36,9 +36,10 @@ class AccountingController extends Controller
             'ledger_account_id' => [
                 'nullable',
                 'integer',
-                Rule::exists('accounting_accounts', 'id')
-                    ->where('company_id', $company->id)
-                    ->where('is_group', false),
+                Rule::exists(AccountingAccount::class, 'id')->where(function ($query) use ($company) {
+                    $query->where('company_id', $company->id)
+                          ->where('is_group', false);
+                }),
             ],
             'profit_from' => ['nullable', 'date_format:Y-m-d', 'required_with:profit_to'],
             'profit_to' => ['nullable', 'date_format:Y-m-d', 'required_with:profit_from', 'after_or_equal:profit_from'],
@@ -158,6 +159,7 @@ class AccountingController extends Controller
     public function postJournalEntry(Request $request, AccountingPostingService $service): RedirectResponse
     {
         $company = app(CompanyContext::class)->requireActiveCompany();
+        \Log::info('Controller company', ['id' => $company->id, 'name' => $company->name]);
         $this->authorizePermission($request, $company, 'erp.accounting.manage');
         $validated = $request->validate([
             'journal_id' => ['required', 'integer', Rule::exists('accounting_journals', 'id')->where('company_id', $company->id)],
@@ -169,7 +171,11 @@ class AccountingController extends Controller
             'lines.*.account_id' => [
                 'required',
                 'integer',
-                Rule::exists('accounting_accounts', 'id')->where('company_id', $company->id)->where('is_group', false)->where('is_active', true),
+                Rule::exists(AccountingAccount::class, 'id')->where(function ($query) use ($company) {
+                    $query->where('company_id', $company->id)
+                          ->where('is_group', false)
+                          ->where('is_active', true);
+                }),
             ],
             'lines.*.description' => ['nullable', 'string', 'max:255'],
             'lines.*.debit' => ['required', 'numeric', 'min:0', 'regex:/^\d{1,16}(?:\.\d{1,4})?$/'],
