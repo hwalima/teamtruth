@@ -2,26 +2,44 @@
 
 namespace App\Modules\Purchase\Services;
 
+use App\Models\Currency;
 use App\Models\User;
+use App\Modules\Accounting\Models\AccountingAccount;
+use App\Modules\Accounting\Models\AccountingJournal;
+use App\Modules\Accounting\Services\AccountingPostingService;
 use App\Modules\Core\Models\ApprovalWorkflow;
 use App\Modules\Core\Models\Company;
 use App\Modules\Core\Services\ApprovalWorkflowService;
 use App\Modules\Core\Services\AuditLogService;
 use App\Modules\Core\Services\CompanyContext;
+use App\Modules\Core\Services\ExchangeRateService;
 use App\Modules\Core\Services\SequenceService;
 use App\Modules\Inventory\Models\InventoryProduct;
 use App\Modules\Inventory\Models\StockLocation;
 use App\Modules\Inventory\Services\InventoryStockService;
+use App\Modules\Purchase\Models\PurchaseBill;
+use App\Modules\Purchase\Models\PurchaseBillLine;
+use App\Modules\Purchase\Models\PurchaseBlanketOrder;
+use App\Modules\Purchase\Models\PurchaseBlanketOrderLine;
+use App\Modules\Purchase\Models\PurchaseLandedCost;
+use App\Modules\Purchase\Models\PurchaseLandedCostLine;
 use App\Modules\Purchase\Models\PurchaseOrder;
 use App\Modules\Purchase\Models\PurchaseOrderLine;
+use App\Modules\Purchase\Models\PurchasePayment;
+use App\Modules\Purchase\Models\PurchasePaymentAllocation;
 use App\Modules\Purchase\Models\PurchaseQuotation;
 use App\Modules\Purchase\Models\PurchaseReceipt;
 use App\Modules\Purchase\Models\PurchaseReceiptLine;
+use App\Modules\Purchase\Models\PurchaseReturn;
+use App\Modules\Purchase\Models\PurchaseReturnLine;
 use App\Modules\Purchase\Models\PurchaseRFQ;
 use App\Modules\Purchase\Models\PurchaseRFQLine;
 use App\Modules\Purchase\Models\PurchaseVendor;
+use App\Modules\Purchase\Models\PurchaseVendorEvaluation;
+use App\Modules\Purchase\Models\PurchaseVendorPriceList;
 use App\Modules\Requisitions\Enums\RequisitionStatus;
 use App\Modules\Requisitions\Models\Requisition;
+use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use LogicException;
@@ -614,5 +632,628 @@ class PurchaseService
             }
             throw ValidationException::withMessages($errors);
         }
+    }
+
+    /**
+     * Create a vendor bill from a purchase order and its receipts.
+     * Performs three-way match validation: PO quantities/prices vs Receipt vs Bill.
+     */
+    public function createBillFromOrderAndReceipt(
+        PurchaseOrder $order,
+        PurchaseReceipt $receipt,
+        User $actor,
+        array $data,
+        array $lines,
+    ): PurchaseBill {
+        $company = app(CompanyContext::class)->requireActiveCompany();
+
+        return DB::transaction(function () use ($company, $order, $receipt, $actor, $data, $lines): PurchaseBill {
+            $order = PurchaseOrder::query()->lockForUpdate()->with('lines.product', 'vendor')->findOrFail($order->id);
+            $receipt = PurchaseReceipt::query()->lockForUpdate()->with('lines.purchaseOrderLine')->findOrFail($receipt->id);
+
+            abort_unless((int) $order->company_id === (int) $company->id, 404);
+            abort_unless((int) $receipt->company_id === (int) $company->id, 404);
+            abort_unless((int) $receipt->purchase_order_id === (int) $order->id, 404);
+
+            if (! in_array($order->status, ['approved', 'partially_received', 'received'], true)) {
+                throw ValidationException::withMessages(['purchase_order' => __('Only approved or received purchase orders can be billed.')]);
+            }
+
+            // Check if a bill already exists for this receipt
+            if (PurchaseBill::query()->where('purchase_receipt_id', $receipt->id)->where('status', '!=', 'cancelled')->exists()) {
+                throw ValidationException::withMessages(['purchase_receipt' => __('A bill already exists for this receipt.')]);
+            }
+
+            // Validate three-way match
+            $this->validateThreeWayMatch($order, $receipt, $lines);
+
+            $currencyCode = strtoupper($data['currency_code'] ?? $order->currency_code);
+            $exchangeRate = $currencyCode === strtoupper($company->default_currency)
+                ? '1.0000000000'
+                : app(ExchangeRateService::class)
+                    ->rateFor($currencyCode, $company->default_currency, $data['bill_date'] ?? now())
+                    ?->rate;
+
+            if ($exchangeRate === null && $currencyCode !== strtoupper($company->default_currency)) {
+                throw ValidationException::withMessages([
+                    'currency_code' => __('No exchange rate is recorded for :currency to :base on or before the bill date.', [
+                        'currency' => $currencyCode,
+                        'base' => $company->default_currency,
+                    ]),
+                ]);
+            }
+
+            // Calculate totals
+            $untaxedTotal = '0.0000';
+            $taxTotal = '0.0000';
+            $billLines = [];
+
+            foreach ($lines as $index => $line) {
+                $quantity = (string) $line['quantity'];
+                $unitPrice = (string) $line['unit_price'];
+                $taxRate = (string) ($line['tax_rate'] ?? '0');
+                $lineTotal = self::multiplyDecimals($quantity, $unitPrice);
+                $taxAmount = self::multiplyDecimals($lineTotal, self::divideBy100($taxRate));
+                $lineTotalWithTax = self::addDecimals($lineTotal, $taxAmount);
+
+                $untaxedTotal = self::addDecimals($untaxedTotal, $lineTotal);
+                $taxTotal = self::addDecimals($taxTotal, $taxAmount);
+
+                $billLines[] = [
+                    'company_id' => $company->id,
+                    'purchase_order_line_id' => $line['purchase_order_line_id'],
+                    'product_id' => $line['product_id'] ?? null,
+                    'name' => $line['name'],
+                    'account_code' => $line['account_code'] ?? null,
+                    'quantity' => $quantity,
+                    'unit_price' => $unitPrice,
+                    'tax_rate' => $taxRate,
+                    'tax_amount' => $taxAmount,
+                    'line_total' => $lineTotalWithTax,
+                    'sort_order' => $index + 1,
+                ];
+            }
+
+            $totalAmount = self::addDecimals($untaxedTotal, $taxTotal);
+
+            $bill = PurchaseBill::query()->create([
+                'company_id' => $company->id,
+                'document_number' => app(SequenceService::class)->next($company, 'purchase_bill'),
+                'vendor_id' => $order->vendor_id,
+                'purchase_order_id' => $order->id,
+                'purchase_receipt_id' => $receipt->id,
+                'vendor_reference' => $data['vendor_reference'] ?? null,
+                'status' => 'draft',
+                'currency_code' => $currencyCode,
+                'exchange_rate' => $exchangeRate ?? '1.0000000000',
+                'untaxed_amount' => $untaxedTotal,
+                'tax_amount' => $taxTotal,
+                'total_amount' => $totalAmount,
+                'amount_paid' => '0.0000',
+                'amount_residual' => $totalAmount,
+                'bill_date' => $data['bill_date'] ?? now()->toDateString(),
+                'due_date' => $data['due_date'] ?? null,
+                'journal_id' => $data['journal_id'] ?? null,
+                'account_id' => $data['account_id'] ?? null,
+                'created_by' => $actor->id,
+            ]);
+
+            $bill->lines()->createMany($billLines);
+
+            app(AuditLogService::class)->record(
+                $company,
+                'purchase.bill.created',
+                $bill,
+                changes: ['after' => [
+                    'document_number' => $bill->document_number,
+                    'purchase_order_id' => $order->id,
+                    'purchase_receipt_id' => $receipt->id,
+                    'total_amount' => $totalAmount,
+                ]],
+                actor: $actor,
+            );
+
+            return $bill->load('lines');
+        });
+    }
+
+    /**
+     * Validates three-way match between PO, Receipt, and Bill lines.
+     */
+    private function validateThreeWayMatch(
+        PurchaseOrder $order,
+        PurchaseReceipt $receipt,
+        array $billLines,
+    ): void {
+        $orderLines = $order->lines->keyBy('id');
+        $receiptLines = $receipt->lines->keyBy('purchase_order_line_id');
+
+        foreach ($billLines as $index => $billLine) {
+            $poLineId = $billLine['purchase_order_line_id'];
+            $quantity = (string) $billLine['quantity'];
+            $unitPrice = (string) $billLine['unit_price'];
+
+            if (! $orderLines->has($poLineId)) {
+                throw ValidationException::withMessages([
+                    "lines.{$index}.purchase_order_line_id" => __('Selected purchase order line does not belong to this order.'),
+                ]);
+            }
+
+            $orderLine = $orderLines->get($poLineId);
+            $receiptLine = $receiptLines->get($poLineId);
+
+            if (! $receiptLine) {
+                throw ValidationException::withMessages([
+                    "lines.{$index}.purchase_order_line_id" => __('This purchase order line has not been received yet.'),
+                ]);
+            }
+
+            // Check quantity: billed ≤ received
+            $receivedQty = (string) $receiptLine->quantity;
+            if (self::compareDecimals($quantity, $receivedQty) > 0) {
+                throw ValidationException::withMessages([
+                    "lines.{$index}.quantity" => __('Billed quantity (:quantity) exceeds received quantity (:received).', [
+                        'quantity' => $quantity,
+                        'received' => $receivedQty,
+                    ]),
+                ]);
+            }
+
+            // Check price: bill unit price should match PO unit price (with tolerance)
+            $poUnitPrice = (string) $orderLine->unit_price;
+            $tolerance = $this->getPriceTolerance($order->company_id);
+            if (! $this->isPriceWithinTolerance($unitPrice, $poUnitPrice, $tolerance)) {
+                throw ValidationException::withMessages([
+                    "lines.{$index}.unit_price" => __('Bill unit price (:bill) deviates from PO unit price (:po) by more than the allowed tolerance (:tolerance%).', [
+                        'bill' => $unitPrice,
+                        'po' => $poUnitPrice,
+                        'tolerance' => $tolerance,
+                    ]),
+                ]);
+            }
+        }
+    }
+
+    /**
+     * Get price tolerance percentage for a company (configurable, default 5%).
+     */
+    private function getPriceTolerance(int $companyId): float
+    {
+        // Could be stored in company settings; default to 5%
+        return 5.0;
+    }
+
+    /**
+     * Check if bill price is within tolerance of PO price.
+     */
+    private function isPriceWithinTolerance(string $billPrice, string $poPrice, float $tolerancePercent): bool
+    {
+        $bill = (float) $billPrice;
+        $po = (float) $poPrice;
+
+        if ($po === 0.0) {
+            return $bill === 0.0;
+        }
+
+        $deviation = abs($bill - $po) / $po * 100;
+
+        return $deviation <= $tolerancePercent;
+    }
+
+    /**
+     * Submit a draft bill for approval via the approval workflow.
+     */
+    public function submitBillForApproval(PurchaseBill $bill, User $actor): PurchaseBill {
+        $company = app(CompanyContext::class)->requireActiveCompany();
+
+        return DB::transaction(function () use ($company, $bill, $actor): PurchaseBill {
+            $bill = PurchaseBill::query()->lockForUpdate()->findOrFail($bill->id);
+            abort_unless((int) $bill->company_id === (int) $company->id, 404);
+
+            if ($bill->status !== 'draft') {
+                throw ValidationException::withMessages(['bill' => __('Only draft bills can be submitted for approval.')]);
+            }
+
+            if (! ApprovalWorkflow::query()->where('approvable_type', PurchaseBill::class)->where('is_active', true)->exists()) {
+                throw ValidationException::withMessages(['approval' => __('Configure an active vendor bill approval workflow before submitting.')]);
+            }
+
+            try {
+                app(ApprovalWorkflowService::class)->submit(
+                    $bill,
+                    $actor,
+                    (string) $bill->total_amount,
+                    $bill->currency_code,
+                    ['document_type' => 'vendor_bill', 'vendor_id' => $bill->vendor_id],
+                );
+            } catch (LogicException $exception) {
+                throw ValidationException::withMessages(['approval' => __($exception->getMessage())]);
+            }
+
+            $bill->status = 'pending_approval';
+            $bill->save();
+
+            app(AuditLogService::class)->record(
+                $company,
+                'purchase.bill.submitted',
+                $bill,
+                changes: ['after' => ['document_number' => $bill->document_number, 'status' => 'pending_approval']],
+                actor: $actor,
+            );
+
+            return $bill->fresh();
+        });
+    }
+
+    /**
+     * Post an approved bill to accounting (creates journal entry).
+     */
+    public function postBill(PurchaseBill $bill, User $actor): PurchaseBill {
+        $company = app(CompanyContext::class)->requireActiveCompany();
+
+        return DB::transaction(function () use ($company, $bill, $actor): PurchaseBill {
+            $bill = PurchaseBill::query()->lockForUpdate()->with(['lines', 'vendor', 'purchaseOrder'])->findOrFail($bill->id);
+            abort_unless((int) $bill->company_id === (int) $company->id, 404);
+
+            if ($bill->status !== 'approved') {
+                throw ValidationException::withMessages(['bill' => __('Only approved bills can be posted to accounting.')]);
+            }
+
+            if ($bill->posted_at !== null) {
+                throw ValidationException::withMessages(['bill' => __('This bill has already been posted.')]);
+            }
+
+            // Determine the payable account (from vendor or company default)
+            $payableAccount = $this->resolvePayableAccount($bill);
+            $journal = $this->resolvePurchaseJournal($bill);
+
+            // Create journal entry lines
+            $entryLines = [];
+            $sortOrder = 1;
+
+            // Credit: Accounts Payable
+            $entryLines[] = [
+                'account_id' => $payableAccount->id,
+                'description' => 'Vendor bill: ' . $bill->document_number . ' - ' . $bill->vendor->name,
+                'currency_debit' => '0.0000',
+                'currency_credit' => (string) $bill->total_amount,
+                'sort_order' => $sortOrder++,
+            ];
+
+            // Debit: Expense/Inventory accounts per line
+            foreach ($bill->lines as $line) {
+                $expenseAccount = $this->resolveExpenseAccount($line, $bill->purchaseOrder);
+                if (! $expenseAccount) {
+                    throw ValidationException::withMessages([
+                        'account' => __('No expense account configured for bill line: :name', ['name' => $line->name]),
+                    ]);
+                }
+
+                $entryLines[] = [
+                    'account_id' => $expenseAccount->id,
+                    'description' => $line->name,
+                    'currency_debit' => (string) $line->line_total,
+                    'currency_credit' => '0.0000',
+                    'sort_order' => $sortOrder++,
+                ];
+            }
+
+            // Post the journal entry
+            $entry = app(AccountingPostingService::class)->postManualEntry($actor, [
+                'journal_id' => $journal->id,
+                'entry_date' => $bill->bill_date,
+                'currency_code' => $bill->currency_code,
+                'description' => 'Vendor bill: ' . $bill->document_number,
+                'reference' => $bill->document_number,
+            ], $entryLines);
+
+            // Update bill with posting info
+            $bill->journal_id = $entry->journal_id;
+            $bill->account_id = $payableAccount->id;
+            $bill->posted_by = $actor->id;
+            $bill->posted_at = now();
+            $bill->save();
+
+            app(AuditLogService::class)->record(
+                $company,
+                'purchase.bill.posted',
+                $bill,
+                changes: ['after' => [
+                    'document_number' => $bill->document_number,
+                    'journal_entry_id' => $entry->id,
+                    'journal_entry_number' => $entry->document_number,
+                ]],
+                actor: $actor,
+            );
+
+            return $bill->fresh();
+        });
+    }
+
+    /**
+     * Resolve the accounts payable account for a bill.
+     */
+    private function resolvePayableAccount(PurchaseBill $bill): AccountingAccount
+    {
+        // Check vendor for specific payable account
+        if ($bill->vendor->account_id) {
+            return $bill->vendor->account;
+        }
+
+        // Fall back to company default payable account
+        $account = AccountingAccount::query()
+            ->where('company_id', $bill->company_id)
+            ->where('code', 'LIKE', '2%') // Liabilities typically start with 2
+            ->where('name', 'LIKE', '%payable%')
+            ->where('is_active', true)
+            ->where('is_group', false)
+            ->first();
+
+        if (! $account) {
+            throw new RuntimeException('No accounts payable account configured for this company.');
+        }
+
+        return $account;
+    }
+
+    /**
+     * Resolve the purchase journal for a bill.
+     */
+    private function resolvePurchaseJournal(PurchaseBill $bill): AccountingJournal
+    {
+        $journal = AccountingJournal::query()
+            ->where('company_id', $bill->company_id)
+            ->where('type', 'purchase')
+            ->where('is_active', true)
+            ->first();
+
+        if (! $journal) {
+            throw new RuntimeException('No active purchase journal configured for this company.');
+        }
+
+        return $journal;
+    }
+
+    /**
+     * Resolve expense/inventory account for a bill line.
+     */
+    private function resolveExpenseAccount(PurchaseBillLine $line, ?PurchaseOrder $order): ?AccountingAccount
+    {
+        // If line has account_code, use that
+        if ($line->account_code) {
+            return AccountingAccount::query()
+                ->where('company_id', $line->company_id)
+                ->where('code', $line->account_code)
+                ->where('is_active', true)
+                ->where('is_group', false)
+                ->first();
+        }
+
+        // If linked to PO line with product, use product's expense account
+        if ($line->purchase_order_line_id && $order) {
+            $poLine = $order->lines()->where('id', $line->purchase_order_line_id)->with('product')->first();
+            if ($poLine && $poLine->product) {
+                // Check product category for default expense account
+                // This would need to be implemented based on your chart of accounts structure
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Create a vendor payment.
+     */
+    public function createPayment(User $actor, array $data, array $allocations): PurchasePayment
+    {
+        $company = app(CompanyContext::class)->requireActiveCompany();
+
+        return DB::transaction(function () use ($company, $actor, $data, $allocations): PurchasePayment {
+            $currencyCode = strtoupper($data['currency_code']);
+            $exchangeRate = $currencyCode === strtoupper($company->default_currency)
+                ? '1.0000000000'
+                : app(ExchangeRateService::class)
+                    ->rateFor($currencyCode, $company->default_currency, $data['payment_date'])
+                    ?->rate;
+
+            if ($exchangeRate === null && $currencyCode !== strtoupper($company->default_currency)) {
+                throw ValidationException::withMessages([
+                    'currency_code' => __('No exchange rate for :currency on payment date.', ['currency' => $currencyCode]),
+                ]);
+            }
+
+            $payment = PurchasePayment::query()->create([
+                'company_id' => $company->id,
+                'document_number' => app(SequenceService::class)->next($company, 'purchase_payment'),
+                'vendor_id' => $data['vendor_id'],
+                'journal_id' => $data['journal_id'],
+                'payment_method' => $data['payment_method'],
+                'currency_code' => $currencyCode,
+                'exchange_rate' => $exchangeRate ?? '1.0000000000',
+                'amount' => $data['amount'],
+                'payment_date' => $data['payment_date'],
+                'reference' => $data['reference'] ?? null,
+                'status' => 'draft',
+                'created_by' => $actor->id,
+            ]);
+
+            $totalAllocated = '0.0000';
+            foreach ($allocations as $index => $allocation) {
+                $amount = (string) $allocation['amount'];
+                $totalAllocated = self::addDecimals($totalAllocated, $amount);
+
+                PurchasePaymentAllocation::query()->create([
+                    'company_id' => $company->id,
+                    'purchase_payment_id' => $payment->id,
+                    'purchase_bill_id' => $allocation['purchase_bill_id'],
+                    'amount' => $amount,
+                    'exchange_rate_gain_loss' => $allocation['exchange_rate_gain_loss'] ?? '0.0000',
+                ]);
+            }
+
+            if (self::compareDecimals($totalAllocated, (string) $data['amount']) !== 0) {
+                throw ValidationException::withMessages(['allocations' => __('Total allocated amount must equal payment amount.')]);
+            }
+
+            app(AuditLogService::class)->record(
+                $company,
+                'purchase.payment.created',
+                $payment,
+                changes: ['after' => ['document_number' => $payment->document_number, 'amount' => $data['amount']]],
+                actor: $actor,
+            );
+
+            return $payment->load('allocations.purchaseBill');
+        });
+    }
+
+    /**
+     * Post a payment to accounting.
+     */
+    public function postPayment(PurchasePayment $payment, User $actor): PurchasePayment
+    {
+        $company = app(CompanyContext::class)->requireActiveCompany();
+
+        return DB::transaction(function () use ($company, $payment, $actor): PurchasePayment {
+            $payment = PurchasePayment::query()->lockForUpdate()->with(['allocations.purchaseBill', 'vendor'])->findOrFail($payment->id);
+            abort_unless((int) $payment->company_id === (int) $company->id, 404);
+
+            if ($payment->status !== 'draft') {
+                throw ValidationException::withMessages(['payment' => __('Only draft payments can be posted.')]);
+            }
+
+            $journal = AccountingJournal::query()->findOrFail($payment->journal_id);
+            $payableAccount = $this->resolvePayableAccountForVendor($payment->vendor, $company);
+            $bankAccount = $this->resolveBankAccount($journal, $payment->currency_code);
+
+            $entryLines = [];
+
+            // Debit: Accounts Payable (reduce liability)
+            $entryLines[] = [
+                'account_id' => $payableAccount->id,
+                'description' => 'Payment: ' . $payment->document_number . ' - ' . $payment->vendor->name,
+                'currency_debit' => (string) $payment->amount,
+                'currency_credit' => '0.0000',
+                'sort_order' => 1,
+            ];
+
+            // Credit: Bank/Cash account
+            $entryLines[] = [
+                'account_id' => $bankAccount->id,
+                'description' => 'Payment: ' . $payment->document_number,
+                'currency_debit' => '0.0000',
+                'currency_credit' => (string) $payment->amount,
+                'sort_order' => 2,
+            ];
+
+            // Exchange rate gain/loss if applicable
+            if ($payment->currency_code !== strtoupper($company->default_currency)) {
+                $gainLoss = $payment->allocations->sum('exchange_rate_gain_loss');
+                if (self::compareDecimals((string) $gainLoss, '0.0000') !== 0) {
+                    $gainLossAccount = $this->resolveExchangeGainLossAccount($company, $gainLoss);
+                    $entryLines[] = [
+                        'account_id' => $gainLossAccount->id,
+                        'description' => 'Exchange rate ' . ($gainLoss > 0 ? 'gain' : 'loss') . ' on payment ' . $payment->document_number,
+                        'currency_debit' => $gainLoss > 0 ? '0.0000' : (string) abs($gainLoss),
+                        'currency_credit' => $gainLoss > 0 ? (string) $gainLoss : '0.0000',
+                        'sort_order' => 3,
+                    ];
+                }
+            }
+
+            $entry = app(AccountingPostingService::class)->postManualEntry($actor, [
+                'journal_id' => $journal->id,
+                'entry_date' => $payment->payment_date,
+                'currency_code' => $payment->currency_code,
+                'description' => 'Vendor payment: ' . $payment->document_number,
+                'reference' => $payment->document_number,
+            ], $entryLines);
+
+            // Update bill residuals
+            foreach ($payment->allocations as $allocation) {
+                $bill = $allocation->purchaseBill;
+                $bill->amount_paid = self::addDecimals((string) $bill->amount_paid, (string) $allocation->amount);
+                $bill->amount_residual = self::subtractDecimals((string) $bill->total_amount, (string) $bill->amount_paid);
+                $bill->save();
+            }
+
+            $payment->status = 'posted';
+            $payment->posted_by = $actor->id;
+            $payment->posted_at = now();
+            $payment->save();
+
+            app(AuditLogService::class)->record(
+                $company,
+                'purchase.payment.posted',
+                $payment,
+                changes: ['after' => [
+                    'document_number' => $payment->document_number,
+                    'journal_entry_id' => $entry->id,
+                ]],
+                actor: $actor,
+            );
+
+            return $payment->fresh();
+        });
+    }
+
+    private function resolvePayableAccountForVendor(PurchaseVendor $vendor, Company $company): AccountingAccount
+    {
+        if ($vendor->account_id) {
+            return $vendor->account;
+        }
+
+        return AccountingAccount::query()
+            ->where('company_id', $company->id)
+            ->where('code', 'LIKE', '2%')
+            ->where('name', 'LIKE', '%payable%')
+            ->where('is_active', true)
+            ->where('is_group', false)
+            ->firstOrFail();
+    }
+
+    private function resolveBankAccount(AccountingJournal $journal, string $currencyCode): AccountingAccount
+    {
+        // Try to find a bank account matching the journal and currency
+        $account = AccountingAccount::query()
+            ->where('company_id', $journal->company_id)
+            ->where('journal_id', $journal->id)
+            ->where('currency_code', $currencyCode)
+            ->where('is_active', true)
+            ->where('is_group', false)
+            ->first();
+
+        if ($account) {
+            return $account;
+        }
+
+        // Fallback to any bank account in the journal
+        return AccountingAccount::query()
+            ->where('company_id', $journal->company_id)
+            ->where('journal_id', $journal->id)
+            ->where('is_active', true)
+            ->where('is_group', false)
+            ->firstOrFail();
+    }
+
+    private function resolveExchangeGainLossAccount(Company $company, float $gainLoss): AccountingAccount
+    {
+        $code = $gainLoss > 0 ? '7%' : '6%'; // Revenue for gain, expense for loss
+        return AccountingAccount::query()
+            ->where('company_id', $company->id)
+            ->where('code', 'LIKE', $code)
+            ->where('name', 'LIKE', '%exchange%')
+            ->where('is_active', true)
+            ->where('is_group', false)
+            ->firstOrFail();
+    }
+
+    private static function divideBy100(string $value): string
+    {
+        // Simple division by 100 for tax rate (e.g., 15% -> 0.15)
+        [$whole, $fraction] = array_pad(explode('.', $value, 2), 2, '');
+        $digits = ltrim($whole . str_pad($fraction, 4, '0'), '0') ?: '0';
+        $padded = str_pad($digits, 6, '0', STR_PAD_LEFT);
+        return substr($padded, 0, -2) . '.' . substr($padded, -2);
     }
 }

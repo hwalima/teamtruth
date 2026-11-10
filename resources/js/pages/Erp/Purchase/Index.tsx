@@ -52,6 +52,18 @@ type OrderLine = {
     line_total: string;
     product: { sku: string; name: string; tracking: string; unit: { abbreviation: string } };
 };
+type ReceiptLine = {
+    id: number;
+    purchase_order_line_id: number;
+    quantity: string;
+    purchaseOrderLine: OrderLine;
+};
+type Receipt = {
+    id: number;
+    document_number: string;
+    received_at: string;
+    lines: ReceiptLine[];
+};
 type Order = {
     id: number;
     document_number: string;
@@ -62,6 +74,40 @@ type Order = {
     vendor: { code: string; name: string };
     source_requisition: SourceRequisition | null;
     lines: OrderLine[];
+    receipts: Receipt[];
+};
+type BillLine = {
+    id: number;
+    name: string;
+    quantity: string;
+    unit_price: string;
+    tax_rate: string;
+    tax_amount: string;
+    line_total: string;
+};
+type Bill = {
+    id: number;
+    document_number: string;
+    status: string;
+    currency_code: string;
+    total_amount: string;
+    amount_paid: string;
+    amount_residual: string;
+    bill_date: string;
+    due_date: string | null;
+    vendor: { id: number; code: string; name: string };
+    purchaseOrder: { id: number; document_number: string } | null;
+    lines: BillLine[];
+};
+type Payment = {
+    id: number;
+    document_number: string;
+    status: string;
+    currency_code: string;
+    amount: string;
+    payment_date: string;
+    vendor: { id: number; code: string; name: string };
+    allocations: Array<{ amount: string; purchaseBill: { id: number; document_number: string } }>;
 };
 type Props = {
     company: { id: number; code: string; name: string; default_currency: string };
@@ -75,6 +121,8 @@ type Props = {
     approvedStoreIssueRequisitions: ApprovedStoreIssueRequisition[];
     rfqs: RFQ[];
     orders: Order[];
+    bills: Bill[];
+    payments: Payment[];
 };
 type RfqInputLine = { product_id: string; quantity: string };
 const blankRfqLine = (productId = ''): RfqInputLine => ({ product_id: productId, quantity: '1' });
@@ -366,9 +414,139 @@ export default function PurchaseIndex(props: Props) {
                                 </div>
                             ))}
                         </div>
+                        {order.receipts.length > 0 && (
+                            <div className="mt-3 space-y-2">
+                                <h4 className="font-medium text-sm">Receipts</h4>
+                                {order.receipts.map((receipt) => (
+                                    <div key={receipt.id} className="flex flex-wrap items-center justify-between gap-3 rounded border p-3 text-sm">
+                                        <span>
+                                            <strong>{receipt.document_number}</strong> — Received {new Date(receipt.received_at).toLocaleDateString()}
+                                            ({receipt.lines.length} line(s))
+                                        </span>
+                                        {['approved', 'partially_received', 'received'].includes(order.status) && (
+                                            <a
+                                                href={route('erp.purchase.orders.bills.create', [order.id, receipt.id])}
+                                                className="text-primary underline text-sm"
+                                            >
+                                                Create vendor bill
+                                            </a>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+                        )}
                     </article>
                 ))}
                 {props.orders.length === 0 && <Empty>No purchase orders have been created.</Empty>}
+            </section>
+
+            <section className="space-y-4">
+                <div className="flex flex-wrap justify-between gap-2 items-center">
+                    <h2 className="text-xl font-semibold">Vendor bills</h2>
+                    <a href={route('erp.purchase.payments.create')} className="text-primary text-sm underline">
+                        Create payment
+                    </a>
+                </div>
+                {props.bills.map((bill) => (
+                    <article key={bill.id} className="space-y-3 rounded-md border p-4">
+                        <header className="flex flex-wrap justify-between gap-2">
+                            <div>
+                                <h3 className="font-semibold">{bill.document_number}</h3>
+                                <p className="text-muted-foreground text-sm">
+                                    {bill.vendor.code} — {bill.vendor.name}
+                                    {bill.purchaseOrder && ` · PO: ${bill.purchaseOrder.document_number}`}
+                                </p>
+                            </div>
+                            <div className="flex flex-wrap gap-3 text-sm">
+                                <span className={`px-2 py-1 rounded text-xs ${getStatusColor(bill.status)}`}>
+                                    {bill.status.replaceAll('_', ' ')}
+                                </span>
+                                <span>{bill.currency_code} {bill.total_amount}</span>
+                                <span className="text-muted-foreground">Residual: {bill.currency_code} {bill.amount_residual}</span>
+                            </div>
+                        </header>
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-left text-sm">
+                                <thead>
+                                    <tr className="text-muted-foreground border-b">
+                                        <th className="py-2">Description</th>
+                                        <th className="py-2">Qty</th>
+                                        <th className="py-2">Unit price</th>
+                                        <th className="py-2">Tax %</th>
+                                        <th className="py-2">Total</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {bill.lines.map((line) => (
+                                        <tr key={line.id} className="border-b">
+                                            <td className="py-2">{line.name}</td>
+                                            <td className="py-2">{line.quantity}</td>
+                                            <td className="py-2">{bill.currency_code} {line.unit_price}</td>
+                                            <td className="py-2">{line.tax_rate}%</td>
+                                            <td className="py-2 font-medium">{bill.currency_code} {line.line_total}</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                        {bill.status === 'draft' && (
+                            <div className="flex gap-2">
+                                <form action={route('erp.purchase.bills.submit', bill.id)} method="POST">
+                                    <button type="submit" className="text-primary underline text-sm">Submit for approval</button>
+                                </form>
+                            </div>
+                        )}
+                        {bill.status === 'approved' && bill.posted_at === null && (
+                            <div className="flex gap-2">
+                                <form action={route('erp.purchase.bills.post', bill.id)} method="POST">
+                                    <button type="submit" className="text-primary underline text-sm">Post to accounting</button>
+                                </form>
+                            </div>
+                        )}
+                    </article>
+                ))}
+                {props.bills.length === 0 && <Empty>No vendor bills yet.</Empty>}
+            </section>
+
+            <section className="space-y-4">
+                <h2 className="text-xl font-semibold">Vendor payments</h2>
+                {props.payments.map((payment) => (
+                    <article key={payment.id} className="space-y-3 rounded-md border p-4">
+                        <header className="flex flex-wrap justify-between gap-2">
+                            <div>
+                                <h3 className="font-semibold">{payment.document_number}</h3>
+                                <p className="text-muted-foreground text-sm">
+                                    {payment.vendor.code} — {payment.vendor.name}
+                                </p>
+                            </div>
+                            <div className="flex flex-wrap gap-3 text-sm">
+                                <span className={`px-2 py-1 rounded text-xs ${getStatusColor(payment.status)}`}>
+                                    {payment.status}
+                                </span>
+                                <span>{payment.currency_code} {payment.amount}</span>
+                                <span className="text-muted-foreground">{new Date(payment.payment_date).toLocaleDateString()}</span>
+                            </div>
+                        </header>
+                        {payment.allocations.length > 0 && (
+                            <div className="text-sm">
+                                <p className="font-medium">Allocated to:</p>
+                                <ul className="list-disc list-inside text-muted-foreground mt-1">
+                                    {payment.allocations.map((alloc) => (
+                                        <li key={alloc.purchaseBill.id}>
+                                            {alloc.purchaseBill.document_number} — {payment.currency_code} {alloc.amount}
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
+                        )}
+                        {payment.status === 'draft' && (
+                            <form action={route('erp.purchase.payments.post', payment.id)} method="POST">
+                                <button type="submit" className="text-primary underline text-sm">Post to accounting</button>
+                            </form>
+                        )}
+                    </article>
+                ))}
+                {props.payments.length === 0 && <Empty>No vendor payments yet.</Empty>}
             </section>
 
             <div className="flex flex-wrap gap-4">
@@ -906,4 +1084,22 @@ function ErrorText({ children }: { children: React.ReactNode }) {
 
 function Empty({ children }: { children: React.ReactNode }) {
     return <p className="text-muted-foreground py-2 text-sm">{children}</p>;
+}
+
+function getStatusColor(status: string): string {
+    switch (status) {
+        case 'draft':
+        case 'pending_approval':
+            return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200';
+        case 'approved':
+            return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200';
+        case 'rejected':
+        case 'returned':
+        case 'cancelled':
+            return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200';
+        case 'posted':
+            return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200';
+        default:
+            return 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200';
+    }
 }

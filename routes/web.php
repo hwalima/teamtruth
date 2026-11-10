@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 use App\Http\Controllers\CookieConsentController;
 use App\Http\Controllers\DashboardController;
@@ -168,6 +168,19 @@ Route::middleware(['auth', 'verified'])->prefix('erp')->name('erp.')->group(func
             ->middleware('erp.permission:erp.stock.manage')
             ->name('inventory.stock.movements.store');
 
+        Route::get('inventory/products/export', [\App\Modules\Inventory\Http\Controllers\InventoryProductImportExportController::class, 'export'])
+            ->middleware('erp.permission:erp.inventory.view')
+            ->name('inventory.products.export');
+        Route::get('inventory/products/template', [\App\Modules\Inventory\Http\Controllers\InventoryProductImportExportController::class, 'downloadTemplate'])
+            ->middleware('erp.permission:erp.inventory.view')
+            ->name('inventory.products.template');
+        Route::post('inventory/products/import', [\App\Modules\Inventory\Http\Controllers\InventoryProductImportExportController::class, 'import'])
+            ->middleware('erp.permission:erp.inventory.manage')
+            ->name('inventory.products.import');
+        Route::post('inventory/products/import/preview', [\App\Modules\Inventory\Http\Controllers\InventoryProductImportExportController::class, 'previewImport'])
+            ->middleware('erp.permission:erp.inventory.manage')
+            ->name('inventory.products.import.preview');
+
         Route::get('purchase', [\App\Modules\Purchase\Http\Controllers\PurchaseController::class, 'index'])
             ->middleware('erp.permission:erp.purchase.view')
             ->name('purchase.index');
@@ -192,6 +205,27 @@ Route::middleware(['auth', 'verified'])->prefix('erp')->name('erp.')->group(func
         Route::post('purchase/orders/{order}/lines/{line}/receipts', [\App\Modules\Purchase\Http\Controllers\PurchaseController::class, 'receive'])
             ->middleware('erp.permission:erp.purchase.manage')
             ->name('purchase.orders.receive');
+        Route::get('purchase/orders/{order}/receipts/{receipt}/bill', [\App\Modules\Purchase\Http\Controllers\PurchaseController::class, 'createBill'])
+            ->middleware('erp.permission:erp.purchase.manage')
+            ->name('purchase.orders.bills.create');
+        Route::post('purchase/orders/{order}/receipts/{receipt}/bill', [\App\Modules\Purchase\Http\Controllers\PurchaseController::class, 'storeBill'])
+            ->middleware('erp.permission:erp.purchase.manage')
+            ->name('purchase.orders.bills.store');
+        Route::post('purchase/bills/{bill}/submit', [\App\Modules\Purchase\Http\Controllers\PurchaseController::class, 'submitBill'])
+            ->middleware('erp.permission:erp.purchase.manage')
+            ->name('purchase.bills.submit');
+        Route::post('purchase/bills/{bill}/post', [\App\Modules\Purchase\Http\Controllers\PurchaseController::class, 'postBill'])
+            ->middleware('erp.permission:erp.purchase.manage')
+            ->name('purchase.bills.post');
+        Route::get('purchase/payments/create', [\App\Modules\Purchase\Http\Controllers\PurchaseController::class, 'createPayment'])
+            ->middleware('erp.permission:erp.purchase.manage')
+            ->name('purchase.payments.create');
+        Route::post('purchase/payments', [\App\Modules\Purchase\Http\Controllers\PurchaseController::class, 'storePayment'])
+            ->middleware('erp.permission:erp.purchase.manage')
+            ->name('purchase.payments.store');
+        Route::post('purchase/payments/{payment}/post', [\App\Modules\Purchase\Http\Controllers\PurchaseController::class, 'postPayment'])
+            ->middleware('erp.permission:erp.purchase.manage')
+            ->name('purchase.payments.post');
 
         Route::get('accounting', [\App\Modules\Accounting\Http\Controllers\AccountingController::class, 'index'])
             ->middleware('erp.permission:erp.accounting.view')
@@ -1042,7 +1076,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('ict-ticket-attachments/{attachment}/download', [\App\Http\Controllers\IctTicketController::class, 'downloadAttachment'])->name('ict-ticket-attachments.download');
         Route::delete('ict-ticket-attachments/{attachment}', [\App\Http\Controllers\IctTicketController::class, 'destroyAttachment'])->name('ict-ticket-attachments.destroy');
 
-        // Bug routes (kept for data integrity — hidden from UI)
+        // Bug routes (kept for data integrity â€” hidden from UI)
         Route::get('bugs', [\App\Http\Controllers\BugController::class, 'index'])->middleware('permission:bug_view_any')->name('bugs.index');
         Route::get('bugs/create', [\App\Http\Controllers\BugController::class, 'create'])->middleware('permission:bug_create')->name('bugs.create');
         Route::post('bugs', [\App\Http\Controllers\BugController::class, 'store'])->middleware('permission:bug_create')->name('bugs.store');
@@ -1398,3 +1432,4 @@ Route::post('/cookie-consent/store', [CookieConsentController::class, 'store'])-
 Route::get('/cookie-consent/download', [CookieConsentController::class, 'download'])->name('cookie.consent.download');
 
 // Invoice preview route
+
