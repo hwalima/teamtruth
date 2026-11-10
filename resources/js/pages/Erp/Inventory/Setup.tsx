@@ -311,7 +311,7 @@ export default function Setup({ company, units, categories, products, warehouses
                         {units.map((unit) => (
                             <li key={unit.id} className="py-2 text-sm">
                                 <strong>{unit.name}</strong> ({unit.abbreviation}) · {unit.category}
-                                {unit.is_base ? ' · base' :  · ×}
+                                {unit.is_base ? ' · base' : ' · ×'}
                             </li>
                         ))}
                         {units.length === 0 && <Empty>No units have been set up.</Empty>}
