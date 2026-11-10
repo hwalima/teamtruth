@@ -107,7 +107,7 @@ return new class extends Migration
             $table->timestamps();
 
             $table->unique(['company_id', 'vendor_id', 'period_year', 'period_month'], 'pur_vendor_eval_unique');
-            $table->index(['company_id', 'period_year', 'period_month']);
+            $table->index(['company_id', 'period_year', 'period_month'], 'pur_vendor_eval_period_idx');
         });
 
         Schema::create('purchase_vendor_price_lists', function (Blueprint $table) {

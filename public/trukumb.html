@@ -1,0 +1,770 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<style>
+
+:root{
+--navy:#041E42;
+--gold:#E3B448;
+--light:#f8fafc;
+--text:#5d6677;
+}
+
+*{
+margin:0;
+padding:0;
+box-sizing:border-box;
+}
+
+html{
+scroll-behavior:smooth;
+}
+
+body{
+font-family:'Segoe UI',sans-serif;
+background:#fff;
+color:#222;
+overflow-x:hidden;
+}
+
+/* =======================
+HERO
+======================= */
+
+.hero{
+min-height:95vh;
+display:flex;
+align-items:center;
+justify-content:space-between;
+gap:80px;
+padding:100px 8%;
+background:#fff;
+position:relative;
+overflow:hidden;
+}
+
+.hero::before{
+content:"";
+position:absolute;
+width:700px;
+height:700px;
+right:-200px;
+top:-200px;
+border-radius:50%;
+background:rgba(227,180,72,.07);
+}
+
+.hero::after{
+content:"";
+position:absolute;
+width:600px;
+height:600px;
+left:-250px;
+bottom:-250px;
+border-radius:50%;
+background:rgba(4,30,66,.03);
+}
+
+.hero-content{
+flex:1;
+position:relative;
+z-index:2;
+}
+
+.hero-pill{
+display:inline-block;
+padding:14px 28px;
+border:1px solid rgba(0,0,0,.08);
+border-radius:60px;
+font-size:.9rem;
+letter-spacing:4px;
+font-weight:700;
+color:var(--gold);
+background:#fff;
+margin-bottom:25px;
+}
+
+.hero h1{
+font-size:5rem;
+line-height:1.05;
+font-weight:900;
+color:var(--navy);
+margin-bottom:25px;
+}
+
+.hero p{
+font-size:1.2rem;
+line-height:1.9;
+color:#556070;
+max-width:700px;
+}
+
+.hero-stats{
+display:flex;
+gap:50px;
+margin-top:40px;
+}
+
+.hero-stats h2{
+font-size:2rem;
+color:var(--gold);
+}
+
+.hero-stats span{
+color:#666;
+}
+
+.hero-image{
+flex:1;
+display:flex;
+justify-content:center;
+align-items:center;
+position:relative;
+z-index:2;
+}
+
+.hero-image::before{
+content:'';
+position:absolute;
+width:600px;
+height:600px;
+border-radius:50%;
+background:radial-gradient(circle,
+rgba(227,180,72,.22),
+transparent 70%);
+}
+
+.hero-image img{
+max-width:700px;
+width:100%;
+position:relative;
+z-index:2;
+filter:drop-shadow(0 20px 40px rgba(0,0,0,.12));
+}
+
+/* =======================
+STATS BAR
+======================= */
+
+.stats-bar{
+max-width:1200px;
+margin:-70px auto 70px;
+background:#fff;
+border-radius:25px;
+box-shadow:0 20px 50px rgba(0,0,0,.08);
+display:grid;
+grid-template-columns:repeat(4,1fr);
+padding:40px;
+position:relative;
+z-index:5;
+}
+
+.stats-bar div{
+text-align:center;
+}
+
+.stats-bar h3{
+font-size:2.5rem;
+color:var(--navy);
+}
+
+.stats-bar p{
+color:#777;
+}
+
+/* =======================
+GENERAL
+======================= */
+
+.section{
+padding:100px 30px;
+max-width:1300px;
+margin:auto;
+}
+
+.section-title{
+text-align:center;
+margin-bottom:60px;
+}
+
+.section-title span{
+color:var(--gold);
+font-weight:700;
+letter-spacing:3px;
+}
+
+.section-title h2{
+font-size:3rem;
+color:var(--navy);
+margin-top:15px;
+margin-bottom:15px;
+}
+
+.section-title p{
+max-width:700px;
+margin:auto;
+line-height:1.8;
+color:var(--text);
+}
+
+/* =======================
+VISION MISSION
+======================= */
+
+.vm-grid{
+display:grid;
+grid-template-columns:1fr 1fr;
+gap:30px;
+}
+
+.vm-card{
+background:white;
+padding:45px;
+border-radius:25px;
+box-shadow:0 15px 35px rgba(0,0,0,.06);
+transition:.4s;
+border-top:5px solid var(--gold);
+}
+
+.vm-card:hover{
+transform:translateY(-10px);
+}
+
+.vm-card h3{
+margin-bottom:15px;
+color:var(--navy);
+}
+
+/* =======================
+TEAM
+======================= */
+
+.team-grid{
+display:grid;
+grid-template-columns:repeat(auto-fit,minmax(280px,1fr));
+gap:35px;
+}
+
+.team-card{
+background:white;
+border-radius:30px;
+padding:35px;
+text-align:center;
+box-shadow:0 15px 40px rgba(0,0,0,.06);
+transition:.4s;
+overflow:hidden;
+position:relative;
+}
+
+.team-card::before{
+content:"";
+height:6px;
+width:100%;
+left:0;
+top:0;
+position:absolute;
+background:linear-gradient(90deg,var(--navy),var(--gold));
+}
+
+.team-card:hover{
+transform:translateY(-10px);
+box-shadow:0 25px 60px rgba(227,180,72,.20);
+}
+
+.team-card img{
+width:160px;
+height:160px;
+border-radius:50%;
+object-fit:cover;
+border:5px solid var(--gold);
+margin-bottom:20px;
+}
+
+.team-card h3{
+color:var(--navy);
+margin-bottom:10px;
+}
+
+.team-card p{
+color:#666;
+}
+
+.linkedin{
+display:inline-block;
+margin-top:18px;
+padding:12px 22px;
+background:#0077b5;
+color:white;
+text-decoration:none;
+border-radius:30px;
+font-weight:600;
+}
+
+/* =======================
+TIMELINE
+======================= */
+
+.timeline{
+position:relative;
+max-width:1200px;
+margin:auto;
+}
+
+.timeline:before{
+content:"";
+position:absolute;
+left:50%;
+top:0;
+width:5px;
+height:100%;
+transform:translateX(-50%);
+background:linear-gradient(
+to bottom,
+var(--gold),
+var(--navy),
+var(--gold)
+);
+}
+
+.timeline-item{
+display:flex;
+align-items:center;
+margin-bottom:90px;
+position:relative;
+opacity:0;
+transform:translateY(80px);
+transition:1s ease;
+}
+
+.timeline-item.show{
+opacity:1;
+transform:translateY(0);
+}
+
+.timeline-item:nth-child(even){
+flex-direction:row-reverse;
+}
+
+.timeline-year{
+width:180px;
+height:180px;
+border-radius:50%;
+background:var(--navy);
+display:flex;
+align-items:center;
+justify-content:center;
+font-size:2rem;
+font-weight:900;
+color:white;
+border:6px solid var(--gold);
+z-index:5;
+transition:.4s;
+cursor:pointer;
+}
+
+.timeline-content{
+flex:1;
+background:white;
+padding:40px;
+border-radius:25px;
+margin:0 40px;
+box-shadow:0 15px 40px rgba(0,0,0,.07);
+transition:.4s;
+}
+
+.timeline-content h3{
+color:var(--navy);
+margin-bottom:15px;
+}
+
+.timeline-content p{
+color:#666;
+line-height:1.8;
+}
+
+.timeline-item:hover .timeline-year{
+transform:scale(1.15);
+box-shadow:0 0 40px rgba(227,180,72,.5);
+}
+
+.timeline-item:hover .timeline-content{
+transform:translateY(-10px);
+}
+
+/* =======================
+MESSAGE
+======================= */
+
+.ceo-message{
+background:linear-gradient(135deg,#fffef8,#ffffff);
+padding:60px;
+border-radius:30px;
+box-shadow:0 15px 35px rgba(0,0,0,.05);
+border-left:6px solid var(--gold);
+}
+
+.ceo-message h3{
+color:var(--navy);
+margin-bottom:10px;
+}
+
+.ceo-message h4{
+color:var(--gold);
+margin-bottom:20px;
+}
+
+.ceo-message p{
+font-style:italic;
+line-height:2;
+color:#555;
+}
+
+/* =======================
+RESPONSIVE
+======================= */
+
+@media(max-width:900px){
+
+.hero{
+flex-direction:column;
+text-align:center;
+}
+
+.hero h1{
+font-size:3rem;
+}
+
+.hero-stats{
+justify-content:center;
+flex-wrap:wrap;
+}
+
+.stats-bar{
+grid-template-columns:1fr 1fr;
+gap:20px;
+}
+
+.vm-grid{
+grid-template-columns:1fr;
+}
+
+.timeline:before{
+left:25px;
+}
+
+.timeline-item,
+.timeline-item:nth-child(even){
+flex-direction:row;
+}
+
+.timeline-year{
+width:90px;
+height:90px;
+font-size:1.1rem;
+}
+
+.timeline-content{
+margin-left:25px;
+margin-right:0;
+}
+
+.section-title h2{
+font-size:2rem;
+}
+}
+
+</style>
+</head>
+
+<body>
+
+<section class="hero">
+
+<div class="hero-content">
+
+<div class="hero-pill">
+TRUKUMB HOLDINGS
+</div>
+
+<h1>
+Building Sustainable Growth Across Industries
+</h1>
+
+<p>
+Trukumb Holdings is a diversified African investment group committed to creating long-term value through strategic investments, innovation, responsible leadership and sustainable economic development.
+</p>
+
+<div class="hero-stats">
+
+<div>
+<h2>10+</h2>
+<span>Subsidiaries</span>
+</div>
+
+<div>
+<h2>8</h2>
+<span>Sectors</span>
+</div>
+
+<div>
+<h2>25+</h2>
+<span>Years</span>
+</div>
+
+</div>
+
+</div>
+
+<div class="hero-image">
+<img src="https://www.trukumbholdings.co.zw/wp-content/uploads/2026/01/cropped-Main-logo.png">
+</div>
+
+</section>
+
+<div class="stats-bar">
+
+<div>
+<h3>25+</h3>
+<p>Years of Growth</p>
+</div>
+
+<div>
+<h3>10+</h3>
+<p>Subsidiaries</p>
+</div>
+
+<div>
+<h3>8</h3>
+<p>Business Sectors</p>
+</div>
+
+<div>
+<h3>100%</h3>
+<p>Zimbabwean Owned</p>
+</div>
+
+</div>
+
+<section class="section">
+
+<div class="section-title">
+<span>OUR PURPOSE</span>
+<h2>Vision & Mission</h2>
+</div>
+
+<div class="vm-grid">
+
+<div class="vm-card">
+<h3>Vision</h3>
+<p>
+To be the leading diversified holdings group in Africa, driving sustainable growth and value creation across sectors.
+</p>
+</div>
+
+<div class="vm-card">
+<h3>Mission</h3>
+<p>
+To empower our subsidiaries and partners through strategic investment, innovation and responsible leadership for the benefit of all stakeholders.
+</p>
+</div>
+
+</div>
+
+</section>
+
+<section class="section">
+
+<div class="section-title">
+<span>LEADERSHIP</span>
+<h2>Directors</h2>
+</div>
+
+<div class="team-grid">
+
+<div class="team-card">
+<img src="https://www.trukumbholdings.co.zw/wp-content/uploads/2026/11/Khumbulani-Nkomo.png">
+<h3>Khumbulani Nkomo</h3>
+<p>Chief Executive Officer (CEO)</p>
+<a href="https://linkedin.com/company/trukumb" class="linkedin">LinkedIn</a>
+</div>
+
+<div class="team-card">
+<img src="https://www.trukumbholdings.co.zw/wp-content/uploads/2026/11/Thembelihle-Nkomo.png">
+<h3>Thembelihle Nkomo</h3>
+<p>Executive Director</p>
+<a href="https://linkedin.com/company/trukumb" class="linkedin">LinkedIn</a>
+</div>
+
+<div class="team-card">
+<img src="https://www.trukumbholdings.co.zw/wp-content/uploads/2026/11/Methembe-Nkomo.png">
+<h3>Methembe Nkomo</h3>
+<p>Chief Operating Officer (COO)</p>
+<a href="https://linkedin.com/company/trukumb" class="linkedin">LinkedIn</a>
+</div>
+
+</div>
+
+</section>
+
+<section class="section">
+
+<div class="section-title">
+<span>EXECUTIVE MANAGEMENT</span>
+<h2>Executive Management Team</h2>
+</div>
+
+<div class="team-grid">
+
+<div class="team-card">
+<img src="https://www.trukumbholdings.co.zw/wp-content/uploads/2026/11/Sikhulile-Dube.png">
+<h3>Sikhulile Dube</h3>
+<p>Group Administrator & ICT Manager</p>
+<a href="https://linkedin.com/company/trukumb" class="linkedin" target="_blank">LinkedIn</a>
+</div>
+
+<div class="team-card">
+<img src="https://ui-avatars.com/api/?name=Pardon+Chikafu&background=041E42&color=fff">
+<h3>Pardon Chikafu</h3>
+<p>Human Resources Manager</p>
+<a href="https://linkedin.com/company/trukumb" class="linkedin" target="_blank">LinkedIn</a>
+</div>
+
+<div class="team-card">
+<img src="https://ui-avatars.com/api/?name=Nkanyiso+Ngwenya&background=041E42&color=fff">
+<h3>Nkanyiso Ngwenya</h3>
+<p>Finance Manager</p>
+<a href="https://linkedin.com/company/trukumb" class="linkedin" target="_blank">LinkedIn</a>
+</div>
+</div>
+
+<div class="team-card">
+<img src="https://ui-avatars.com/api/?name=Abgirl+Ngwenya&background=041E42&color=fff">
+<h3>Abgirl Ngwenya</h3>
+<p>Procurement Manager</p>
+<a href="https://linkedin.com/company/trukumb" class="linkedin" target="_blank">LinkedIn</a>
+</div>
+
+<div class="team-card">
+<img src="https://ui-avatars.com/api/?name=Linet+Dube&background=041E42&color=fff">
+<h3>Linet Dube</h3>
+<p>Accounts Officer</p>
+<a href="https://linkedin.com/company/trukumb" class="linkedin" target="_blank">LinkedIn</a>
+</div>
+
+<div class="team-card">
+<img src="https://ui-avatars.com/api/?name=Nomagugu+Khumalo&background=041E42&color=fff">
+<h3>Nomagugu Khumalo</h3>
+<p>Human Resources Officer</p>
+<a href="https://linkedin.com/company/trukumb" class="linkedin" target="_blank">LinkedIn</a>
+</div>
+
+<div class="team-card">
+<img src="https://ui-avatars.com/api/?name=Kelvin+Moyo&background=041E42&color=fff">
+<h3>Kelvin Moyo</h3>
+<p>Projects Officer</p>
+<a href="https://linkedin.com/company/trukumb" class="linkedin" target="_blank">LinkedIn</a>
+</div>
+</div>
+
+</div>
+
+</section>
+
+<section class="section">
+
+<div class="section-title">
+<span>OUR JOURNEY</span>
+<h2>History & Milestones</h2>
+<p>Explore the evolution of Trukumb Holdings through the years.</p>
+</div>
+
+<div class="timeline">
+
+<div class="timeline-item">
+<div class="timeline-year">1995</div>
+<div class="timeline-content">
+<h3>Foundation & Vision</h3>
+<p>Established with a vision to build a diversified African holdings group.</p>
+</div>
+</div>
+
+<div class="timeline-item">
+<div class="timeline-year">2001</div>
+<div class="timeline-content">
+<h3>Mining Expansion</h3>
+<p>Entry into mining and natural resource development.</p>
+</div>
+</div>
+
+<div class="timeline-item">
+<div class="timeline-year">2008</div>
+<div class="timeline-content">
+<h3>Education Sector</h3>
+<p>Launch of education-focused investments and institutions.</p>
+</div>
+</div>
+
+<div class="timeline-item">
+<div class="timeline-year">2012</div>
+<div class="timeline-content">
+<h3>Microfinance</h3>
+<p>Expansion into financial services and economic empowerment.</p>
+</div>
+</div>
+
+<div class="timeline-item">
+<div class="timeline-year">2016</div>
+<div class="timeline-content">
+<h3>Healthcare Services</h3>
+<p>Development of healthcare infrastructure and services.</p>
+</div>
+</div>
+
+<div class="timeline-item">
+<div class="timeline-year">2024</div>
+<div class="timeline-content">
+<h3>Regional Diversification</h3>
+<p>Growth into a multi-sector ecosystem serving communities across industries.</p>
+</div>
+</div>
+
+</div>
+
+</section>
+
+<section class="section">
+
+<div class="ceo-message">
+
+<h3>A Message From Leadership</h3>
+<h4>Khumbulani Nkomo | Chief Executive Officer</h4>
+
+<p>
+"At Trukumb Holdings, we believe sustainable success is built on vision, integrity, innovation and collaboration. As we continue expanding across industries and markets, our focus remains on creating meaningful impact, empowering communities and delivering long-term value for generations to come."
+</p>
+
+</div>
+
+</section>
+
+<script>
+
+const observer=new IntersectionObserver((entries)=>{
+entries.forEach(entry=>{
+if(entry.isIntersecting){
+entry.target.classList.add('show');
+}
+});
+},{threshold:0.25});
+
+document.querySelectorAll('.timeline-item').forEach(item=>{
+observer.observe(item);
+});
+
+</script>
+
+</body>
+</html>

@@ -1,4 +1,4 @@
-# Trukumb Holdings ERP: Master Blueprint & Copilot Prompt Guide
+﻿# Trukumb Holdings ERP: Master Blueprint & Copilot Prompt Guide
 
 > Place this file in the project root (and copy section 2 into `.github/copilot-instructions.md`).
 > It has two jobs: (1) a reference for you, (2) context you can point Copilot at with `#file:TRUKUMB_ERP_BLUEPRINT.md`.
@@ -8,7 +8,7 @@
 ## 0. How to use this file with Copilot
 
 1. Copy **Section 2 (Standing Rules)** into `.github/copilot-instructions.md`. Copilot then reads it on every request.
-2. Open **Copilot Chat → Agent mode** (not Ask mode) so it can create and edit files and run terminal commands.
+2. Open **Copilot Chat â†’ Agent mode** (not Ask mode) so it can create and edit files and run terminal commands.
 3. Work **one phase and one module at a time**. Never paste the whole ERP into one prompt.
 4. Start each session with: `Read #file:TRUKUMB_ERP_BLUEPRINT.md and the existing codebase. We are working on Phase X, Module Y.`
 5. After each module: run tests, commit, and tick the checklist in Section 14.
@@ -29,7 +29,7 @@ Expand the existing Laravel + MySQL planning system into a **multi-subsidiary ER
 | 5 | Inventory + Purchase | Inventory, Purchase |
 | 6 | Company-wide Requisition & Approval | Approvals |
 | 0 | **Core/Foundation**: companies (subsidiaries), branding, users, roles, approvals engine, documents | n/a |
-| ✓ | **Existing**: Project / Planning system (keep working, integrate) | Project |
+| âœ“ | **Existing**: Project / Planning system (keep working, integrate) | Project |
 
 **Non-negotiable cross-cutting requirements**
 
@@ -100,7 +100,7 @@ app/
 ```
 
 - Option A: `nwidart/laravel-modules`. Option B: plain namespaces under `app/Modules`. **Pick whichever matches the existing project with the least disruption**, and tell Copilot which.
-- Modules talk through **Service classes and domain Events**, never by reaching into each other's tables. Example: `GoodsReceived` event → Accounting listener posts the journal.
+- Modules talk through **Service classes and domain Events**, never by reaching into each other's tables. Example: `GoodsReceived` event â†’ Accounting listener posts the journal.
 
 ### 3.2 Multi-subsidiary strategy
 
@@ -238,15 +238,15 @@ Requisition types: **Purchase**, **Stock/Store issue**, **Petty cash / Cash adva
 
 - Fields: requisition no. (per company), requester, department, project (link to existing Projects), cost center, required-by date, priority, justification, lines (item/description, qty, unit, estimated price, GL account, budget line), attachments.
 - Budget check: warn or block when the department/project budget would be exceeded.
-- Status: Draft → Submitted → In Approval → Approved → (Converted to PO / Issued / Paid) → Closed; plus Rejected, Returned, Cancelled.
-- **Conversion**: approved purchase requisition → RFQ/PO in Purchase; approved store requisition → stock issue in Inventory; payment requisition → vendor bill/payment in Accounting.
+- Status: Draft â†’ Submitted â†’ In Approval â†’ Approved â†’ (Converted to PO / Issued / Paid) â†’ Closed; plus Rejected, Returned, Cancelled.
+- **Conversion**: approved purchase requisition â†’ RFQ/PO in Purchase; approved store requisition â†’ stock issue in Inventory; payment requisition â†’ vendor bill/payment in Accounting.
 - Branded PDF with signatory block showing every approver and timestamp.
 - Reports: pending by approver, ageing, spend by department, turnaround time.
 
 ### 7.2 Inventory (Module 5a, like Odoo Inventory)
 
 - Products: type (storable, consumable, service), SKU/barcode, categories, UoM + conversions, variants (optional), costing method (Average / FIFO), tracking (none/lot/serial), reorder rules, preferred suppliers.
-- Warehouses → locations (hierarchical), including virtual locations (supplier, customer, production, scrap, adjustment).
+- Warehouses â†’ locations (hierarchical), including virtual locations (supplier, customer, production, scrap, adjustment).
 - **Stock moves are the single source of truth**: `stock_moves` (+ lines) between locations. On-hand is derived, with cached `stock_quants`.
 - Operations: Receipts (from PO), Deliveries (from sales), Internal transfers (inter-warehouse and **inter-subsidiary**, which generates intercompany entries), Adjustments / stocktake, Scrap, Store issues (from requisitions).
 - Valuation: every move creates a valuation layer; posts to Accounting (stock valuation, COGS, GRNI).
@@ -257,7 +257,7 @@ Requisition types: **Purchase**, **Stock/Store issue**, **Petty cash / Cash adva
 ### 7.3 Purchase (Module 5b, like Odoo Purchase)
 
 - Vendors (with company-specific payment terms, tax, bank details), vendor price lists.
-- Flow: **RFQ → compare quotations → Purchase Order → Receipt → Vendor Bill → Payment**.
+- Flow: **RFQ â†’ compare quotations â†’ Purchase Order â†’ Receipt â†’ Vendor Bill â†’ Payment**.
 - PO approval via the approval engine (amount-based).
 - **Three-way match**: PO vs Goods Receipt vs Vendor Bill with tolerance rules.
 - Blanket/agreement orders, multi-currency, landed costs, returns/debit notes.
@@ -287,10 +287,10 @@ Requisition types: **Purchase**, **Stock/Store issue**, **Petty cash / Cash adva
 ### 7.6 Sales (Module 2c, like Odoo Sales)
 
 - CRM-lite: leads/opportunities pipeline (optional but recommended), customers/contacts.
-- Quotation → Sales Order → Delivery → Invoice. Quotation templates, discounts, optional products, e-sign/approval of quotation.
+- Quotation â†’ Sales Order â†’ Delivery â†’ Invoice. Quotation templates, discounts, optional products, e-sign/approval of quotation.
 - Price lists, margins, salesperson targets and commissions, sales teams.
 - Quotation approval for discounts beyond a threshold (approval engine).
-- Link to Projects (sales order → project creation) since you already have a planning system.
+- Link to Projects (sales order â†’ project creation) since you already have a planning system.
 - Reports: pipeline, sales by product/customer/salesperson/subsidiary, quotation conversion.
 
 ### 7.7 HRM: Employee files & Core (Module 1)
@@ -304,16 +304,16 @@ Requisition types: **Purchase**, **Stock/Store issue**, **Petty cash / Cash adva
 ### 7.8 HRM: Leave & Leave Calendar
 
 - Leave types (annual, sick, maternity/paternity, compassionate, study, unpaid), accrual rules, carry-over, balances ledger (`leave_ledger` entries, not just a counter), public holidays per country/company, half days.
-- Request → approval engine → balance deduction → feeds attendance and payroll.
+- Request â†’ approval engine â†’ balance deduction â†’ feeds attendance and payroll.
 - **Leave calendar**: month/week team views, department filter, conflict and minimum-staffing warnings, public holiday overlay (FullCalendar).
 
 ### 7.9 HRM: Time & Attendance with Biometrics
 
 - Devices table: `company_id, name, brand/model, serial, ip, port, location, protocol, last_sync_at, status`.
 - **Adapter pattern**: `BiometricDriverInterface` with implementations. Popular devices (ZKTeco and similar) either push data to a server (ADMS/push protocol) or are polled over TCP. Keep the integration behind the interface so brands can be swapped. Verify the exact model and protocol before choosing the approach. A small on-site sync agent (Python/Node) that posts to a secured API endpoint is often the most reliable option for devices on a local network.
-- `attendance_raw_logs` (immutable device punches) → processed into `attendance_records` (daily clock-in/out) by a rules engine.
+- `attendance_raw_logs` (immutable device punches) â†’ processed into `attendance_records` (daily clock-in/out) by a rules engine.
 - Shifts & rosters (including night/rotating shifts for the food court and security), grace periods, late/early/overtime rules, break rules, public-holiday multipliers.
-- Employee ↔ device user ID mapping, enrolment workflow, duplicate-punch filtering.
+- Employee â†” device user ID mapping, enrolment workflow, duplicate-punch filtering.
 - Exceptions inbox: missed punches, manual corrections (require reason + approval, fully audited).
 - Time off integration: approved leave auto-fills attendance.
 - Timesheets by project (link to the existing planning module) for billable/project costing.
@@ -324,7 +324,7 @@ Requisition types: **Purchase**, **Stock/Store issue**, **Petty cash / Cash adva
 
 - Payroll configuration (all **effective-dated and editable**, never hardcoded): salary structures, earnings, allowances, deductions, benefits-in-kind, statutory contributions, tax tables, currency split (USD/ZWG).
 - Zimbabwe statutory items to configure and verify against current legislation: PAYE and AIDS levy, NSSA, ZIMDEF, NEC levies, pension/medical aid, bonus/13th-cheque treatment, leave pay-out, loans/advances. **Do not trust remembered rates. Have your accountant supply the current tables.**
-- Run workflow: create run → compute (queued) → review exceptions → approval → lock → post journal to Accounting → generate payslips → bank payment file.
+- Run workflow: create run â†’ compute (queued) â†’ review exceptions â†’ approval â†’ lock â†’ post journal to Accounting â†’ generate payslips â†’ bank payment file.
 - Payslips as branded PDFs per subsidiary, emailed securely or available in the portal (password-protected PDFs optional).
 - Loans, salary advances, garnishees, overtime, back-pay, final-pay/termination calculations.
 - Statutory reports: PAYE return, NSSA schedule, ZIMDEF, payroll summary, cost by department, year-end tax certificates (ITF16 equivalent) per current ZIMRA format.
@@ -333,20 +333,20 @@ Requisition types: **Purchase**, **Stock/Store issue**, **Petty cash / Cash adva
 ### 7.11 HRM: Performance Management
 
 - **Job descriptions** per position: purpose, duties, KPIs, qualifications, reporting line, versioned; employees acknowledge them digitally.
-- Appraisal cycles per company: templates with weighted sections, competencies, goals/KPIs (can link to projects/tasks in the existing system), self → manager → HOD → HR review, calibration, rating scales, development plans, probation and annual appraisals, 360 option.
+- Appraisal cycles per company: templates with weighted sections, competencies, goals/KPIs (can link to projects/tasks in the existing system), self â†’ manager â†’ HOD â†’ HR review, calibration, rating scales, development plans, probation and annual appraisals, 360 option.
 - Appraisal outcome feeds promotion/increment recommendations (to Payroll through approval).
 - Dashboards: completion rate, rating distribution, by department/subsidiary.
 
 ### 7.12 HRM: Disciplinary Records
 
-- Case lifecycle: incident report → investigation → notice of hearing → hearing record → outcome (verbal/written/final warning, suspension, dismissal) → appeal.
+- Case lifecycle: incident report â†’ investigation â†’ notice of hearing â†’ hearing record â†’ outcome (verbal/written/final warning, suspension, dismissal) â†’ appeal.
 - Templates for notices and warnings (branded, with signatories), witness statements, evidence attachments, timelines.
 - **Warnings expire** (validity period) and are tracked per employee; strict confidentiality permissions; full audit.
 - Align templates with the applicable Zimbabwe labour regulations and your company code of conduct. Confirm with HR/legal.
 
 ### 7.13 ATS: Recruitment
 
-- Job requisition (approval engine) → job posting → applications → screening → interviews → offer → hire (creates employee record + onboarding checklist).
+- Job requisition (approval engine) â†’ job posting â†’ applications â†’ screening â†’ interviews â†’ offer â†’ hire (creates employee record + onboarding checklist).
 - Per-subsidiary careers pages. **Multiple source websites** apply through:
   - A public, rate-limited **Applications API** (`POST /api/public/applications`) with per-site API keys, CORS allow-list, honeypot/captcha, file validation and virus scanning of CV uploads.
   - Embeddable apply form/JS widget and a hosted careers page.
@@ -356,10 +356,10 @@ Requisition types: **Purchase**, **Stock/Store issue**, **Petty cash / Cash adva
 
 ### 7.14 E-Learning with SCORM (like Odoo eLearning)
 
-- Courses → sections → content (video, PDF, slides, quiz, **SCORM package**), prerequisites, certificates (branded per subsidiary), enrolment (manual, by department/role/position, auto on hire), due dates, reminders, completion tracking.
+- Courses â†’ sections â†’ content (video, PDF, slides, quiz, **SCORM package**), prerequisites, certificates (branded per subsidiary), enrolment (manual, by department/role/position, auto on hire), due dates, reminders, completion tracking.
 - **Compliance training**: mandatory courses per role, recurrence (annual refresher), expiry and overdue dashboards, manager visibility, attestation sign-off, HR export for audits.
 - **SCORM support (1.2 and 2004)**:
-  - Upload ZIP → validate and parse `imsmanifest.xml` → extract to storage → serve content from a same-origin route (SCORM requires same-origin API discovery; do not serve from a different domain).
+  - Upload ZIP â†’ validate and parse `imsmanifest.xml` â†’ extract to storage â†’ serve content from a same-origin route (SCORM requires same-origin API discovery; do not serve from a different domain).
   - Player page with iframe + JS runtime implementing the SCORM API (`API` for 1.2, `API_1484_11` for 2004). Use an existing open-source runtime such as **scorm-again** rather than writing one.
   - Persist CMI data (`lesson_status`, `score`, `suspend_data`, `session_time`) per attempt via a commit endpoint; resume support.
   - Guard against zip-slip, oversized and malicious archives.
@@ -408,7 +408,7 @@ Requisition types: **Purchase**, **Stock/Store issue**, **Petty cash / Cash adva
 | Event | Producer | Consumer / Result |
 |-------|----------|-------------------|
 | Requisition approved | Requisitions | Creates RFQ/PO, stock issue, or payment bill |
-| Goods received | Inventory | Valuation layer → Accounting journal (stock vs GRNI) |
+| Goods received | Inventory | Valuation layer â†’ Accounting journal (stock vs GRNI) |
 | Vendor bill posted | Purchase/Invoicing | Accounting payable entry, three-way match |
 | Sales delivery validated | Inventory | COGS journal |
 | Invoice posted / paid | Invoicing | Receivable entry, reconciliation |
@@ -426,7 +426,7 @@ Implement these with Laravel **Events + Listeners (queued)** so modules stay dec
 
 ## 10. Security, Compliance & Audit
 
-- Role-based access per company; separate permissions for view/create/edit/approve/post/export on each resource. Segregation of duties (creator cannot approve own document, payroll preparer ≠ approver).
+- Role-based access per company; separate permissions for view/create/edit/approve/post/export on each resource. Segregation of duties (creator cannot approve own document, payroll preparer â‰  approver).
 - 2FA for finance, payroll and admin roles. Password policy, session timeout, login audit, IP restrictions for sensitive modules if needed.
 - Encrypt sensitive HR/payroll fields; protect file downloads with signed, authorised URLs; never expose files via public storage paths.
 - Full activity log with who/what/when/old/new values; immutable accounting and payroll history.
@@ -520,11 +520,21 @@ For each subsidiary, collect before go-live:
 - [x] Phase 0: Audit and structure
 - [x] Phase 1: Core (companies, branding, roles, sequences, approvals, documents)
 - [x] Phase 2: Requisitions & approvals
-- [ ] Phase 3: Inventory + Purchase
-  - [x] Inventory foundation (units, categories, products, warehouses, locations)
-  - [x] Stock movements (receipts, issues, transfers, on-hand derivation)
-  - [x] Stock reports (CSV/PDF exports)
-  - [ ] Purchase module (RFQ, PO, vendor bills, three-way match)
+- [~] Phase 3: Inventory + Purchase (IN PROGRESS)
+   - [x] Inventory foundation (units, categories, products, warehouses, locations)
+   - [x] Stock movements (receipts, issues, transfers, on-hand derivation)
+   - [x] Stock reports (CSV/PDF exports)
+   - [~] Purchase module (RFQ, PO, vendor bills, three-way match) - IN PROGRESS
+     - [x] Vendors, RFQ, Quotations, Purchase Orders, Receipts
+     - [ ] Vendor bills (from PO + Receipt)
+     - [ ] Three-way match validation
+     - [ ] Purchase payments
+     - [ ] Blanket orders management
+     - [ ] Landed costs allocation
+     - [ ] Purchase returns processing
+     - [ ] Vendor evaluations
+     - [ ] Vendor price lists
+     - [ ] Product import/export (Odoo product.template format)
 - [ ] Phase 4: Accounting + Invoicing + Sales
   - [x] Chart of accounts per company
   - [x] Journals and fiscal periods
@@ -560,3 +570,5 @@ For each subsidiary, collect before go-live:
 ### Closing tip for working with Copilot
 
 Copilot is strongest on well-scoped, pattern-following tasks and weakest on cross-cutting design. **You make the architecture decisions (this document); Copilot generates the scaffolding.** Keep prompts small, demand a plan first, review migrations and anything touching money, stock, tax or payroll line by line, and commit after every verified step.
+
+
