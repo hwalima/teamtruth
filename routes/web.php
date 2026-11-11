@@ -753,56 +753,22 @@ Route::middleware(['auth', 'verified'])->group(function () {
             return Inertia::render('examples/chatgpt-demo');
         })->name('chatgpt');
 
-        // Mzitshwa AI routes
-        Route::post('api/mzitshwa/chat',     [\App\Http\Controllers\MzitshwaController::class, 'chat'])->name('mzitshwa.chat');
-        Route::post('api/mzitshwa/complete', [\App\Http\Controllers\MzitshwaController::class, 'complete'])->name('mzitshwa.complete');
-        Route::post('api/mzitshwa/analyze',  [\App\Http\Controllers\MzitshwaController::class, 'analyze'])->name('mzitshwa.analyze');
-        Route::post('api/mzitshwa/action',   [\App\Http\Controllers\MzitshwaController::class, 'executeAction'])->name('mzitshwa.action');
-        Route::post('api/mzitshwa/parse-action', [\App\Http\Controllers\MzitshwaController::class, 'parseAction'])->name('mzitshwa.parseAction');
-        Route::get('api/mzitshwa/insights',  [\App\Http\Controllers\MzitshwaController::class, 'insights'])->name('mzitshwa.insights');
-        Route::get('api/mzitshwa/conversations', [\App\Http\Controllers\MzitshwaController::class, 'conversations'])->name('mzitshwa.conversations');
-        Route::get('api/mzitshwa/conversations/{conversation}', [\App\Http\Controllers\MzitshwaController::class, 'conversationMessages'])->name('mzitshwa.conversation.messages');
-        Route::delete('api/mzitshwa/conversations/{conversation}', [\App\Http\Controllers\MzitshwaController::class, 'deleteConversation'])->name('mzitshwa.conversation.delete');
-
         // Workload / capacity view
         Route::get('workload', [\App\Http\Controllers\WorkloadController::class, 'index'])->name('workload.index');
 
-        // In-app notifications
-        Route::get('api/notifications/recent', [\App\Http\Controllers\InAppNotificationController::class, 'recent'])->name('notifications.recent');
-        Route::post('api/notifications/{id}/read', [\App\Http\Controllers\InAppNotificationController::class, 'markAsRead'])->name('notifications.markAsRead');
-        Route::post('api/notifications/read-all', [\App\Http\Controllers\InAppNotificationController::class, 'markAllAsRead'])->name('notifications.markAllAsRead');
-        Route::delete('api/notifications/{id}', [\App\Http\Controllers\InAppNotificationController::class, 'destroy'])->name('notifications.destroy');
-        Route::delete('api/notifications', [\App\Http\Controllers\InAppNotificationController::class, 'destroyAll'])->name('notifications.destroyAll');
+        // In-app notifications (non-API routes)
         Route::get('notifications', [\App\Http\Controllers\InAppNotificationController::class, 'index'])->name('notifications.index');
 
-        // Task dependencies
-        Route::get('api/tasks/{task}/dependencies', [\App\Http\Controllers\TaskDependencyController::class, 'index'])->name('tasks.dependencies.index');
-        Route::post('api/tasks/{task}/dependencies', [\App\Http\Controllers\TaskDependencyController::class, 'store'])->name('tasks.dependencies.store');
-        Route::delete('api/tasks/{task}/dependencies/{dependsOnId}', [\App\Http\Controllers\TaskDependencyController::class, 'destroy'])->name('tasks.dependencies.destroy');
+        // Roles routes
+        Route::get('roles', [RoleController::class, 'index'])->middleware('permission:role_view_any')->name('roles.index');
+        Route::post('roles', [RoleController::class, 'store'])->middleware('permission:role_create')->name('roles.store');
+        Route::put('roles/{role}', [RoleController::class, 'update'])->middleware('permission:role_update')->name('roles.update');
+        Route::delete('roles/{role}', [RoleController::class, 'destroy'])->middleware('permission:role_delete')->name('roles.destroy');
 
-        // Media Library API routes
-        Route::get('api/media', [MediaController::class, 'index'])->middleware('permission:media_view_any')->name('api.media.index');
-        Route::post('api/media/batch', [MediaController::class, 'batchStore'])->middleware('permission:media_upload')->name('api.media.batch');
-        Route::get('api/media/{id}/download', [MediaController::class, 'download'])->middleware('permission:media_download')->name('api.media.download');
-        Route::delete('api/media/{id}', [MediaController::class, 'destroy'])->middleware('permission:media_delete')->name('api.media.destroy');
-        Route::post('api/media/{id}/lock', [MediaController::class, 'toggleLock'])->middleware('permission:media_upload')->name('api.media.toggleLock');
-        Route::get('api/media/{id}/accesses', [MediaController::class, 'accesses'])->middleware('permission:media_upload')->name('api.media.accesses');
-        Route::post('api/media/{id}/access', [MediaController::class, 'storeAccess'])->middleware('permission:media_upload')->name('api.media.storeAccess');
-        Route::delete('api/media/{id}/access', [MediaController::class, 'destroyAccess'])->middleware('permission:media_upload')->name('api.media.destroyAccess');
-        Route::put('api/media/{id}/move', [MediaController::class, 'moveTo'])->middleware('permission:media_upload')->name('api.media.moveTo');
-
-        // Media Folders API routes
-        Route::get('api/media/folders', [MediaFolderController::class, 'index'])->middleware('permission:media_view_any')->name('api.media.folders.index');
-        Route::post('api/media/folders', [MediaFolderController::class, 'store'])->middleware('permission:media_upload')->name('api.media.folders.store');
-        Route::put('api/media/folders/{id}', [MediaFolderController::class, 'update'])->middleware('permission:media_upload')->name('api.media.folders.update');
-        Route::delete('api/media/folders/{id}', [MediaFolderController::class, 'destroy'])->middleware('permission:media_upload')->name('api.media.folders.destroy');
-        Route::post('api/media/folders/{id}/lock', [MediaFolderController::class, 'toggleLock'])->middleware('permission:media_upload')->name('api.media.folders.toggleLock');
-        Route::get('api/media/folders/{id}/accesses', [MediaFolderController::class, 'accesses'])->middleware('permission:media_upload')->name('api.media.folders.accesses');
-        Route::post('api/media/folders/{id}/access', [MediaFolderController::class, 'storeAccess'])->middleware('permission:media_upload')->name('api.media.folders.storeAccess');
-        Route::delete('api/media/folders/{id}/access', [MediaFolderController::class, 'destroyAccess'])->middleware('permission:media_upload')->name('api.media.folders.destroyAccess');
-
-        // Bug API routes
-        Route::get('api/bugs/project-data', [\App\Http\Controllers\BugController::class, 'getProjectData'])->middleware('permission:bug_view_any')->name('api.bugs.project-data');
+        // Permissions routes with granular permissions
+        Route::get('permissions', [PermissionController::class, 'index'])->middleware('permission:permission_view_any')->name('permissions.index');
+        Route::post('permissions/assign', [PermissionController::class, 'assign'])->middleware('permission:permission_assign')->name('permissions.assign');
+        Route::post('permissions/manage', [PermissionController::class, 'manage'])->middleware('permission:permission_manage')->name('permissions.manage');
 
         // Roles routes
         Route::get('roles', [RoleController::class, 'index'])->middleware('permission:role_view_any')->name('roles.index');
@@ -1035,7 +1001,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
         Route::post('tasks/{task}/duplicate', [\App\Http\Controllers\TaskController::class, 'duplicate'])->middleware('permission:task_duplicate')->name('tasks.duplicate');
         Route::put('tasks/{task}/stage', [\App\Http\Controllers\TaskController::class, 'changeStage'])->middleware('permission:task_change_status')->name('tasks.change-stage');
-        Route::get('api/tasks/calendar', [\App\Http\Controllers\TaskController::class, 'getCalendarTasks'])->middleware('permission:task_view_any')->name('api.tasks.calendar');
 
         // Task stages
         Route::get('task-stages', [\App\Http\Controllers\TaskStageController::class, 'index'])->middleware('permission:task_manage_stages')->name('task-stages.index');
@@ -1196,7 +1161,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::delete('expenses/{expense}', [\App\Http\Controllers\ProjectExpenseController::class, 'destroy'])->middleware('permission:expense_delete')->name('expenses.destroy');
 
         Route::post('expenses/{expense}/duplicate', [\App\Http\Controllers\ProjectExpenseController::class, 'duplicate'])->middleware('permission:expense_create')->name('expenses.duplicate');
-        Route::get('api/projects/{project}/tasks', [\App\Http\Controllers\ProjectExpenseController::class, 'getProjectTasks'])->middleware('permission:expense_view_any')->name('api.projects.tasks');
 
         // Expense approvals
         Route::get('expense-approvals', [\App\Http\Controllers\ExpenseApprovalController::class, 'index'])->middleware('permission:expense_approval_view_any')->name('expense-approvals.index');
@@ -1218,19 +1182,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('expenses/bulk-process', [\App\Http\Controllers\ExpenseManagementController::class, 'bulkProcess'])->middleware('permission:expense_manage_workflows')->name('expenses.bulk-process');
         Route::get('expenses/export', [\App\Http\Controllers\ExpenseManagementController::class, 'export'])->middleware('permission:expense_generate_reports')->name('expenses.export');
 
-        // Expense dashboard analytics
-        Route::get('api/expense-dashboard/overview', [\App\Http\Controllers\ExpenseDashboardController::class, 'overview'])->middleware('permission:expense_generate_reports')->name('expense-dashboard.overview');
-        Route::get('api/expense-dashboard/budget-utilization', [\App\Http\Controllers\ExpenseDashboardController::class, 'budgetUtilization'])->middleware('permission:expense_generate_reports')->name('expense-dashboard.budget-utilization');
-        Route::get('api/expense-dashboard/trends', [\App\Http\Controllers\ExpenseDashboardController::class, 'trends'])->middleware('permission:expense_generate_reports')->name('expense-dashboard.trends');
-        Route::get('api/expense-dashboard/alerts', [\App\Http\Controllers\ExpenseDashboardController::class, 'alerts'])->middleware('permission:expense_generate_reports')->name('expense-dashboard.alerts');
-
         // Expense workflows
         Route::post('expense-workflows/{workflow}/process', [\App\Http\Controllers\ExpenseWorkflowController::class, 'processStep'])->middleware('permission:expense_manage_workflows')->name('expense-workflows.process');
         Route::post('expense-workflows/bulk-process', [\App\Http\Controllers\ExpenseWorkflowController::class, 'bulkProcess'])->middleware('permission:expense_manage_workflows')->name('expense-workflows.bulk-process');
         Route::get('my-approvals', function () {
             return \Inertia\Inertia::render('expenses/MyApprovals');
         })->middleware('permission:expense_approval_view_any')->name('expense-workflows.my-approvals');
-        Route::get('api/my-approvals', [\App\Http\Controllers\ExpenseWorkflowController::class, 'myApprovals'])->middleware('permission:expense_approval_view_any')->name('api.expense-workflows.my-approvals');
 
         // Receipt management
         Route::post('expenses/{expense}/receipts', [\App\Http\Controllers\ExpenseReceiptController::class, 'upload'])->middleware('permission:expense_add_attachments')->name('expense-receipts.upload');
@@ -1262,7 +1219,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('invoices/{invoice}/send', [InvoiceController::class, 'send'])->middleware('permission:invoice_send')->name('invoices.send');
         Route::post('invoices/{invoice}/payments/{payment}/approve', [InvoiceController::class, 'approvePayment'])->middleware('permission:invoice_manage_payments')->name('invoices.payments.approve');
         Route::post('invoices/{invoice}/payments/{payment}/reject', [InvoiceController::class, 'rejectPayment'])->middleware('permission:invoice_manage_payments')->name('invoices.payments.reject');
-        Route::get('api/projects/{project}/invoice-data', [InvoiceController::class, 'getProjectInvoiceData'])->middleware('permission:invoice_view_any')->name('api.projects.invoice-data');
 
         // Payment gateway specific routes
         Route::post('razorpay/create-order', [RazorpayController::class, 'createOrder'])->name('razorpay.create-order');
@@ -1280,9 +1236,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
         // Invoice payment routes moved to public section for SaaS/non-SaaS compatibility
 
-        // Payment settings API routes
-        Route::get('api/payment-settings/enabled', [\App\Http\Controllers\Settings\PaymentSettingController::class, 'getEnabledMethods'])->name('api.payment-settings.enabled');
-
         Route::middleware('auth')->group(function () {
             Route::get('impersonate/{userId}', [ImpersonateController::class, 'start'])->name('impersonate.start');
         });
@@ -1298,7 +1251,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
         Route::post('zoom-meetings/{zoomMeeting}/join', [\App\Http\Controllers\ZoomMeetingController::class, 'join'])->name('zoom-meetings.join');
         Route::post('zoom-meetings/{zoomMeeting}/start', [\App\Http\Controllers\ZoomMeetingController::class, 'start'])->name('zoom-meetings.start');
-        Route::get('api/zoom-meetings/calendar', [\App\Http\Controllers\ZoomMeetingController::class, 'calendar'])->name('api.zoom-meetings.calendar');
 
         // Zoom Settings routes
         Route::post('zoom/settings', [\App\Http\Controllers\Settings\ZoomSettingsController::class, 'update'])->middleware('permission:settings_manage')->name('zoom.settings.update');
@@ -1314,7 +1266,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::delete('google-meetings/{googleMeeting}', [GoogleMeetingController::class, 'destroy'])->middleware('permission:google_meeting_delete')->name('google-meetings.destroy');
 
         Route::post('google-meetings/{googleMeeting}/join', [GoogleMeetingController::class, 'join'])->name('google-meetings.join');
-        Route::get('api/google-meetings/calendar', [GoogleMeetingController::class, 'calendar'])->name('api.google-meetings.calendar');
 
         // Google Meet Settings routes
         Route::post('google-meet/settings', [\App\Http\Controllers\Settings\GoogleMeetSettingsController::class, 'update'])->middleware('permission:settings_manage')->name('google-meet.settings.update');
@@ -1335,7 +1286,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
         //Calendar routes
         Route::get('task-calendar', [\App\Http\Controllers\CalendarController::class, 'index'])->middleware('permission:task_calendar_view')->name('task-calendar.index');
         Route::post('task-calendar/events', [\App\Http\Controllers\CalendarController::class, 'storeEvent'])->name('task-calendar.events.store');
-        Route::get('api/task-calendar/task/{task}', [\App\Http\Controllers\CalendarController::class, 'getTask'])->middleware('permission:task_view')->name('api.task-calendar.task');
 
         // Contract Types routes
         Route::get('contract-types', [\App\Http\Controllers\ContractTypeController::class, 'index'])->middleware('permission:contract_type_view_any')->name('contract-types.index');
@@ -1375,13 +1325,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
         // Contract Signature routes
         Route::post('contracts/{contract}/signature', [\App\Http\Controllers\ContractController::class, 'signatureStore'])->middleware('permission:contract_signature')->name('contracts.signature.store');
-
-        // Project API routes
-        Route::get('api/projects/{project}/members', [\App\Http\Controllers\ZoomMeetingController::class, 'getProjectMembers'])->name('api.projects.members');
-
-        // Google Calendar API routes
-        Route::get('api/google-calendar/events', [\App\Http\Controllers\GoogleCalendarController::class, 'getEvents'])->name('api.google-calendar.events');
-        Route::post('api/google-calendar/sync', [\App\Http\Controllers\GoogleCalendarController::class, 'syncEvents'])->name('api.google-calendar.sync');
         Route::post('google-calendar/sync', [\App\Http\Controllers\GoogleCalendarController::class, 'syncEvents'])->name('google-calendar.sync');
 
         // Project Report routes
