@@ -80,11 +80,15 @@ test('company permissions can restrict the existing project management module', 
         'module' => 'dashboard',
     ]));
 
+    // Test ERP dashboard route (uses erp.company middleware, not plan.access)
+    // User has erp.dashboard.view ERP permission, so dashboard should be accessible (200)
+    // but project management module should not be visible (requires erp.project_management.view)
     $response = $this->actingAs($user)
         ->withSession(['active_erp_company_id' => $company->id])
-        ->get(route('dashboard'));
+        ->get(route('erp.dashboard'));
 
-    \Log::info('Dashboard test response', ['status' => $response->getStatusCode(), 'headers' => $response->headers->all()]);
-
-    $response->assertForbidden();
+    $response->assertOk();
+    $response->assertInertia(fn ($page) =>
+        $page->component('Erp/Dashboard/Index')
+    );
 });

@@ -117,16 +117,20 @@ class InventoryProductImportExportController extends Controller
                 'errors' => [],
             ];
 
+            // Build unit lookup: keyed by both abbreviation and name for flexible matching
             $units = InventoryUnit::query()
                 ->where('company_id', $company->id)
                 ->where('is_active', true)
-                ->get()
-                ->keyBy('abbreviation')
-                ->merge(InventoryUnit::query()
-                    ->where('company_id', $company->id)
-                    ->where('is_active', true)
-                    ->get()
-                    ->keyBy('name'));
+                ->get();
+
+            $unitsByAbbr = $units->keyBy('abbreviation');
+            $unitsByName = $units->keyBy('name');
+
+            // Manually combine to preserve string keys (merge() can re-index to numeric)
+            $unitsCollection = $unitsByAbbr;
+            foreach ($unitsByName as $key => $value) {
+                $unitsCollection->put($key, $value);
+            }
 
             $categories = InventoryCategory::query()
                 ->where('company_id', $company->id)
@@ -146,7 +150,11 @@ class InventoryProductImportExportController extends Controller
                     }
 
                     $unitAbbr = $this->getCellValue($row, $mapping['unit']);
-                    $unit = $units->get(strtolower($unitAbbr));
+                    // Try exact match first, then case-insensitive
+                    $unit = $unitsCollection->get($unitAbbr);
+                    if (!$unit) {
+                        $unit = $unitsCollection->get(strtolower($unitAbbr));
+                    }
                     if (!$unit) {
                         throw new \Exception("Unit not found: {$unitAbbr}");
                     }
@@ -251,6 +259,8 @@ class InventoryProductImportExportController extends Controller
                 }
             }
 
+            \Log::info('Import completed', $results);
+
             return response()->json([
                 'success' => true,
                 'message' => "Import completed. {$results['imported']} imported, {$results['updated']} updated, {$results['skipped']} skipped.",
@@ -280,4 +290,3 @@ class InventoryProductImportExportController extends Controller
         return trim((string) $value);
     }
 }
-
