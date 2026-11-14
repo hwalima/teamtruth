@@ -555,6 +555,64 @@ For each subsidiary, collect before go-live:
 ## 15. Things to Decide Early (open questions)
 
 1. **Frontend stack** in the current system (Blade/Livewire/Inertia)? The ERP UI should extend it, not fight it.
+
+---
+
+## 16. Recent Changes Log
+
+### 2025-01-XX: Universal Sidebar Navigation (Session work)
+
+**Goal**: Make sidebar navigation items universally available across all layout variants (sidebar + header layouts).
+
+**Changes Made**:
+
+1. **Created `resources/js/hooks/use-navigation.tsx`** - New shared hook that extracts all navigation generation logic from `AppSidebar`. Handles permission-based navigation for:
+   - SaaS Super Admin
+   - SaaS Company User
+   - Non-SaaS users
+   - ERP context
+   Returns `navItems` array and `isRTL` flag.
+
+2. **Refactored `AppSidebar` (`resources/js/components/app-sidebar.tsx`)** - Now uses `useNavigation` hook instead of duplicating ~400 lines of navigation logic. Cleaner, more maintainable.
+
+3. **Updated `AppHeader` (`resources/js/components/app-header.tsx`)** - Now uses `useNavigation` hook for mobile menu. Replaced hardcoded `mainNavItems` with full permission-based navigation.
+
+4. **Enhanced `AppShell` (`resources/js/components/app-shell.tsx`)** - Added sidebar drawer support for header layout variant:
+   - New props: `enableSidebarDrawer`, `sidebarDrawerOpen`, `setSidebarDrawerOpen`
+   - Renders full `AppSidebar` in a Sheet drawer when enabled
+
+5. **Updated `AppHeaderLayout` (`resources/js/layouts/app/app-header-layout.tsx`)** - Enables sidebar drawer and manages drawer state.
+
+**Result**:
+- **Sidebar layout**: Full sidebar navigation (unchanged)
+- **Header layout**: 
+  - Desktop: Simple top navigation (Dashboard)
+  - Mobile: Hamburger menu opens full sidebar drawer with all navigation items
+- **Both layouts**: Use the same permission-based navigation logic from the shared hook
+
+**Files Created**:
+- `resources/js/hooks/use-navigation.tsx`
+
+**Files Modified**:
+- `resources/js/components/app-sidebar.tsx`
+- `resources/js/components/app-header.tsx`
+- `resources/js/components/app-shell.tsx`
+- `resources/js/layouts/app/app-header-layout.tsx`
+
+**Verification**:
+- ✅ Build passes (`npm run build`)
+- ✅ TypeScript compiles without errors
+
+**Next Steps**:
+- Test manually in both sidebar and header layout modes
+- Verify mobile drawer opens/closes correctly
+- Verify permission-based navigation works in both layouts
+
+---
+
+## 15. Things to Decide Early (open questions)
+
+1. **Frontend stack** in the current system (Blade/Livewire/Inertia)? The ERP UI should extend it, not fight it.
 2. **Hosting**: current server specs, PHP/MySQL versions, Redis availability, can Node/Chrome run for PDF generation?
 3. **Biometric device brand/model** and network layout between sites and the server.
 4. **Currency policy**: which currencies are transacted, which is the reporting currency, how exchange rates are sourced.
