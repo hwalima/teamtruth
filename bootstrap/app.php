@@ -20,6 +20,8 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware) {
         $middleware->encryptCookies(except: ['appearance']);
 
+        $middleware->prepend(\App\Http\Middleware\TrustProxies::class);
+
         $middleware->web(append: [
             CheckInstallation::class,
             HandleAppearance::class,
