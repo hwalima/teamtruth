@@ -187,9 +187,9 @@ export default function AuthLayout({
 
     function hexToAdjustedRgba(hex, opacity = 1, adjust = 0) {
         hex = hex.replace("#", "");
-        let r = parseInt(hex.slice(0, 2), 16);
-        let g = parseInt(hex.slice(2, 4), 16);
-        let b = parseInt(hex.slice(4, 6), 16);
+        const r = parseInt(hex.slice(0, 2), 16);
+        const g = parseInt(hex.slice(2, 4), 16);
+        const b = parseInt(hex.slice(4, 6), 16);
         const clamp = (v) => Math.max(-1, Math.min(1, v));
         const getF = (ch) =>
             typeof adjust === "number" ? clamp(adjust) : clamp(adjust[ch] ?? 0);
