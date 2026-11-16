@@ -45,6 +45,9 @@ class CompanyController extends Controller
             'erpContext' => [
                 'activeCompany' => $activeCompany,
                 'companies' => $companies,
+                'permissions' => $activeCompany
+                    ? $roleService->permissionsFor($activeCompany, $request->user())
+                    : [],
             ],
             'canManageMembers' => $activeCompany !== null && $roleService->allows($activeCompany, $request->user(), 'erp.members.manage'),
             'canManageRoles' => $activeCompany !== null && $roleService->allows($activeCompany, $request->user(), 'erp.roles.manage'),
