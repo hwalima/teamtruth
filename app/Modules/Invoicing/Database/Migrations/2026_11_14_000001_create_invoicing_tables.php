@@ -8,6 +8,24 @@ return new class extends Migration
 {
     public function up(): void
     {
+        // Payment terms must exist before customers add their foreign key.
+        Schema::create('inv_payment_terms', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('company_id')->constrained()->cascadeOnDelete();
+            $table->string('code', 50);
+            $table->string('name');
+            $table->string('description')->nullable();
+            $table->integer('net_days')->default(30);
+            $table->integer('discount_days')->nullable();
+            $table->decimal('discount_percent', 5, 2)->nullable();
+            $table->boolean('is_default')->default(false);
+            $table->boolean('is_active')->default(true);
+            $table->timestamps();
+
+            $table->unique(['company_id', 'code']);
+            $table->index(['company_id', 'is_active']);
+        });
+
         // Customers (partners for invoicing)
         Schema::create('inv_customers', function (Blueprint $table) {
             $table->id();
@@ -28,24 +46,6 @@ return new class extends Migration
             $table->unsignedBigInteger('updated_by')->nullable();
             $table->timestamps();
             $table->softDeletes();
-
-            $table->unique(['company_id', 'code']);
-            $table->index(['company_id', 'is_active']);
-        });
-
-        // Payment Terms
-        Schema::create('inv_payment_terms', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('company_id')->constrained()->cascadeOnDelete();
-            $table->string('code', 50);
-            $table->string('name');
-            $table->string('description')->nullable();
-            $table->integer('net_days')->default(30);
-            $table->integer('discount_days')->nullable();
-            $table->decimal('discount_percent', 5, 2)->nullable();
-            $table->boolean('is_default')->default(false);
-            $table->boolean('is_active')->default(true);
-            $table->timestamps();
 
             $table->unique(['company_id', 'code']);
             $table->index(['company_id', 'is_active']);
@@ -247,7 +247,7 @@ return new class extends Migration
         Schema::dropIfExists('inv_credit_notes');
         Schema::dropIfExists('inv_invoice_lines');
         Schema::dropIfExists('inv_invoices');
-        Schema::dropIfExists('inv_payment_terms');
         Schema::dropIfExists('inv_customers');
+        Schema::dropIfExists('inv_payment_terms');
     }
 };
