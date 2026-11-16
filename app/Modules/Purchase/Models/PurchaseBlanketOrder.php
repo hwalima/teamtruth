@@ -5,6 +5,7 @@ namespace App\Modules\Purchase\Models;
 use App\Modules\Core\Models\Concerns\BelongsToCompany;
 use App\Modules\Core\Models\Concerns\HasApprovals;
 use App\Modules\Core\Enums\ApprovalStatus;
+use App\Modules\Purchase\Services\PurchaseService;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -65,13 +66,14 @@ class PurchaseBlanketOrder extends Model
         return $this->status === 'active'
             && $this->starts_on <= now()->toDateString()
             && $this->ends_on >= now()->toDateString()
-            && $this->amount_used < $this->max_amount;
+            && PurchaseService::compareDecimals((string) $this->amount_used, (string) $this->max_amount) < 0;
     }
 
     public function remainingAmount(): string
     {
-        $used = (float) $this->amount_used;
-        $max = (float) $this->max_amount;
-        return number_format(max(0, $max - $used), 4, '.', '');
+        if (PurchaseService::compareDecimals((string) $this->amount_used, (string) $this->max_amount) >= 0) {
+            return '0.0000';
+        }
+        return PurchaseService::subtractDecimals((string) $this->max_amount, (string) $this->amount_used);
     }
 }

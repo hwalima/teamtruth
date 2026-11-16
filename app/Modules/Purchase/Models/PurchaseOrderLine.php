@@ -14,6 +14,7 @@ class PurchaseOrderLine extends Model
     protected $fillable = [
         'company_id',
         'purchase_order_id',
+        'blanket_order_line_id',
         'product_id',
         'quantity',
         'received_quantity',

@@ -436,6 +436,11 @@ class PurchaseService
             ]);
             $orderLine->received_quantity = self::addDecimals((string) $orderLine->received_quantity, $quantity);
             $orderLine->save();
+            if ($orderLine->blanket_order_line_id) {
+                $blanketLine = PurchaseBlanketOrderLine::query()->lockForUpdate()->findOrFail($orderLine->blanket_order_line_id);
+                $blanketLine->quantity_delivered = self::addDecimals((string) $blanketLine->quantity_delivered, $quantity);
+                $blanketLine->save();
+            }
             $allReceived = $order->lines()->get()->every(
                 fn (PurchaseOrderLine $line): bool => self::compareDecimals((string) $line->received_quantity, (string) $line->quantity) >= 0
             );
@@ -456,6 +461,233 @@ class PurchaseService
 
             return $receipt;
         });
+    }
+
+    public function createBlanketOrder(User $actor, array $data, array $lines): PurchaseBlanketOrder
+    {
+        $company = app(CompanyContext::class)->requireActiveCompany();
+        return DB::transaction(function () use ($company, $actor, $data, $lines): PurchaseBlanketOrder {
+            $vendor = PurchaseVendor::query()->lockForUpdate()->findOrFail($data['vendor_id']);
+            abort_unless((int) $vendor->company_id === (int) $company->id, 404);
+            if ($data['ends_on'] < $data['starts_on']) {
+                throw ValidationException::withMessages(['ends_on' => __('End date must be on or after start date.')]);
+            }
+            $order = PurchaseBlanketOrder::query()->create([
+                'company_id' => $company->id,
+                'document_number' => app(SequenceService::class)->next($company, 'purchase_blanket_order'),
+                'vendor_id' => $vendor->id,
+                'currency_code' => strtoupper($data['currency_code']),
+                'max_amount' => $data['max_amount'],
+                'amount_used' => '0.0000',
+                'starts_on' => $data['starts_on'],
+                'ends_on' => $data['ends_on'],
+                'status' => 'active',
+                'created_by' => $actor->id,
+            ]);
+            foreach (array_values($lines) as $index => $line) {
+                PurchaseBlanketOrderLine::query()->create([
+                    'company_id' => $company->id, 'purchase_blanket_order_id' => $order->id,
+                    'product_id' => $line['product_id'], 'quantity' => $line['quantity'],
+                    'unit_price' => $line['unit_price'], 'quantity_delivered' => '0.0000', 'sort_order' => $index + 1,
+                ]);
+            }
+            app(AuditLogService::class)->record($company, 'purchase.blanket_order.created', $order,
+                changes: ['after' => ['document_number' => $order->document_number, 'vendor_id' => $vendor->id]], actor: $actor);
+            return $order->load('lines.product.unit', 'vendor');
+        });
+    }
+
+    public function createOrderFromBlanket(PurchaseBlanketOrder $blanket, User $actor, array $requestedLines): PurchaseOrder
+    {
+        $company = app(CompanyContext::class)->requireActiveCompany();
+        return DB::transaction(function () use ($company, $blanket, $actor, $requestedLines): PurchaseOrder {
+            $blanket = PurchaseBlanketOrder::query()->lockForUpdate()->with('lines')->findOrFail($blanket->id);
+            abort_unless((int) $blanket->company_id === (int) $company->id, 404);
+            if (! $blanket->isActive()) {
+                throw ValidationException::withMessages(['blanket_order' => __('This blanket order is not active or has expired.')]);
+            }
+            $lineInputs = collect($requestedLines)->keyBy(fn (array $line) => (int) $line['blanket_order_line_id']);
+            if ($lineInputs->count() !== $blanket->lines->count()) {
+                throw ValidationException::withMessages(['lines' => __('Include each blanket order line exactly once.')]);
+            }
+            if (! ApprovalWorkflow::query()->where('approvable_type', PurchaseOrder::class)->where('is_active', true)->exists()) {
+                throw ValidationException::withMessages(['approval' => __('Configure an active purchase order approval workflow before creating an order.')]);
+            }
+            $total = '0.0000';
+            $orderLines = [];
+            foreach ($blanket->lines as $line) {
+                $input = $lineInputs->get($line->id);
+                if (! $input || self::compareDecimals((string) $input['quantity'], $line->remainingQuantity()) > 0) {
+                    throw ValidationException::withMessages(['lines' => __('Requested quantities must be positive and within each blanket order balance.')]);
+                }
+                $lineTotal = self::multiplyDecimals((string) $input['quantity'], (string) $line->unit_price);
+                $total = self::addDecimals($total, $lineTotal);
+                $orderLines[] = [$line, (string) $input['quantity'], $lineTotal];
+            }
+            if (self::compareDecimals(self::addDecimals((string) $blanket->amount_used, $total), (string) $blanket->max_amount) > 0) {
+                throw ValidationException::withMessages(['lines' => __('This order would exceed the blanket order maximum amount.')]);
+            }
+            $order = PurchaseOrder::query()->create([
+                'company_id' => $company->id, 'document_number' => app(SequenceService::class)->next($company, 'purchase_order'),
+                'vendor_id' => $blanket->vendor_id, 'blanket_order_id' => $blanket->id, 'status' => 'pending_approval',
+                'currency_code' => $blanket->currency_code, 'total' => $total, 'created_by' => $actor->id, 'submitted_at' => now(),
+            ]);
+            foreach ($orderLines as [$blanketLine, $quantity, $lineTotal]) {
+                PurchaseOrderLine::query()->create([
+                    'company_id' => $company->id, 'purchase_order_id' => $order->id, 'blanket_order_line_id' => $blanketLine->id, 'product_id' => $blanketLine->product_id,
+                    'quantity' => $quantity, 'received_quantity' => '0.0000', 'unit_price' => $blanketLine->unit_price, 'line_total' => $lineTotal,
+                ]);
+            }
+            app(ApprovalWorkflowService::class)->submit($order, $actor, $total, $order->currency_code,
+                ['document_type' => 'purchase_order', 'vendor_id' => $order->vendor_id, 'blanket_order_id' => $blanket->id]);
+            $blanket->amount_used = self::addDecimals((string) $blanket->amount_used, $total);
+            $blanket->save();
+            app(AuditLogService::class)->record($company, 'purchase.blanket_order.order_created', $order,
+                changes: ['after' => ['blanket_order_id' => $blanket->id, 'total' => $total]], actor: $actor);
+            return $order->load('lines');
+        });
+    }
+
+    public function createLandedCost(User $actor, array $data, array $lines): PurchaseLandedCost
+    {
+        $company = app(CompanyContext::class)->requireActiveCompany();
+        return DB::transaction(function () use ($company, $actor, $data, $lines): PurchaseLandedCost {
+            $receipt = PurchaseReceipt::query()->lockForUpdate()->with('lines.purchaseOrderLine')->findOrFail($data['purchase_receipt_id']);
+            abort_unless((int) $receipt->company_id === (int) $company->id, 404);
+            $total = '0.0000';
+            foreach ($lines as $line) $total = self::addDecimals($total, (string) $line['amount']);
+            if (self::compareDecimals($total, '0.0000') <= 0) throw ValidationException::withMessages(['lines' => __('Enter a positive landed cost amount.')]);
+            $cost = PurchaseLandedCost::query()->create([
+                'company_id' => $company->id, 'document_number' => app(SequenceService::class)->next($company, 'purchase_landed_cost'),
+                'purchase_receipt_id' => $receipt->id, 'vendor_id' => $data['vendor_id'] ?: null,
+                'currency_code' => strtoupper($data['currency_code']), 'total_amount' => $total, 'status' => 'draft', 'created_by' => $actor->id,
+            ]);
+            foreach ($lines as $line) {
+                $costLine = $cost->lines()->create([
+                    'company_id' => $company->id, 'product_id' => $line['product_id'] ?: $receipt->lines->first()?->purchaseOrderLine?->product_id,
+                    'account_id' => $line['account_id'], 'name' => $line['name'], 'amount' => $line['amount'], 'split_method' => $line['split_method'],
+                ]);
+                $eligible = $receipt->lines->filter(fn ($receiptLine) => ! $line['product_id'] || (int) $receiptLine->purchaseOrderLine->product_id === (int) $line['product_id']);
+                if ($eligible->isEmpty()) throw ValidationException::withMessages(['lines' => __('Each landed cost product must be present on the selected receipt.')]);
+                $weights = $eligible->map(fn ($r) => match ($line['split_method']) {
+                    'equally' => '1.0000',
+                    'by_value' => self::multiplyDecimals((string) $r->quantity, (string) $r->purchaseOrderLine->unit_price),
+                    default => (string) $r->quantity,
+                });
+                $weightTotal = $weights->reduce(fn ($carry, $value) => self::addDecimals($carry, $value), '0.0000');
+                $remaining = (string) $line['amount'];
+                foreach ($eligible->values() as $index => $receiptLine) {
+                    $allocation = $index === $eligible->count() - 1 ? $remaining : self::multiplyDecimals((string) $line['amount'], self::divideDecimal((string) $weights->values()[$index], $weightTotal));
+                    $remaining = self::subtractDecimals($remaining, $allocation);
+                    DB::table('purchase_landed_cost_allocations')->insert([
+                        'company_id' => $company->id, 'purchase_landed_cost_line_id' => $costLine->id,
+                        'purchase_receipt_line_id' => $receiptLine->id, 'amount' => $allocation, 'created_at' => now(), 'updated_at' => now(),
+                    ]);
+                }
+            }
+            app(AuditLogService::class)->record($company, 'purchase.landed_cost.created', $cost,
+                changes: ['after' => ['document_number' => $cost->document_number, 'receipt_id' => $receipt->id, 'total_amount' => $total]], actor: $actor);
+            return $cost->load('lines', 'vendor', 'purchaseReceipt');
+        });
+    }
+
+    public function createPurchaseReturn(User $actor, array $data, array $lines): PurchaseReturn
+    {
+        $company = app(CompanyContext::class)->requireActiveCompany();
+        return DB::transaction(function () use ($company, $actor, $data, $lines): PurchaseReturn {
+            $receipt = PurchaseReceipt::query()->lockForUpdate()->with('purchaseOrder', 'lines.purchaseOrderLine', 'lines.stockMove.lines')->findOrFail($data['purchase_receipt_id']);
+            abort_unless((int) $receipt->company_id === (int) $company->id, 404);
+            $source = StockLocation::query()->findOrFail($data['source_location_id']);
+            $destination = StockLocation::query()->findOrFail($data['destination_location_id']);
+            if ((int) $source->company_id !== (int) $company->id || $source->usage !== 'internal' || (int) $destination->company_id !== (int) $company->id || $destination->usage !== 'supplier') {
+                throw ValidationException::withMessages(['source_location_id' => __('Choose an internal source and supplier destination in this company.')]);
+            }
+            $return = PurchaseReturn::query()->create([
+                'company_id' => $company->id, 'document_number' => app(SequenceService::class)->next($company, 'purchase_return'),
+                'vendor_id' => $receipt->purchaseOrder->vendor_id, 'purchase_receipt_id' => $receipt->id,
+                'source_location_id' => $source->id, 'destination_location_id' => $destination->id,
+                'status' => 'posted', 'return_date' => $data['return_date'], 'reason' => $data['reason'],
+                'created_by' => $actor->id, 'posted_by' => $actor->id, 'posted_at' => now(),
+            ]);
+            foreach ($lines as $index => $input) {
+                $receiptLine = $receipt->lines->firstWhere('id', (int) $input['purchase_receipt_line_id']);
+                if (! $receiptLine || self::compareDecimals((string) $input['quantity'], '0') <= 0) throw ValidationException::withMessages(["lines.{$index}.quantity" => __('Select a received line and enter a positive quantity.')]);
+                $available = self::subtractDecimals((string) $receiptLine->quantity, (string) $receiptLine->returned_quantity);
+                if (self::compareDecimals((string) $input['quantity'], $available) > 0) throw ValidationException::withMessages(["lines.{$index}.quantity" => __('Return quantity exceeds the unreturned received quantity (:available).', ['available' => $available])]);
+                $move = app(InventoryStockService::class)->postMovement($company, $actor, [
+                    'operation' => 'return', 'product_id' => $receiptLine->purchaseOrderLine->product_id,
+                    'from_location_id' => $source->id, 'to_location_id' => $destination->id, 'quantity' => (string) $input['quantity'],
+                    'lot_code' => $receiptLine->stockMove?->lines?->first()?->lot_code, 'reference' => $return->document_number,
+                ]);
+                $return->lines()->create([
+                    'company_id' => $company->id, 'purchase_receipt_line_id' => $receiptLine->id,
+                    'stock_move_id' => $move->id, 'quantity' => $input['quantity'], 'reason' => $input['reason'] ?? $data['reason'],
+                    'lot_code' => $receiptLine->stockMove?->lines?->first()?->lot_code,
+                ]);
+                $receiptLine->returned_quantity = self::addDecimals((string) $receiptLine->returned_quantity, (string) $input['quantity']);
+                $receiptLine->save();
+            }
+            app(AuditLogService::class)->record($company, 'purchase.return.posted', $return,
+                changes: ['after' => ['document_number' => $return->document_number, 'receipt_id' => $receipt->id, 'line_count' => count($lines)]], actor: $actor);
+            return $return->load('lines.purchaseReceiptLine', 'purchaseReceipt');
+        });
+    }
+
+    public function refreshVendorEvaluation(int $vendorId, int $year, int $month, User $actor): PurchaseVendorEvaluation
+    {
+        $company = app(CompanyContext::class)->requireActiveCompany();
+        $vendor = PurchaseVendor::query()->findOrFail($vendorId);
+        abort_unless((int) $vendor->company_id === (int) $company->id, 404);
+        $orders = PurchaseOrder::query()->with('receipts.lines')->where('company_id', $company->id)->where('vendor_id', $vendorId)
+            ->whereYear('created_at', $year)->whereMonth('created_at', $month)->get();
+        $totalOrders = $orders->count();
+        $receivedOrders = $orders->filter(fn ($order) => $order->receipts->isNotEmpty());
+        $onTime = $receivedOrders->filter(fn ($order) => ! $order->expected_delivery_date || $order->receipts->max('received_at') <= $order->expected_delivery_date->endOfDay())->count();
+        $receiptLines = $receivedOrders->flatMap(fn ($order) => $order->receipts->flatMap->lines);
+        $totalQty = $receiptLines->reduce(fn ($carry, $line) => self::addDecimals($carry, (string) $line->quantity), '0.0000');
+        $returnedQty = $receiptLines->reduce(fn ($carry, $line) => self::addDecimals($carry, (string) $line->returned_quantity), '0.0000');
+        $priceVariance = DB::table('purchase_bill_lines as bill_lines')
+            ->join('purchase_bills as bills', 'bills.id', '=', 'bill_lines.purchase_bill_id')
+            ->join('purchase_order_lines as order_lines', 'order_lines.id', '=', 'bill_lines.purchase_order_line_id')
+            ->where('bills.company_id', $company->id)
+            ->where('bills.vendor_id', $vendorId)
+            ->whereYear('bills.bill_date', $year)->whereMonth('bills.bill_date', $month)
+            ->whereNotNull('bill_lines.purchase_order_line_id')->where('order_lines.unit_price', '>', 0)
+            ->avg(DB::raw('ABS(bill_lines.unit_price - order_lines.unit_price) * 100.0 / order_lines.unit_price')) ?? 0;
+        $evaluation = PurchaseVendorEvaluation::query()->updateOrCreate(
+            ['company_id' => $company->id, 'vendor_id' => $vendorId, 'period_year' => $year, 'period_month' => $month],
+            ['total_orders' => $totalOrders, 'on_time_orders' => $onTime, 'total_receipts' => $receiptLines->count(),
+                'rejected_receipts' => $receiptLines->filter(fn ($line) => self::compareDecimals((string) $line->returned_quantity, '0') > 0)->count(),
+                'on_time_delivery_rate' => $receivedOrders->isEmpty() ? '0.00' : number_format($onTime * 100 / $receivedOrders->count(), 2, '.', ''),
+                'rejection_rate' => self::compareDecimals($totalQty, '0') === 0 ? '0.00' : number_format((float) $returnedQty * 100 / (float) $totalQty, 2, '.', ''),
+                'price_variance' => number_format((float) $priceVariance, 2, '.', '')],
+        );
+        app(AuditLogService::class)->record($company, 'purchase.vendor.evaluation_refreshed', $evaluation,
+            changes: ['after' => ['vendor_id' => $vendorId, 'year' => $year, 'month' => $month]], actor: $actor);
+        return $evaluation->load('vendor');
+    }
+
+    public function saveVendorPriceList(User $actor, array $data): PurchaseVendorPriceList
+    {
+        $company = app(CompanyContext::class)->requireActiveCompany();
+        $vendor = PurchaseVendor::query()->findOrFail($data['vendor_id']);
+        $product = InventoryProduct::query()->findOrFail($data['product_id']);
+        abort_unless((int) $vendor->company_id === (int) $company->id && (int) $product->company_id === (int) $company->id, 404);
+        if (! empty($data['valid_to']) && $data['valid_to'] < $data['valid_from']) throw ValidationException::withMessages(['valid_to' => __('End date must be on or after start date.')]);
+        $price = PurchaseVendorPriceList::query()->updateOrCreate(
+            ['company_id' => $company->id, 'vendor_id' => $vendor->id, 'product_id' => $product->id, 'min_quantity' => $data['min_quantity'], 'currency_code' => strtoupper($data['currency_code']), 'valid_from' => $data['valid_from']],
+            ['price' => $data['price'], 'valid_to' => $data['valid_to'] ?: null],
+        );
+        app(AuditLogService::class)->record($company, 'purchase.vendor.price_list_saved', $price,
+            changes: ['after' => $price->only(['vendor_id', 'product_id', 'min_quantity', 'price', 'currency_code', 'valid_from', 'valid_to'])], actor: $actor);
+        return $price->load('vendor', 'product.unit');
+    }
+
+    private static function divideDecimal(string $numerator, string $denominator): string
+    {
+        if (self::compareDecimals($denominator, '0') <= 0) return '0.0000';
+        $n = (float) $numerator; $d = (float) $denominator;
+        return number_format($n / $d, 4, '.', '');
     }
 
     private static function multiplyDecimals(string $left, string $right): string
@@ -502,7 +734,7 @@ class PurchaseService
         return self::fromScaledDigits($result);
     }
 
-    private static function subtractDecimals(string $left, string $right): string
+    public static function subtractDecimals(string $left, string $right): string
     {
         $leftDigits = self::toScaledDigits($left);
         $rightDigits = self::toScaledDigits($right);
@@ -525,7 +757,7 @@ class PurchaseService
         return self::fromScaledDigits($result);
     }
 
-    private static function compareDecimals(string $left, string $right): int
+    public static function compareDecimals(string $left, string $right): int
     {
         $leftDigits = self::toScaledDigits($left);
         $rightDigits = self::toScaledDigits($right);
@@ -768,6 +1000,11 @@ class PurchaseService
         $orderLines = $order->lines->keyBy('id');
         $receiptLines = $receipt->lines->keyBy('purchase_order_line_id');
 
+        $billedByPoLine = [];
+        foreach ($billLines as $billLine) {
+            $key = (int) $billLine['purchase_order_line_id'];
+            $billedByPoLine[$key] = self::addDecimals($billedByPoLine[$key] ?? '0.0000', (string) $billLine['quantity']);
+        }
         foreach ($billLines as $index => $billLine) {
             $poLineId = $billLine['purchase_order_line_id'];
             $quantity = (string) $billLine['quantity'];
@@ -789,11 +1026,11 @@ class PurchaseService
             }
 
             // Check quantity: billed ≤ received
-            $receivedQty = (string) $receiptLine->quantity;
-            if (self::compareDecimals($quantity, $receivedQty) > 0) {
+            $receivedQty = self::subtractDecimals((string) $receiptLine->quantity, (string) $receiptLine->returned_quantity);
+            if (self::compareDecimals((string) $billedByPoLine[(int) $poLineId], $receivedQty) > 0) {
                 throw ValidationException::withMessages([
-                    "lines.{$index}.quantity" => __('Billed quantity (:quantity) exceeds received quantity (:received).', [
-                        'quantity' => $quantity,
+                    "lines.{$index}.quantity" => __('Total billed quantity (:quantity) exceeds the unreturned received quantity (:received).', [
+                        'quantity' => $billedByPoLine[(int) $poLineId],
                         'received' => $receivedQty,
                     ]),
                 ]);

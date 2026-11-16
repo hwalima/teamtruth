@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\Relations\MorphTo;
 use LogicException;
 
 class JournalEntry extends Model
@@ -27,6 +28,8 @@ class JournalEntry extends Model
         'journal_id',
         'fiscal_period_id',
         'reversal_of_id',
+        'source_type',
+        'source_id',
         'document_number',
         'entry_date',
         'currency_code',
@@ -69,6 +72,15 @@ class JournalEntry extends Model
     public function reversal(): HasOne
     {
         return $this->hasOne(self::class, 'reversal_of_id');
+    }
+
+    /**
+     * The business document that triggered this entry (invoice, payment, credit note, ...).
+     * Nullable: manual journal entries have no source document.
+     */
+    public function source(): MorphTo
+    {
+        return $this->morphTo();
     }
 
     public function creator(): BelongsTo

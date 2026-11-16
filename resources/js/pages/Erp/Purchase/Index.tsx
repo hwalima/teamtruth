@@ -95,6 +95,7 @@ type Bill = {
     amount_residual: string;
     bill_date: string;
     due_date: string | null;
+    posted_at: string | null;
     vendor: { id: number; code: string; name: string };
     purchaseOrder: { id: number; document_number: string } | null;
     lines: BillLine[];
@@ -108,6 +109,58 @@ type Payment = {
     payment_date: string;
     vendor: { id: number; code: string; name: string };
     allocations: Array<{ amount: string; purchaseBill: { id: number; document_number: string } }>;
+};
+type BlanketOrderLine = { id: number; product_id: number; quantity: string; unit_price: string; product: { sku: string; name: string; unit: { abbreviation: string } } };
+type BlanketOrder = {
+    id: number;
+    document_number: string;
+    status: string;
+    currency_code: string;
+    max_amount: string;
+    amount_used: string;
+    starts_on: string;
+    ends_on: string;
+    vendor: { id: number; code: string; name: string };
+    lines: BlanketOrderLine[];
+};
+type LandedCost = {
+    id: number;
+    document_number: string;
+    status: string;
+    currency_code: string;
+    total_amount: string;
+    vendor: { code: string; name: string };
+    purchaseReceipt: { document_number: string };
+    lines: Array<{ id: number; name: string; amount: string; split_method: string }>;
+};
+type PurchaseReturn = {
+    id: number;
+    document_number: string;
+    status: string;
+    return_date: string;
+    reason: string;
+    purchaseReceipt: { document_number: string };
+    lines: Array<{ id: number; quantity: string; purchaseReceiptLine: ReceiptLine }>;
+};
+type VendorEvaluation = {
+    id: number;
+    period_year: number;
+    period_month: number;
+    on_time_delivery_rate: string;
+    price_variance: string;
+    rejection_rate: string;
+    total_orders: number;
+    vendor: { id: number; code: string; name: string };
+};
+type VendorPriceList = {
+    id: number;
+    min_quantity: string;
+    price: string;
+    currency_code: string;
+    valid_from: string;
+    valid_to: string | null;
+    vendor: { code: string; name: string };
+    product: { sku: string; name: string; unit: { abbreviation: string } };
 };
 type Props = {
     company: { id: number; code: string; name: string; default_currency: string };
@@ -123,6 +176,13 @@ type Props = {
     orders: Order[];
     bills: Bill[];
     payments: Payment[];
+    blanketOrders: BlanketOrder[];
+    landedCosts: LandedCost[];
+    returns: PurchaseReturn[];
+    vendorEvaluations: VendorEvaluation[];
+    vendorPriceLists: VendorPriceList[];
+    receipts: Receipt[];
+    locations: Location[];
 };
 type RfqInputLine = { product_id: string; quantity: string };
 const blankRfqLine = (productId = ''): RfqInputLine => ({ product_id: productId, quantity: '1' });
@@ -440,6 +500,14 @@ export default function PurchaseIndex(props: Props) {
                 {props.orders.length === 0 && <Empty>No purchase orders have been created.</Empty>}
             </section>
 
+            <section className="grid gap-6 lg:grid-cols-2">
+                <BlanketOrdersPanel blanketOrders={props.blanketOrders} vendors={props.vendors} products={props.products} currencies={props.currencies} />
+                <LandedCostsPanel landedCosts={props.landedCosts} receipts={props.receipts} vendors={props.vendors} products={props.products} currencies={props.currencies} />
+                <PurchaseReturnsPanel returns={props.returns} receipts={props.receipts} locations={props.locations} />
+                <VendorEvaluationsPanel evaluations={props.vendorEvaluations} vendors={props.vendors} />
+                <VendorPriceListsPanel priceLists={props.vendorPriceLists} vendors={props.vendors} products={props.products} currencies={props.currencies} />
+            </section>
+
             <section className="space-y-4">
                 <div className="flex flex-wrap justify-between gap-2 items-center">
                     <h2 className="text-xl font-semibold">Vendor bills</h2>
@@ -559,6 +627,163 @@ export default function PurchaseIndex(props: Props) {
             </div>
         </main>
     );
+}
+
+function BlanketOrdersPanel({
+    blanketOrders,
+    vendors,
+    products,
+    currencies,
+}: {
+    blanketOrders: BlanketOrder[];
+    vendors: Vendor[];
+    products: Product[];
+    currencies: Array<{ code: string; name: string }>;
+}) {
+    const form = useForm({
+        vendor_id: vendors[0]?.id.toString() ?? '',
+        currency_code: currencies[0]?.code ?? '',
+        max_amount: '',
+        starts_on: new Date().toISOString().slice(0, 10),
+        ends_on: '',
+        lines: [{ product_id: products[0]?.id.toString() ?? '', quantity: '1', unit_price: '0' }],
+    });
+    const errors = form.errors as Record<string, string>;
+    return (
+        <Panel title="Blanket orders">
+            {vendors.length === 0 || products.length === 0 ? <Empty>Add vendors and products before creating a blanket order.</Empty> : (
+                <form onSubmit={(event) => { event.preventDefault(); form.post(route('erp.purchase.blanket-orders.store')); }} className="space-y-3">
+                    <div className="grid gap-3 sm:grid-cols-2">
+                        <SelectField label="Vendor" value={form.data.vendor_id} options={vendors.map((v) => ({ value: v.id.toString(), label: `${v.code} — ${v.name}` }))} onChange={(value) => form.setData('vendor_id', value)} error={errors.vendor_id} />
+                        <SelectField label="Currency" value={form.data.currency_code} options={currencies.map((c) => ({ value: c.code, label: `${c.code} — ${c.name}` }))} onChange={(value) => form.setData('currency_code', value)} error={errors.currency_code} />
+                        <TextField label="Maximum amount" type="number" value={form.data.max_amount} onChange={(value) => form.setData('max_amount', value)} error={errors.max_amount} required />
+                        <TextField label="Starts on" type="date" value={form.data.starts_on} onChange={(value) => form.setData('starts_on', value)} error={errors.starts_on} required />
+                        <TextField label="Ends on" type="date" value={form.data.ends_on} onChange={(value) => form.setData('ends_on', value)} error={errors.ends_on} required />
+                    </div>
+                    <h3 className="text-sm font-medium">Contract lines</h3>
+                    {form.data.lines.map((line, index) => (
+                        <div key={index} className="grid gap-2 sm:grid-cols-[1fr_110px_130px_auto]">
+                            <SelectField label="Product" value={line.product_id} options={products.map((p) => ({ value: p.id.toString(), label: `${p.sku} — ${p.name}` }))} onChange={(value) => updateLine(form.data.lines, index, 'product_id', value, (lines) => form.setData('lines', lines))} error={errors[`lines.${index}.product_id`]} />
+                            <TextField label="Quantity" type="number" value={line.quantity} onChange={(value) => updateLine(form.data.lines, index, 'quantity', value, (lines) => form.setData('lines', lines))} error={errors[`lines.${index}.quantity`]} required />
+                            <TextField label="Unit price" type="number" value={line.unit_price} onChange={(value) => updateLine(form.data.lines, index, 'unit_price', value, (lines) => form.setData('lines', lines))} error={errors[`lines.${index}.unit_price`]} required />
+                            <button type="button" disabled={form.data.lines.length <= 1} onClick={() => form.setData('lines', form.data.lines.filter((_, i) => i !== index))} className="text-destructive pb-2 text-sm underline disabled:opacity-40">Remove</button>
+                        </div>
+                    ))}
+                    {errors.lines && <ErrorText>{errors.lines}</ErrorText>}
+                    <div className="flex flex-wrap gap-3">
+                        <button type="button" disabled={form.data.lines.length >= 50} onClick={() => form.setData('lines', [...form.data.lines, { product_id: products[0]?.id.toString() ?? '', quantity: '1', unit_price: '0' }])} className="text-primary text-sm underline disabled:opacity-50">Add line</button>
+                        <SubmitButton processing={form.processing}>Create blanket order</SubmitButton>
+                    </div>
+                </form>
+            )}
+            <div className="space-y-3 border-t pt-3">
+                {blanketOrders.map((order) => <BlanketOrderCard key={order.id} blanketOrder={order} />)}
+                {blanketOrders.length === 0 && <Empty>No blanket orders yet.</Empty>}
+            </div>
+        </Panel>
+    );
+}
+
+function BlanketOrderCard({ blanketOrder }: { blanketOrder: BlanketOrder }) {
+    const form = useForm({ lines: blanketOrder.lines.map((line) => ({ blanket_order_line_id: line.id.toString(), quantity: '1' })) });
+    const errors = form.errors as Record<string, string>;
+    return (
+        <article className="rounded border p-3 text-sm">
+            <h3 className="font-medium">{blanketOrder.document_number} — {blanketOrder.vendor.name}</h3>
+            <p className="text-muted-foreground mt-1">{blanketOrder.status} · {blanketOrder.currency_code} {blanketOrder.amount_used} / {blanketOrder.max_amount} · {blanketOrder.starts_on} to {blanketOrder.ends_on}</p>
+            <ul className="my-2 space-y-1">{blanketOrder.lines.map((line) => <li key={line.id}>{line.product.sku} — {line.product.name}: {line.quantity} {line.product.unit.abbreviation} at {blanketOrder.currency_code} {line.unit_price}</li>)}</ul>
+            {blanketOrder.status === 'active' && <form onSubmit={(event) => { event.preventDefault(); form.post(route('erp.purchase.blanket-orders.orders.store', blanketOrder.id)); }} className="space-y-2 border-t pt-2">
+                <p className="font-medium">Create purchase order from this blanket order</p>
+                {form.data.lines.map((line, index) => <div key={line.blanket_order_line_id} className="grid items-end gap-2 sm:grid-cols-[1fr_140px]">
+                    <span>{blanketOrder.lines[index]?.product.name}</span>
+                    <TextField label="Order quantity" type="number" value={line.quantity} onChange={(value) => updateLine(form.data.lines, index, 'quantity', value, (lines) => form.setData('lines', lines))} error={errors[`lines.${index}.quantity`]} required />
+                </div>)}
+                <SubmitButton processing={form.processing}>Create order</SubmitButton>
+            </form>}
+        </article>
+    );
+}
+
+function LandedCostsPanel({ landedCosts, receipts, vendors, products, currencies }: { landedCosts: LandedCost[]; receipts: Receipt[]; vendors: Vendor[]; products: Product[]; currencies: Array<{ code: string; name: string }> }) {
+    const form = useForm({ purchase_receipt_id: receipts[0]?.id.toString() ?? '', vendor_id: vendors[0]?.id.toString() ?? '', currency_code: currencies[0]?.code ?? '', lines: [{ product_id: products[0]?.id.toString() ?? '', account_id: '', name: '', amount: '', split_method: 'by_quantity' }] });
+    const errors = form.errors as Record<string, string>;
+    return <Panel title="Landed costs">
+        {receipts.length === 0 ? <Empty>Receive a purchase order before allocating landed costs.</Empty> : <form onSubmit={(event) => { event.preventDefault(); form.post(route('erp.purchase.landed-costs.store')); }} className="space-y-3">
+            <div className="grid gap-3 sm:grid-cols-2">
+                <SelectField label="Receipt" value={form.data.purchase_receipt_id} options={receipts.map((r) => ({ value: r.id.toString(), label: `${r.document_number} · ${new Date(r.received_at).toLocaleDateString()}` }))} onChange={(value) => form.setData('purchase_receipt_id', value)} error={errors.purchase_receipt_id} />
+                <SelectField label="Vendor" value={form.data.vendor_id} options={vendors.map((v) => ({ value: v.id.toString(), label: `${v.code} — ${v.name}` }))} onChange={(value) => form.setData('vendor_id', value)} error={errors.vendor_id} />
+                <SelectField label="Currency" value={form.data.currency_code} options={currencies.map((c) => ({ value: c.code, label: `${c.code} — ${c.name}` }))} onChange={(value) => form.setData('currency_code', value)} error={errors.currency_code} />
+            </div>
+            <h3 className="text-sm font-medium">Cost allocations</h3>
+            {form.data.lines.map((line, index) => <div key={index} className="grid gap-2 rounded border p-3 sm:grid-cols-2">
+                <SelectField label="Product (optional)" value={line.product_id} options={[{ value: '', label: 'No product' }, ...products.map((p) => ({ value: p.id.toString(), label: `${p.sku} — ${p.name}` }))]} onChange={(value) => updateLine(form.data.lines, index, 'product_id', value, (lines) => form.setData('lines', lines))} error={errors[`lines.${index}.product_id`]} />
+                <TextField label="Accounting account ID" type="number" value={line.account_id} onChange={(value) => updateLine(form.data.lines, index, 'account_id', value, (lines) => form.setData('lines', lines))} error={errors[`lines.${index}.account_id`]} required />
+                <TextField label="Cost name" value={line.name} onChange={(value) => updateLine(form.data.lines, index, 'name', value, (lines) => form.setData('lines', lines))} error={errors[`lines.${index}.name`]} required />
+                <TextField label="Amount" type="number" value={line.amount} onChange={(value) => updateLine(form.data.lines, index, 'amount', value, (lines) => form.setData('lines', lines))} error={errors[`lines.${index}.amount`]} required />
+                <SelectField label="Split method" value={line.split_method} options={[{ value: 'by_quantity', label: 'By quantity' }, { value: 'by_value', label: 'By value' }, { value: 'equally', label: 'Equally' }]} onChange={(value) => updateLine(form.data.lines, index, 'split_method', value, (lines) => form.setData('lines', lines))} error={errors[`lines.${index}.split_method`]} />
+                <button type="button" disabled={form.data.lines.length <= 1} onClick={() => form.setData('lines', form.data.lines.filter((_, i) => i !== index))} className="text-destructive self-end pb-2 text-sm underline disabled:opacity-40">Remove line</button>
+            </div>)}
+            {errors.lines && <ErrorText>{errors.lines}</ErrorText>}
+            <div className="flex flex-wrap gap-3"><button type="button" onClick={() => form.setData('lines', [...form.data.lines, { product_id: '', account_id: '', name: '', amount: '', split_method: 'by_quantity' }])} className="text-primary text-sm underline">Add cost</button><SubmitButton processing={form.processing}>Create landed cost</SubmitButton></div>
+        </form>}
+        <div className="space-y-2 border-t pt-3">{landedCosts.map((cost) => <article key={cost.id} className="rounded border p-3 text-sm"><strong>{cost.document_number} — {cost.vendor.name}</strong><p className="text-muted-foreground">Receipt {cost.purchaseReceipt.document_number} · {cost.status} · {cost.currency_code} {cost.total_amount}</p></article>)}{landedCosts.length === 0 && <Empty>No landed costs recorded.</Empty>}</div>
+    </Panel>;
+}
+
+function PurchaseReturnsPanel({ returns, receipts, locations }: { returns: PurchaseReturn[]; receipts: Receipt[]; locations: Location[] }) {
+    const initialReceipt = receipts[0];
+    const form = useForm({ purchase_receipt_id: initialReceipt?.id.toString() ?? '', source_location_id: locations[0]?.id.toString() ?? '', destination_location_id: locations[1]?.id.toString() ?? locations[0]?.id.toString() ?? '', return_date: new Date().toISOString().slice(0, 10), reason: '', lines: initialReceipt?.lines.map((line) => ({ purchase_receipt_line_id: line.id.toString(), quantity: '' })) ?? [] });
+    const errors = form.errors as Record<string, string>;
+    const selectedReceipt = receipts.find((receipt) => receipt.id.toString() === form.data.purchase_receipt_id);
+    return <Panel title="Purchase returns">
+        {receipts.length === 0 || locations.length === 0 ? <Empty>Receipts and stock locations are required to record a purchase return.</Empty> : <form onSubmit={(event) => { event.preventDefault(); form.post(route('erp.purchase.returns.store')); }} className="space-y-3">
+            <div className="grid gap-3 sm:grid-cols-2">
+                <SelectField label="Receipt" value={form.data.purchase_receipt_id} options={receipts.map((r) => ({ value: r.id.toString(), label: r.document_number }))} onChange={(value) => { form.setData('purchase_receipt_id', value); const receipt = receipts.find((r) => r.id.toString() === value); form.setData('lines', receipt?.lines.map((line) => ({ purchase_receipt_line_id: line.id.toString(), quantity: '' })) ?? []); }} error={errors.purchase_receipt_id} />
+                <SelectField label="Return from location" value={form.data.source_location_id} options={locations.map(locationOption)} onChange={(value) => form.setData('source_location_id', value)} error={errors.source_location_id} />
+                <SelectField label="Vendor destination location" value={form.data.destination_location_id} options={locations.map(locationOption)} onChange={(value) => form.setData('destination_location_id', value)} error={errors.destination_location_id} />
+                <TextField label="Return date" type="date" value={form.data.return_date} onChange={(value) => form.setData('return_date', value)} error={errors.return_date} required />
+                <TextField label="Reason" value={form.data.reason} onChange={(value) => form.setData('reason', value)} error={errors.reason} required />
+            </div>
+            <h3 className="text-sm font-medium">Receipt quantities to return</h3>
+            {selectedReceipt?.lines.map((line, index) => <div key={line.id} className="grid items-end gap-2 sm:grid-cols-[1fr_150px]"><p className="text-sm">{line.purchaseOrderLine.product.sku} — {line.purchaseOrderLine.product.name}<span className="text-muted-foreground block">Received {line.quantity} {line.purchaseOrderLine.product.unit.abbreviation}</span></p><TextField label="Return quantity" type="number" value={form.data.lines[index]?.quantity ?? ''} onChange={(value) => updateLine(form.data.lines, index, 'quantity', value, (lines) => form.setData('lines', lines))} error={errors[`lines.${index}.quantity`]} required /></div>)}
+            {errors.lines && <ErrorText>{errors.lines}</ErrorText>}
+            <SubmitButton processing={form.processing}>Create purchase return</SubmitButton>
+        </form>}
+        <div className="space-y-2 border-t pt-3">{returns.map((item) => <article key={item.id} className="rounded border p-3 text-sm"><strong>{item.document_number}</strong><p className="text-muted-foreground">Receipt {item.purchaseReceipt.document_number} · {item.return_date} · {item.status} · {item.reason}</p></article>)}{returns.length === 0 && <Empty>No purchase returns recorded.</Empty>}</div>
+    </Panel>;
+}
+
+function VendorEvaluationsPanel({ evaluations, vendors }: { evaluations: VendorEvaluation[]; vendors: Vendor[] }) {
+    const now = new Date();
+    const form = useForm({ vendor_id: vendors[0]?.id.toString() ?? '', year: now.getFullYear().toString(), month: (now.getMonth() + 1).toString() });
+    const errors = form.errors as Record<string, string>;
+    return <Panel title="Vendor evaluations">
+        <form onSubmit={(event) => { event.preventDefault(); form.post(route('erp.purchase.vendors.evaluations.refresh')); }} className="grid gap-3 sm:grid-cols-2">
+            <SelectField label="Vendor" value={form.data.vendor_id} options={vendors.map((v) => ({ value: v.id.toString(), label: `${v.code} — ${v.name}` }))} onChange={(value) => form.setData('vendor_id', value)} error={errors.vendor_id} />
+            <TextField label="Year" type="number" value={form.data.year} onChange={(value) => form.setData('year', value)} error={errors.year} required />
+            <SelectField label="Month" value={form.data.month} options={Array.from({ length: 12 }, (_, i) => ({ value: (i + 1).toString(), label: new Date(2000, i).toLocaleString(undefined, { month: 'long' }) }))} onChange={(value) => form.setData('month', value)} error={errors.month} />
+            <SubmitButton processing={form.processing}>Refresh evaluation</SubmitButton>
+        </form>
+        <div className="overflow-x-auto border-t pt-3"><table className="w-full text-left text-sm"><thead><tr className="text-muted-foreground border-b"><th className="py-2">Vendor / period</th><th className="py-2">On time</th><th className="py-2">Price variance</th><th className="py-2">Rejection</th><th className="py-2">Orders</th></tr></thead><tbody>{evaluations.map((evaluation) => <tr key={evaluation.id} className="border-b"><td className="py-2">{evaluation.vendor.code} — {evaluation.vendor.name}<span className="text-muted-foreground block">{evaluation.period_year}-{String(evaluation.period_month).padStart(2, '0')}</span></td><td className="py-2">{evaluation.on_time_delivery_rate}%</td><td className="py-2">{evaluation.price_variance}%</td><td className="py-2">{evaluation.rejection_rate}%</td><td className="py-2">{evaluation.total_orders}</td></tr>)}</tbody></table>{evaluations.length === 0 && <Empty>No vendor evaluations yet.</Empty>}</div>
+    </Panel>;
+}
+
+function VendorPriceListsPanel({ priceLists, vendors, products, currencies }: { priceLists: VendorPriceList[]; vendors: Vendor[]; products: Product[]; currencies: Array<{ code: string; name: string }> }) {
+    const form = useForm({ vendor_id: vendors[0]?.id.toString() ?? '', product_id: products[0]?.id.toString() ?? '', min_quantity: '1', price: '', currency_code: currencies[0]?.code ?? '', valid_from: new Date().toISOString().slice(0, 10), valid_to: '' });
+    const errors = form.errors as Record<string, string>;
+    return <Panel title="Vendor price lists">
+        {vendors.length === 0 || products.length === 0 ? <Empty>Add vendors and products before setting vendor prices.</Empty> : <form onSubmit={(event) => { event.preventDefault(); form.post(route('erp.purchase.vendors.price-lists.store')); }} className="grid gap-3 sm:grid-cols-2">
+            <SelectField label="Vendor" value={form.data.vendor_id} options={vendors.map((v) => ({ value: v.id.toString(), label: `${v.code} — ${v.name}` }))} onChange={(value) => form.setData('vendor_id', value)} error={errors.vendor_id} />
+            <SelectField label="Product" value={form.data.product_id} options={products.map((p) => ({ value: p.id.toString(), label: `${p.sku} — ${p.name}` }))} onChange={(value) => form.setData('product_id', value)} error={errors.product_id} />
+            <TextField label="Minimum quantity" type="number" value={form.data.min_quantity} onChange={(value) => form.setData('min_quantity', value)} error={errors.min_quantity} required />
+            <TextField label="Unit price" type="number" value={form.data.price} onChange={(value) => form.setData('price', value)} error={errors.price} required />
+            <SelectField label="Currency" value={form.data.currency_code} options={currencies.map((c) => ({ value: c.code, label: `${c.code} — ${c.name}` }))} onChange={(value) => form.setData('currency_code', value)} error={errors.currency_code} />
+            <TextField label="Valid from" type="date" value={form.data.valid_from} onChange={(value) => form.setData('valid_from', value)} error={errors.valid_from} required />
+            <TextField label="Valid to (optional)" type="date" value={form.data.valid_to} onChange={(value) => form.setData('valid_to', value)} error={errors.valid_to} />
+            <SubmitButton processing={form.processing}>Add vendor price</SubmitButton>
+        </form>}
+        <div className="overflow-x-auto border-t pt-3"><table className="w-full text-left text-sm"><thead><tr className="text-muted-foreground border-b"><th className="py-2">Product</th><th className="py-2">Vendor</th><th className="py-2">Minimum</th><th className="py-2">Price</th><th className="py-2">Valid</th></tr></thead><tbody>{priceLists.map((item) => <tr key={item.id} className="border-b"><td className="py-2">{item.product.sku} — {item.product.name}</td><td className="py-2">{item.vendor.code} — {item.vendor.name}</td><td className="py-2">{item.min_quantity} {item.product.unit.abbreviation}</td><td className="py-2">{item.currency_code} {item.price}</td><td className="py-2">{item.valid_from} – {item.valid_to ?? 'open'}</td></tr>)}</tbody></table>{priceLists.length === 0 && <Empty>No vendor price lists yet.</Empty>}</div>
+    </Panel>;
 }
 
 function StoreIssueRequisitionCard({

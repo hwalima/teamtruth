@@ -5,6 +5,7 @@ namespace App\Modules\Accounting\Services;
 use App\Models\Currency;
 use App\Models\User;
 use App\Modules\Accounting\Models\AccountingAccount;
+use App\Modules\Core\Models\Company;
 use App\Modules\Accounting\Models\AccountingJournal;
 use App\Modules\Accounting\Models\FiscalPeriod;
 use App\Modules\Accounting\Models\JournalEntry;
@@ -14,6 +15,8 @@ use App\Modules\Core\Services\CompanyContext;
 use App\Modules\Core\Services\ExchangeRateService;
 use App\Modules\Core\Services\SequenceService;
 use Carbon\CarbonImmutable;
+use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -97,7 +100,42 @@ class AccountingPostingService
     {
         $company = app(CompanyContext::class)->requireActiveCompany();
 
-        return DB::transaction(function () use ($company, $actor, $data, $lines): JournalEntry {
+        return DB::transaction(fn (): JournalEntry => $this->postEntry($company, $actor, $data, $lines));
+    }
+
+    /**
+     * Post a journal entry on behalf of a source document (invoice, payment, credit note, ...).
+     *
+     * The entry is linked back to the source via the source morph columns, and posting is
+     * idempotent: dispatching the same domain event twice never creates a duplicate entry.
+     */
+    public function postSourceEntry(User $actor, Model $source, array $data, array $lines): JournalEntry
+    {
+        $company = app(CompanyContext::class)->requireActiveCompany();
+
+        if ((int) $source->getAttribute('company_id') !== (int) $company->getKey()) {
+            throw new AuthorizationException('A source document can only post to its own active company.');
+        }
+
+        return DB::transaction(function () use ($company, $actor, $source, $data, $lines): JournalEntry {
+            $existing = JournalEntry::query()
+                ->where('company_id', $company->getKey())
+                ->where('source_type', $source->getMorphClass())
+                ->where('source_id', $source->getKey())
+                ->lockForUpdate()
+                ->first();
+
+            if ($existing !== null) {
+                return $existing->load(['journal', 'lines.account']);
+            }
+
+            return $this->postEntry($company, $actor, $data, $lines, $source);
+        });
+    }
+
+    private function postEntry(Company $company, User $actor, array $data, array $lines, ?Model $source = null): JournalEntry
+    {
+        return DB::transaction(function () use ($company, $actor, $data, $lines, $source): JournalEntry {
             $entryDate = CarbonImmutable::parse($data['entry_date'])->startOfDay();
             $journal = AccountingJournal::query()->lockForUpdate()->findOrFail($data['journal_id']);
             if (! $journal->is_active) {
@@ -181,6 +219,8 @@ class AccountingPostingService
                 'company_id' => $company->id,
                 'journal_id' => $journal->id,
                 'fiscal_period_id' => $period->id,
+                'source_type' => $source?->getMorphClass(),
+                'source_id' => $source?->getKey(),
                 'document_number' => app(SequenceService::class)->next($company, 'journal_entry'),
                 'entry_date' => $entryDate->toDateString(),
                 'currency_code' => $currencyCode,

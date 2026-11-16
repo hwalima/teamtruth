@@ -2,12 +2,14 @@
 
 namespace App\Modules\Purchase\Models;
 
+use App\Modules\Accounting\Models\JournalEntry;
 use App\Modules\Core\Models\Concerns\BelongsToCompany;
 use App\Modules\Core\Models\Concerns\HasApprovals;
 use App\Modules\Core\Enums\ApprovalStatus;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\MorphOne;
 
 class PurchaseLandedCost extends Model
 {
@@ -48,6 +50,11 @@ class PurchaseLandedCost extends Model
     public function lines(): HasMany
     {
         return $this->hasMany(PurchaseLandedCostLine::class, 'purchase_landed_cost_id');
+    }
+
+    public function journalEntry(): MorphOne
+    {
+        return $this->morphOne(JournalEntry::class, 'source');
     }
 
     public function syncApprovalStatus(ApprovalStatus $status): void

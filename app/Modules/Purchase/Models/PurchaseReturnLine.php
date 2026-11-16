@@ -3,6 +3,7 @@
 namespace App\Modules\Purchase\Models;
 
 use App\Modules\Core\Models\Concerns\BelongsToCompany;
+use App\Modules\Inventory\Models\StockMove;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
@@ -14,6 +15,7 @@ class PurchaseReturnLine extends Model
         'company_id',
         'purchase_return_id',
         'purchase_receipt_line_id',
+        'stock_move_id',
         'quantity',
         'lot_code',
         'reason',
@@ -29,6 +31,16 @@ class PurchaseReturnLine extends Model
     public function return(): BelongsTo
     {
         return $this->belongsTo(PurchaseReturn::class, 'purchase_return_id');
+    }
+
+    public function purchaseReturn(): BelongsTo
+    {
+        return $this->belongsTo(PurchaseReturn::class, 'purchase_return_id');
+    }
+
+    public function stockMove(): BelongsTo
+    {
+        return $this->belongsTo(StockMove::class, 'stock_move_id');
     }
 
     public function purchaseReceiptLine(): BelongsTo

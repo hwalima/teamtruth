@@ -217,6 +217,18 @@ Route::middleware(['auth', 'verified'])->prefix('erp')->name('erp.')->group(func
         Route::post('purchase/bills/{bill}/post', [\App\Modules\Purchase\Http\Controllers\PurchaseController::class, 'postBill'])
             ->middleware('erp.permission:erp.purchase.manage')
             ->name('purchase.bills.post');
+        Route::post('purchase/blanket-orders', [\App\Modules\Purchase\Http\Controllers\PurchaseController::class, 'storeBlanketOrder'])
+            ->middleware('erp.permission:erp.purchase.manage')->name('purchase.blanket-orders.store');
+        Route::post('purchase/blanket-orders/{blanketOrder}/orders', [\App\Modules\Purchase\Http\Controllers\PurchaseController::class, 'createOrderFromBlanket'])
+            ->middleware('erp.permission:erp.purchase.manage')->name('purchase.blanket-orders.orders.store');
+        Route::post('purchase/landed-costs', [\App\Modules\Purchase\Http\Controllers\PurchaseController::class, 'storeLandedCost'])
+            ->middleware('erp.permission:erp.purchase.manage')->name('purchase.landed-costs.store');
+        Route::post('purchase/returns', [\App\Modules\Purchase\Http\Controllers\PurchaseController::class, 'storeReturn'])
+            ->middleware('erp.permission:erp.purchase.manage')->name('purchase.returns.store');
+        Route::post('purchase/vendors/evaluations/refresh', [\App\Modules\Purchase\Http\Controllers\PurchaseController::class, 'refreshVendorEvaluation'])
+            ->middleware('erp.permission:erp.purchase.manage')->name('purchase.vendors.evaluations.refresh');
+        Route::post('purchase/vendors/price-lists', [\App\Modules\Purchase\Http\Controllers\PurchaseController::class, 'storeVendorPriceList'])
+            ->middleware('erp.permission:erp.purchase.manage')->name('purchase.vendors.price-lists.store');
         Route::get('purchase/payments/create', [\App\Modules\Purchase\Http\Controllers\PurchaseController::class, 'createPayment'])
             ->middleware('erp.permission:erp.purchase.manage')
             ->name('purchase.payments.create');
@@ -251,6 +263,169 @@ Route::middleware(['auth', 'verified'])->prefix('erp')->name('erp.')->group(func
         Route::post('accounting/entries/{entry}/reverse', [\App\Modules\Accounting\Http\Controllers\AccountingController::class, 'reverseJournalEntry'])
             ->middleware('erp.permission:erp.accounting.manage')
             ->name('accounting.entries.reverse');
+
+        // Sales Routes
+        Route::prefix('sales')->name('sales.')->middleware('erp.permission:erp.sales.view')->group(function () {
+            Route::get('/', [\App\Modules\Sales\Http\Controllers\SalesController::class, 'index'])->name('index');
+            Route::post('leads', [\App\Modules\Sales\Http\Controllers\SalesController::class, 'storeLead'])->middleware('erp.permission:erp.sales.manage')->name('leads.store');
+            Route::post('leads/{lead}/convert', [\App\Modules\Sales\Http\Controllers\SalesController::class, 'convertLead'])->middleware('erp.permission:erp.sales.manage')->name('leads.convert');
+            Route::post('opportunities', [\App\Modules\Sales\Http\Controllers\SalesController::class, 'storeOpportunity'])->middleware('erp.permission:erp.sales.manage')->name('opportunities.store');
+            Route::post('quotations', [\App\Modules\Sales\Http\Controllers\SalesController::class, 'storeQuotation'])->middleware('erp.permission:erp.sales.manage')->name('quotations.store');
+            Route::post('quotations/{quotation}/submit', [\App\Modules\Sales\Http\Controllers\SalesController::class, 'submitQuotation'])->middleware('erp.permission:erp.sales.manage')->name('quotations.submit');
+            Route::post('quotations/{quotation}/orders', [\App\Modules\Sales\Http\Controllers\SalesController::class, 'convertQuotation'])->middleware('erp.permission:erp.sales.manage')->name('quotations.orders.store');
+            Route::post('orders/{salesOrder}/submit', [\App\Modules\Sales\Http\Controllers\SalesController::class, 'submitSalesOrder'])->middleware('erp.permission:erp.sales.manage')->name('orders.submit');
+            Route::post('orders/{salesOrder}/confirm', [\App\Modules\Sales\Http\Controllers\SalesController::class, 'confirmSalesOrder'])->middleware('erp.permission:erp.sales.manage')->name('orders.confirm');
+            Route::post('orders/{salesOrder}/invoice', [\App\Modules\Sales\Http\Controllers\SalesController::class, 'createInvoice'])->middleware('erp.permission:erp.sales.manage')->name('orders.invoice');
+            Route::post('teams', [\App\Modules\Sales\Http\Controllers\SalesController::class, 'storeTeam'])->middleware('erp.permission:erp.sales.manage')->name('teams.store');
+        });
+
+        // Invoicing Routes
+        Route::prefix('invoicing')->name('invoicing.')->group(function () {
+            // Invoices
+            Route::get('/', [\App\Modules\Invoicing\Http\Controllers\InvoicingController::class, 'index'])
+                ->middleware('erp.permission:erp.invoicing.view')
+                ->name('index');
+            Route::get('create', [\App\Modules\Invoicing\Http\Controllers\InvoicingController::class, 'create'])
+                ->middleware('erp.permission:erp.invoicing.manage')
+                ->name('create');
+            Route::post('/', [\App\Modules\Invoicing\Http\Controllers\InvoicingController::class, 'store'])
+                ->middleware('erp.permission:erp.invoicing.manage')
+                ->name('store');
+            Route::get('{invoice}', [\App\Modules\Invoicing\Http\Controllers\InvoicingController::class, 'show'])
+                ->middleware('erp.permission:erp.invoicing.view')
+                ->name('show');
+            Route::get('{invoice}/edit', [\App\Modules\Invoicing\Http\Controllers\InvoicingController::class, 'edit'])
+                ->middleware('erp.permission:erp.invoicing.manage')
+                ->name('edit');
+            Route::put('{invoice}', [\App\Modules\Invoicing\Http\Controllers\InvoicingController::class, 'update'])
+                ->middleware('erp.permission:erp.invoicing.manage')
+                ->name('update');
+            Route::post('{invoice}/send', [\App\Modules\Invoicing\Http\Controllers\InvoicingController::class, 'send'])
+                ->middleware('erp.permission:erp.invoicing.manage')
+                ->name('send');
+            Route::post('{invoice}/post', [\App\Modules\Invoicing\Http\Controllers\InvoicingController::class, 'post'])
+                ->middleware('erp.permission:erp.invoicing.manage')
+                ->name('post');
+            Route::post('{invoice}/cancel', [\App\Modules\Invoicing\Http\Controllers\InvoicingController::class, 'cancel'])
+                ->middleware('erp.permission:erp.invoicing.manage')
+                ->name('cancel');
+            Route::post('{invoice}/payments', [\App\Modules\Invoicing\Http\Controllers\InvoicingController::class, 'recordPayment'])
+                ->middleware('erp.permission:erp.invoicing.manage')
+                ->name('payments.store');
+            Route::get('{invoice}/pdf', [\App\Modules\Invoicing\Http\Controllers\InvoicingController::class, 'downloadPdf'])
+                ->middleware('erp.permission:erp.invoicing.view')
+                ->name('pdf');
+
+            // Credit Notes
+            Route::prefix('credit-notes')->name('credit-notes.')->group(function () {
+                Route::get('/', [\App\Modules\Invoicing\Http\Controllers\CreditNoteController::class, 'index'])
+                    ->middleware('erp.permission:erp.invoicing.view')
+                    ->name('index');
+                Route::get('create', [\App\Modules\Invoicing\Http\Controllers\CreditNoteController::class, 'create'])
+                    ->middleware('erp.permission:erp.invoicing.manage')
+                    ->name('create');
+                Route::post('/', [\App\Modules\Invoicing\Http\Controllers\CreditNoteController::class, 'store'])
+                    ->middleware('erp.permission:erp.invoicing.manage')
+                    ->name('store');
+                Route::get('{creditNote}', [\App\Modules\Invoicing\Http\Controllers\CreditNoteController::class, 'show'])
+                    ->middleware('erp.permission:erp.invoicing.view')
+                    ->name('show');
+                Route::post('{creditNote}/issue', [\App\Modules\Invoicing\Http\Controllers\CreditNoteController::class, 'issue'])
+                    ->middleware('erp.permission:erp.invoicing.manage')
+                    ->name('issue');
+                Route::post('{creditNote}/cancel', [\App\Modules\Invoicing\Http\Controllers\CreditNoteController::class, 'cancel'])
+                    ->middleware('erp.permission:erp.invoicing.manage')
+                    ->name('cancel');
+                Route::post('{creditNote}/apply', [\App\Modules\Invoicing\Http\Controllers\CreditNoteController::class, 'apply'])
+                    ->middleware('erp.permission:erp.invoicing.manage')
+                    ->name('apply');
+                Route::get('{creditNote}/pdf', [\App\Modules\Invoicing\Http\Controllers\CreditNoteController::class, 'downloadPdf'])
+                    ->middleware('erp.permission:erp.invoicing.view')
+                    ->name('pdf');
+            });
+
+            // Recurring Invoices
+            Route::prefix('recurring')->name('recurring.')->group(function () {
+                Route::get('/', [\App\Modules\Invoicing\Http\Controllers\RecurringInvoiceController::class, 'index'])
+                    ->middleware('erp.permission:erp.invoicing.view')
+                    ->name('index');
+                Route::get('create', [\App\Modules\Invoicing\Http\Controllers\RecurringInvoiceController::class, 'create'])
+                    ->middleware('erp.permission:erp.invoicing.manage')
+                    ->name('create');
+                Route::post('/', [\App\Modules\Invoicing\Http\Controllers\RecurringInvoiceController::class, 'store'])
+                    ->middleware('erp.permission:erp.invoicing.manage')
+                    ->name('store');
+                Route::get('{recurring}', [\App\Modules\Invoicing\Http\Controllers\RecurringInvoiceController::class, 'show'])
+                    ->middleware('erp.permission:erp.invoicing.view')
+                    ->name('show');
+                Route::post('{recurring}/pause', [\App\Modules\Invoicing\Http\Controllers\RecurringInvoiceController::class, 'pause'])
+                    ->middleware('erp.permission:erp.invoicing.manage')
+                    ->name('pause');
+                Route::post('{recurring}/resume', [\App\Modules\Invoicing\Http\Controllers\RecurringInvoiceController::class, 'resume'])
+                    ->middleware('erp.permission:erp.invoicing.manage')
+                    ->name('resume');
+                Route::post('{recurring}/generate', [\App\Modules\Invoicing\Http\Controllers\RecurringInvoiceController::class, 'generateNow'])
+                    ->middleware('erp.permission:erp.invoicing.manage')
+                    ->name('generate');
+                Route::delete('{recurring}', [\App\Modules\Invoicing\Http\Controllers\RecurringInvoiceController::class, 'destroy'])
+                    ->middleware('erp.permission:erp.invoicing.manage')
+                    ->name('destroy');
+            });
+
+            // Customers
+            Route::prefix('customers')->name('customers.')->group(function () {
+                Route::get('/', [\App\Modules\Invoicing\Http\Controllers\CustomerController::class, 'index'])
+                    ->middleware('erp.permission:erp.invoicing.view')
+                    ->name('index');
+                Route::get('create', [\App\Modules\Invoicing\Http\Controllers\CustomerController::class, 'create'])
+                    ->middleware('erp.permission:erp.invoicing.manage')
+                    ->name('create');
+                Route::post('/', [\App\Modules\Invoicing\Http\Controllers\CustomerController::class, 'store'])
+                    ->middleware('erp.permission:erp.invoicing.manage')
+                    ->name('store');
+                Route::get('{customer}', [\App\Modules\Invoicing\Http\Controllers\CustomerController::class, 'show'])
+                    ->middleware('erp.permission:erp.invoicing.view')
+                    ->name('show');
+                Route::get('{customer}/edit', [\App\Modules\Invoicing\Http\Controllers\CustomerController::class, 'edit'])
+                    ->middleware('erp.permission:erp.invoicing.manage')
+                    ->name('edit');
+                Route::put('{customer}', [\App\Modules\Invoicing\Http\Controllers\CustomerController::class, 'update'])
+                    ->middleware('erp.permission:erp.invoicing.manage')
+                    ->name('update');
+                Route::delete('{customer}', [\App\Modules\Invoicing\Http\Controllers\CustomerController::class, 'destroy'])
+                    ->middleware('erp.permission:erp.invoicing.manage')
+                    ->name('destroy');
+            });
+
+            // Customer Statements
+            Route::prefix('statements')->name('statements.')->group(function () {
+                Route::get('/', [\App\Modules\Invoicing\Http\Controllers\CustomerStatementController::class, 'index'])
+                    ->middleware('erp.permission:erp.invoicing.view')
+                    ->name('index');
+                Route::get('{customer}', [\App\Modules\Invoicing\Http\Controllers\CustomerStatementController::class, 'show'])
+                    ->middleware('erp.permission:erp.invoicing.view')
+                    ->name('show');
+                Route::get('{customer}/pdf', [\App\Modules\Invoicing\Http\Controllers\CustomerStatementController::class, 'downloadPdf'])
+                    ->middleware('erp.permission:erp.invoicing.view')
+                    ->name('pdf');
+            });
+
+            // Payment Terms
+            Route::prefix('payment-terms')->name('payment-terms.')->group(function () {
+                Route::get('/', [\App\Modules\Invoicing\Http\Controllers\PaymentTermController::class, 'index'])
+                    ->middleware('erp.permission:erp.invoicing.view')
+                    ->name('index');
+                Route::post('/', [\App\Modules\Invoicing\Http\Controllers\PaymentTermController::class, 'store'])
+                    ->middleware('erp.permission:erp.invoicing.manage')
+                    ->name('store');
+                Route::put('{paymentTerm}', [\App\Modules\Invoicing\Http\Controllers\PaymentTermController::class, 'update'])
+                    ->middleware('erp.permission:erp.invoicing.manage')
+                    ->name('update');
+                Route::delete('{paymentTerm}', [\App\Modules\Invoicing\Http\Controllers\PaymentTermController::class, 'destroy'])
+                    ->middleware('erp.permission:erp.invoicing.manage')
+                    ->name('destroy');
+            });
+        });
 
         Route::get('settings/branding', [\App\Modules\Core\Http\Controllers\CompanyBrandingController::class, 'edit'])
             ->middleware('erp.permission:erp.settings.view')

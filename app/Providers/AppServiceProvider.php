@@ -19,6 +19,7 @@ class AppServiceProvider extends ServiceProvider
     {
         $this->app->singleton(\App\Services\WebhookService::class);
         $this->app->scoped(\App\Modules\Core\Services\CompanyContext::class);
+        $this->app->bind(\App\Modules\Invoicing\Services\FiscalDeviceInterface::class, \App\Modules\Invoicing\Services\NullFiscalDevice::class);
     }
 
     /**
@@ -31,6 +32,8 @@ class AppServiceProvider extends ServiceProvider
         $this->loadMigrationsFrom(app_path('Modules/Requisitions/Database/Migrations'));
         $this->loadMigrationsFrom(app_path('Modules/Purchase/Database/Migrations'));
         $this->loadMigrationsFrom(app_path('Modules/Accounting/Database/Migrations'));
+        $this->loadMigrationsFrom(app_path('Modules/Invoicing/Database/Migrations'));
+        $this->loadMigrationsFrom(app_path('Modules/Sales/Database/Migrations'));
 
         // Register the UserObserver
         User::observe(UserObserver::class);

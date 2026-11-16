@@ -38,6 +38,10 @@ import {
     TrendingUp,
     Users,
     Video,
+    FileCheck,
+    FileMinus,
+    Repeat,
+    Users as UsersIcon,
 } from 'lucide-react';
 
 export function useNavigation() {
@@ -364,6 +368,23 @@ export function useNavigation() {
             }
             if (canUseErp('erp.accounting.view')) {
                 items.push({ title: t('Finance & Accounting'), href: route('erp.accounting.index'), icon: Landmark, group: t('Modules') });
+            }
+            if (canUseErp('erp.invoicing.view')) {
+                items.push({
+                    title: t('Invoicing'),
+                    icon: FileCheck,
+                    group: t('Modules'),
+                    children: [
+                        { title: t('Invoices'), href: route('erp.invoicing.index') },
+                        { title: t('Credit Notes'), href: route('erp.invoicing.credit-notes.index') },
+                        { title: t('Recurring Invoices'), href: route('erp.invoicing.recurring.index') },
+                        { title: t('Customers'), href: route('erp.invoicing.customers.index') },
+                        { title: t('Payment Terms'), href: route('erp.invoicing.payment-terms.index') },
+                    ],
+                });
+            }
+            if (canUseErp('erp.sales.view')) {
+                items.push({ title: t('Sales'), href: route('erp.sales.index'), icon: TrendingUp, group: t('Modules') });
             }
             if (canUseErp('erp.approvals.view')) {
                 items.push({ title: t('My Approvals'), href: route('erp.approvals.index'), icon: ShieldCheck, group: t('Modules') });

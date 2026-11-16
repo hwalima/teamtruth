@@ -6,6 +6,7 @@ use App\Modules\Core\Models\Concerns\BelongsToCompany;
 use App\Modules\Inventory\Models\StockMove;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class PurchaseReceiptLine extends Model
 {
@@ -17,15 +18,34 @@ class PurchaseReceiptLine extends Model
         'purchase_order_line_id',
         'stock_move_id',
         'quantity',
+        'returned_quantity',
     ];
 
     protected function casts(): array
     {
-        return ['quantity' => 'decimal:4'];
+        return [
+            'quantity' => 'decimal:4',
+            'returned_quantity' => 'decimal:4',
+        ];
     }
 
     public function stockMove(): BelongsTo
     {
         return $this->belongsTo(StockMove::class, 'stock_move_id');
+    }
+
+    public function purchaseReceipt(): BelongsTo
+    {
+        return $this->belongsTo(PurchaseReceipt::class, 'purchase_receipt_id');
+    }
+
+    public function purchaseOrderLine(): BelongsTo
+    {
+        return $this->belongsTo(PurchaseOrderLine::class, 'purchase_order_line_id');
+    }
+
+    public function returnLines(): HasMany
+    {
+        return $this->hasMany(PurchaseReturnLine::class, 'purchase_receipt_line_id');
     }
 }

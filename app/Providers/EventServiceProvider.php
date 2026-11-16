@@ -66,6 +66,12 @@ use App\Listeners\WebhookTaskCreateListener;
 use App\Listeners\WebhookInvoiceCreateListener;
 use App\Listeners\WebhookBudgetCreateListener;
 use App\Listeners\SendInAppTaskNotifications;
+use App\Modules\Accounting\Listeners\PostCreditNoteToLedger;
+use App\Modules\Accounting\Listeners\PostInvoicePaymentToLedger;
+use App\Modules\Accounting\Listeners\PostInvoiceToLedger;
+use App\Modules\Invoicing\Events\CreditNoteIssued;
+use App\Modules\Invoicing\Events\InvoicePaymentRecorded;
+use App\Modules\Invoicing\Events\InvoicePosted;
 use Illuminate\Foundation\Support\Providers\EventServiceProvider as ServiceProvider;
 
 class EventServiceProvider extends ServiceProvider
@@ -160,6 +166,15 @@ class EventServiceProvider extends ServiceProvider
         ],
         TodoCommentAdded::class => [
             SendTodoCommentEmail::class,
+        ],
+        InvoicePosted::class => [
+            PostInvoiceToLedger::class,
+        ],
+        InvoicePaymentRecorded::class => [
+            PostInvoicePaymentToLedger::class,
+        ],
+        CreditNoteIssued::class => [
+            PostCreditNoteToLedger::class,
         ],
 
     ];

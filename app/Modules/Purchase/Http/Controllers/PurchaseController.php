@@ -14,6 +14,11 @@ use App\Modules\Inventory\Models\InventoryProduct;
 use App\Modules\Inventory\Models\StockLocation;
 use App\Modules\Purchase\Models\PurchaseBill;
 use App\Modules\Purchase\Models\PurchaseBillLine;
+use App\Modules\Purchase\Models\PurchaseBlanketOrder;
+use App\Modules\Purchase\Models\PurchaseLandedCost;
+use App\Modules\Purchase\Models\PurchaseReturn;
+use App\Modules\Purchase\Models\PurchaseVendorEvaluation;
+use App\Modules\Purchase\Models\PurchaseVendorPriceList;
 use App\Modules\Purchase\Models\PurchaseOrder;
 use App\Modules\Purchase\Models\PurchaseOrderLine;
 use App\Modules\Purchase\Models\PurchasePayment;
@@ -133,6 +138,13 @@ class PurchaseController extends Controller
                 ->latest()
                 ->limit(100)
                 ->get(),
+            'blanketOrders' => PurchaseBlanketOrder::query()->with(['vendor:id,name,code', 'lines.product:id,sku,name,unit_id', 'lines.product.unit:id,abbreviation'])->latest()->limit(100)->get(),
+            'landedCosts' => PurchaseLandedCost::query()->with(['vendor:id,name,code', 'purchaseReceipt:id,document_number', 'lines'])->latest()->limit(100)->get(),
+            'returns' => PurchaseReturn::query()->with(['purchaseReceipt:id,document_number', 'lines.purchaseReceiptLine'])->latest()->limit(100)->get(),
+            'vendorEvaluations' => PurchaseVendorEvaluation::query()->with('vendor:id,name,code')->latest('period_year')->latest('period_month')->limit(100)->get(),
+            'vendorPriceLists' => PurchaseVendorPriceList::query()->with(['vendor:id,name,code', 'product:id,sku,name,unit_id', 'product.unit:id,abbreviation'])->orderByDesc('valid_from')->limit(200)->get(),
+            'receipts' => PurchaseReceipt::query()->with(['purchaseOrder:id,vendor_id', 'lines.purchaseOrderLine.product.unit', 'lines.stockMove.lines'])->latest('received_at')->limit(100)->get(),
+            'locations' => StockLocation::query()->where('is_active', true)->whereIn('usage', ['internal', 'supplier'])->orderBy('name')->get(),
         ]);
     }
 
@@ -457,6 +469,95 @@ class PurchaseController extends Controller
         $service->postBill($bill, $request->user());
 
         return back()->with('success', __('Vendor bill posted to accounting.'));
+    }
+
+    public function storeBlanketOrder(Request $request, PurchaseService $service): RedirectResponse
+    {
+        $company = app(CompanyContext::class)->requireActiveCompany(); $this->authorizeManagement($request, $company);
+        $data = $request->validate([
+            'vendor_id' => ['required', 'integer', Rule::exists('purchase_vendors', 'id')->where('company_id', $company->id)],
+            'currency_code' => ['required', 'string', 'size:3', Rule::exists('currencies', 'code')],
+            'max_amount' => ['required', 'numeric', 'gt:0', 'decimal:0,4'],
+            'starts_on' => ['required', 'date'], 'ends_on' => ['required', 'date', 'after_or_equal:starts_on'],
+            'lines' => ['required', 'array', 'min:1', 'max:50'],
+            'lines.*.product_id' => ['required', 'integer', Rule::exists('inventory_products', 'id')->where('company_id', $company->id)->whereIn('type', ['storable', 'consumable'])],
+            'lines.*.quantity' => ['required', 'numeric', 'gt:0', 'decimal:0,4'], 'lines.*.unit_price' => ['required', 'numeric', 'min:0', 'decimal:0,4'],
+        ]);
+        $service->createBlanketOrder($request->user(), $data, $data['lines']);
+        return back()->with('success', __('Blanket order created.'));
+    }
+
+    public function createOrderFromBlanket(Request $request, PurchaseBlanketOrder $blanketOrder, PurchaseService $service): RedirectResponse
+    {
+        $company = app(CompanyContext::class)->requireActiveCompany(); $this->authorizeManagement($request, $company);
+        abort_unless((int) $blanketOrder->company_id === (int) $company->id, 404);
+        $data = $request->validate([
+            'lines' => ['required', 'array', 'min:1', 'max:50'],
+            'lines.*.blanket_order_line_id' => ['required', 'integer', Rule::exists('purchase_blanket_order_lines', 'id')->where('company_id', $company->id)->where('purchase_blanket_order_id', $blanketOrder->id)],
+            'lines.*.quantity' => ['required', 'numeric', 'gt:0', 'decimal:0,4'],
+        ]);
+        $service->createOrderFromBlanket($blanketOrder, $request->user(), $data['lines']);
+        return back()->with('success', __('Purchase order submitted for approval.'));
+    }
+
+    public function storeLandedCost(Request $request, PurchaseService $service): RedirectResponse
+    {
+        $company = app(CompanyContext::class)->requireActiveCompany(); $this->authorizeManagement($request, $company);
+        $data = $request->validate([
+            'purchase_receipt_id' => ['required', 'integer', Rule::exists('purchase_receipts', 'id')->where('company_id', $company->id)],
+            'vendor_id' => ['nullable', 'integer', Rule::exists('purchase_vendors', 'id')->where('company_id', $company->id)],
+            'currency_code' => ['required', 'string', 'size:3', Rule::exists('currencies', 'code')],
+            'lines' => ['required', 'array', 'min:1', 'max:50'],
+            'lines.*.product_id' => ['nullable', 'integer', Rule::exists('inventory_products', 'id')->where('company_id', $company->id)],
+            'lines.*.account_id' => ['required', 'integer', Rule::exists('accounting_accounts', 'id')->where('company_id', $company->id)->where('is_active', true)->where('is_group', false)],
+            'lines.*.name' => ['required', 'string', 'max:255'], 'lines.*.amount' => ['required', 'numeric', 'gt:0', 'decimal:0,4'],
+            'lines.*.split_method' => ['required', Rule::in(['by_quantity', 'by_value', 'equally'])],
+        ]);
+        $service->createLandedCost($request->user(), $data, $data['lines']);
+        return back()->with('success', __('Landed costs allocated across receipt lines.'));
+    }
+
+    public function storeReturn(Request $request, PurchaseService $service): RedirectResponse
+    {
+        $company = app(CompanyContext::class)->requireActiveCompany(); $this->authorizeManagement($request, $company);
+        $request->merge(['lines' => collect($request->input('lines', []))->filter(fn ($line) => isset($line['quantity']) && $line['quantity'] !== '')->values()->all()]);
+        $data = $request->validate([
+            'purchase_receipt_id' => ['required', 'integer', Rule::exists('purchase_receipts', 'id')->where('company_id', $company->id)],
+            'source_location_id' => ['required', 'integer', Rule::exists('stock_locations', 'id')->where('company_id', $company->id)->where('usage', 'internal')->where('is_active', true)],
+            'destination_location_id' => ['required', 'integer', Rule::exists('stock_locations', 'id')->where('company_id', $company->id)->where('usage', 'supplier')->where('is_active', true)],
+            'return_date' => ['required', 'date'], 'reason' => ['required', 'string', 'max:2000'],
+            'lines' => ['required', 'array', 'min:1', 'max:100'],
+            'lines.*.purchase_receipt_line_id' => ['required', 'integer', Rule::exists('purchase_receipt_lines', 'id')->where('company_id', $company->id)],
+            'lines.*.quantity' => ['required', 'numeric', 'gt:0', 'decimal:0,4'],
+        ]);
+        if (collect($data['lines'])->pluck('purchase_receipt_line_id')->unique()->count() !== count($data['lines'])) return back()->withErrors(['lines' => __('Each receipt line may appear only once.')]);
+        $service->createPurchaseReturn($request->user(), $data, $data['lines']);
+        return back()->with('success', __('Purchase return posted to inventory.'));
+    }
+
+    public function refreshVendorEvaluation(Request $request, PurchaseService $service): RedirectResponse
+    {
+        $company = app(CompanyContext::class)->requireActiveCompany(); $this->authorizeManagement($request, $company);
+        $data = $request->validate([
+            'vendor_id' => ['required', 'integer', Rule::exists('purchase_vendors', 'id')->where('company_id', $company->id)],
+            'year' => ['required', 'integer', 'min:2000', 'max:2100'], 'month' => ['required', 'integer', 'between:1,12'],
+        ]);
+        $service->refreshVendorEvaluation((int) $data['vendor_id'], (int) $data['year'], (int) $data['month'], $request->user());
+        return back()->with('success', __('Vendor evaluation refreshed.'));
+    }
+
+    public function storeVendorPriceList(Request $request, PurchaseService $service): RedirectResponse
+    {
+        $company = app(CompanyContext::class)->requireActiveCompany(); $this->authorizeManagement($request, $company);
+        $data = $request->validate([
+            'vendor_id' => ['required', 'integer', Rule::exists('purchase_vendors', 'id')->where('company_id', $company->id)],
+            'product_id' => ['required', 'integer', Rule::exists('inventory_products', 'id')->where('company_id', $company->id)],
+            'min_quantity' => ['required', 'numeric', 'gt:0', 'decimal:0,4'], 'price' => ['required', 'numeric', 'min:0', 'decimal:0,4'],
+            'currency_code' => ['required', 'string', 'size:3', Rule::exists('currencies', 'code')],
+            'valid_from' => ['required', 'date'], 'valid_to' => ['nullable', 'date', 'after_or_equal:valid_from'],
+        ]);
+        $service->saveVendorPriceList($request->user(), $data);
+        return back()->with('success', __('Vendor price list saved.'));
     }
 
     public function createPayment(Request $request): Response

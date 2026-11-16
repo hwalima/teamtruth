@@ -1,0 +1,32 @@
+<?php
+
+namespace App\Modules\Invoicing\Http\Requests;
+
+use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
+
+class StoreCustomerRequest extends FormRequest
+{
+    public function authorize(): bool
+    {
+        return $this->user()->can('erp.invoicing.manage');
+    }
+
+    public function rules(): array
+    {
+        return [
+            'code' => ['required', 'string', 'max:50', Rule::unique('inv_customers')->where('company_id', $this->user()->currentCompany?->id)],
+            'name' => ['required', 'string', 'max:255'],
+            'tax_no' => ['nullable', 'string', 'max:50'],
+            'email' => ['nullable', 'email', 'max:255'],
+            'phone' => ['nullable', 'string', 'max:50'],
+            'billing_address' => ['nullable', 'string'],
+            'shipping_address' => ['nullable', 'string'],
+            'payment_term_id' => ['nullable', 'exists:inv_payment_terms,id'],
+            'currency_code' => ['required', 'string', 'size:3', 'exists:currencies,code'],
+            'credit_limit' => ['nullable', 'numeric', 'min:0'],
+            'is_active' => ['boolean'],
+            'metadata' => ['nullable', 'array'],
+        ];
+    }
+}
