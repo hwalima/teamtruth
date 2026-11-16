@@ -71,9 +71,6 @@ Route::prefix('api/mzitshwa')->group(function () {
     Route::delete('conversations/{conversation}', [MzitshwaController::class, 'deleteConversation'])->name('mzitshwa.conversation.delete');
 });
 
-// Workload / capacity view
-Route::get('api/workload', [WorkloadController::class, 'index'])->name('workload.index');
-
 // In-app notifications
 Route::prefix('api/notifications')->group(function () {
     Route::get('recent', [InAppNotificationController::class, 'recent'])->name('notifications.recent');
@@ -131,9 +128,6 @@ Route::get('api/projects/{project}/invoice-data', [InvoiceController::class, 'ge
 // Payment settings
 Route::get('api/payment-settings/enabled', [PaymentSettingController::class, 'getEnabledMethods'])->name('api.payment-settings.enabled');
 
-// Invoice payment methods
-Route::get('api/invoices/{invoice}/payment-methods', [InvoicePaymentController::class, 'getPaymentMethods'])->name('api.invoices.payment-methods');
-
 // Zoom meetings calendar
 Route::get('api/zoom-meetings/calendar', [ZoomMeetingController::class, 'calendar'])->name('api.zoom-meetings.calendar');
 
@@ -162,5 +156,3 @@ Route::prefix('api/expense-dashboard')->group(function () {
     Route::get('alerts', [ExpenseDashboardController::class, 'alerts'])->middleware('permission:expense_generate_reports')->name('expense-dashboard.alerts');
 });
 
-// ChatGPT
-Route::post('api/chatgpt/generate', [ChatGptController::class, 'generate'])->name('chatgpt.generate');
