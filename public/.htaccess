@@ -18,6 +18,11 @@
     RewriteCond %{REQUEST_URI} (.+)/$
     RewriteRule ^ %1 [L,R=301]
 
+    # Serve manifest.json directly with correct headers (prevents LiteSpeed caching issues)
+    RewriteCond %{REQUEST_URI} ^/manifest\.json$
+    RewriteCond %{REQUEST_FILENAME} -f
+    RewriteRule ^ - [L]
+
     # Send Requests To Front Controller...
     RewriteCond %{REQUEST_FILENAME} !-d
     RewriteCond %{REQUEST_FILENAME} !-f
@@ -41,3 +46,15 @@
     Header always set Expires "0"
     Header always set X-LiteSpeed-Cache-Control "no-cache"
 </IfModule>
+
+# Ensure manifest.json is served with correct Content-Type and no caching
+<IfModule mod_mime.c>
+    AddType application/manifest+json .json
+</IfModule>
+<Files "manifest.json">
+    <IfModule mod_headers.c>
+        Header set Cache-Control "no-cache, no-store, must-revalidate"
+        Header set Pragma "no-cache"
+        Header set Expires "0"
+    </IfModule>
+</Files>
