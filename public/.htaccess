@@ -23,3 +23,21 @@
     RewriteCond %{REQUEST_FILENAME} !-f
     RewriteRule ^ index.php [L]
 </IfModule>
+
+# LiteSpeed Cache Control - prevent caching of dynamic PHP responses
+<IfModule LiteSpeed>
+    # Disable public cache for all PHP-generated content
+    CacheDisable public /
+    # Ensure private cache is also disabled for session pages
+    CacheDisable private /
+    # Force no-cache header on all responses
+    Header always set X-LiteSpeed-Cache-Control no-cache
+</IfModule>
+
+# Fallback: if mod_headers is available but LiteSpeed module isn't
+<IfModule mod_headers.c>
+    Header always set Cache-Control "private, no-store, no-cache, must-revalidate, max-age=0"
+    Header always set Pragma "no-cache"
+    Header always set Expires "0"
+    Header always set X-LiteSpeed-Cache-Control "no-cache"
+</IfModule>
