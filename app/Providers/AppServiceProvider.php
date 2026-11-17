@@ -20,6 +20,10 @@ class AppServiceProvider extends ServiceProvider
         $this->app->singleton(\App\Services\WebhookService::class);
         $this->app->scoped(\App\Modules\Core\Services\CompanyContext::class);
         $this->app->bind(\App\Modules\Invoicing\Services\FiscalDeviceInterface::class, \App\Modules\Invoicing\Services\NullFiscalDevice::class);
+
+        // Override session cookie domain to null (auto-detect) to fix domain mismatch issues
+        // when behind LiteSpeed/Cloudflare proxies on cPanel
+        $this->app['config']->set('session.domain', null);
     }
 
     /**
