@@ -18,17 +18,11 @@ Route::middleware(['guest', 'landing.enabled'])->group(function () {
     Route::post('register', [RegisteredUserController::class, 'store'])
         ->middleware('saas.only');
 
-    // Use a fresh URL so a stale LiteSpeed entry for /login cannot serve the login form.
-    Route::get('auth/login', [AuthenticatedSessionController::class, 'create'])
+    Route::get('login', [AuthenticatedSessionController::class, 'create'])
         ->name('login');
 
-    Route::post('auth/login', [AuthenticatedSessionController::class, 'store']);
-
-    // Keep the old URL usable as a redirect for bookmarks and external links.
-    Route::get('login', fn () => redirect()->route('login'))
-        ->name('login.legacy');
-
     Route::post('login', [AuthenticatedSessionController::class, 'store']);
+
 
     Route::get('forgot-password', [PasswordResetLinkController::class, 'create'])
         ->name('password.request');

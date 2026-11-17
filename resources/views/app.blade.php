@@ -87,9 +87,20 @@
 <body class="font-sans antialiased">
     @inertia
     <script>
+        // This app uses server sessions and CSRF tokens. Do not let a PWA
+        // service worker cache or alter authenticated HTML/JSON requests.
         if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/sw.js').catch(() => {});
+            window.addEventListener('load', async () => {
+                try {
+                    const registrations = await navigator.serviceWorker.getRegistrations();
+                    await Promise.all(registrations.map((registration) => registration.unregister()));
+                    if ('caches' in window) {
+                        const cacheNames = await caches.keys();
+                        await Promise.all(cacheNames.map((cacheName) => caches.delete(cacheName)));
+                    }
+                } catch (error) {
+                    // Ignore cleanup failures.
+                }
             });
         }
 

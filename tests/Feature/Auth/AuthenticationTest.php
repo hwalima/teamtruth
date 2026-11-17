@@ -2,10 +2,10 @@
 
 use App\Models\User;
 
-test('legacy login URL redirects to the cache-resistant login screen', function () {
-    $this->get('/login')->assertRedirect(route('login'));
+test('login screen can be rendered', function () {
+    $response = $this->get('/login');
 
-    $this->get(route('login'))->assertOk();
+    $response->assertOk();
 });
 
 test('users can authenticate using the login screen', function () {
