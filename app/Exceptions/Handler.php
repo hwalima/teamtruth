@@ -41,21 +41,26 @@ class Handler extends ExceptionHandler
     public function register(): void
     {
         $this->renderable(function (Throwable $e, Request $request) {
-            // Handle Inertia requests specially
-            if ($request->hasHeader('X-Inertia') || $request->expectsJson()) {
-                $status = $this->getStatusCode($e);
+            $status = $this->getStatusCode($e);
+            $message = $this->getErrorMessage($e, $status);
 
-                // For 403/401/404/500 errors, return Inertia response with error page
-                if (in_array($status, [401, 403, 404, 419, 422, 500, 503])) {
-                    return Inertia::render('Error', [
-                        'status' => $status,
-                        'message' => $this->getErrorMessage($e, $status),
-                    ])->toResponse($request)->setStatusCode($status);
-                }
+            if ($request->hasHeader('X-Inertia')) {
+                $response = Inertia::render('Error', [
+                    'status' => $status,
+                    'message' => $message,
+                ])->toResponse($request)->setStatusCode($status);
 
-                // For other errors, return JSON
+                $response->headers->set('Cache-Control', 'private, no-store, no-cache, must-revalidate, max-age=0');
+                $response->headers->set('Pragma', 'no-cache');
+                $response->headers->set('Expires', '0');
+                $response->headers->set('X-LiteSpeed-Cache-Control', 'no-cache');
+
+                return $response;
+            }
+
+            if ($request->expectsJson()) {
                 return response()->json([
-                    'message' => $this->getErrorMessage($e, $status),
+                    'message' => $message,
                     'status' => $status,
                 ], $status);
             }
