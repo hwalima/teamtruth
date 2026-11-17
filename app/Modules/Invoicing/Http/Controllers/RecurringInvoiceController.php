@@ -40,6 +40,7 @@ class RecurringInvoiceController extends Controller
         $recurringInvoices = $query->orderBy('next_run_date')->paginate(20)->withQueryString();
 
         return Inertia::render('Erp/Invoicing/RecurringInvoices/Index', [
+            'company' => $company,
             'recurringInvoices' => $recurringInvoices,
             'filters' => $request->only(['search', 'status']),
             'statusOptions' => [
@@ -85,6 +86,7 @@ class RecurringInvoiceController extends Controller
         $currencies = \App\Models\Currency::query()->orderBy('code')->get(['code', 'name']);
 
         return Inertia::render('Erp/Invoicing/RecurringInvoices/Create', [
+            'company' => $company,
             'customers' => $customers,
             'paymentTerms' => $paymentTerms,
             'products' => $products,
@@ -127,9 +129,11 @@ class RecurringInvoiceController extends Controller
     {
         $this->authorizeErpPermission('erp.invoicing.view');
 
+        $company = app(CompanyContext::class)->requireActiveCompany();
         $recurring->load(['customer', 'paymentTerm']);
 
         return Inertia::render('Erp/Invoicing/RecurringInvoices/Show', [
+            'company' => $company,
             'recurring' => $recurring,
             'canPause' => $this->allowsErpPermission('erp.invoicing.manage'),
             'canResume' => $this->allowsErpPermission('erp.invoicing.manage'),

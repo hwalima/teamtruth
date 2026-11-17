@@ -79,6 +79,7 @@ class InvoicingController extends Controller
             ->get(['id', 'name', 'code']);
 
         return Inertia::render('Erp/Invoicing/Index', [
+            'company' => $company,
             'invoices' => $invoices,
             'customers' => $customers,
             'filters' => $request->only(['search', 'status', 'customer_id', 'date_from', 'date_to', 'type', 'sort_by', 'sort_order']),
@@ -138,6 +139,7 @@ class InvoicingController extends Controller
         $currencies = \App\Models\Currency::query()->orderBy('code')->get(['code', 'name']);
 
         return Inertia::render('Erp/Invoicing/Create', [
+            'company' => $company,
             'customers' => $customers,
             'paymentTerms' => $paymentTerms,
             'products' => $products,
@@ -183,7 +185,10 @@ class InvoicingController extends Controller
             ->orderBy('payment_date', 'desc')
             ->get();
 
+        $company = app(CompanyContext::class)->requireActiveCompany();
+
         return Inertia::render('Erp/Invoicing/Show', [
+            'company' => $company,
             'invoice' => $invoice,
             'payments' => $payments,
             'canSend' => $this->allowsErpPermission('erp.invoicing.manage'),
@@ -231,6 +236,7 @@ class InvoicingController extends Controller
         $invoice->load(['lines.product', 'lines.account']);
 
         return Inertia::render('Erp/Invoicing/Edit', [
+            'company' => $company,
             'invoice' => $invoice,
             'customers' => $customers,
             'products' => $products,

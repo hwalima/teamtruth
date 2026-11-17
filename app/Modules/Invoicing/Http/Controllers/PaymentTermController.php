@@ -22,6 +22,7 @@ class PaymentTermController extends Controller
             ->get();
 
         return Inertia::render('Erp/Invoicing/PaymentTerms/Index', [
+            'company' => $company,
             'paymentTerms' => $paymentTerms,
         ]);
     }

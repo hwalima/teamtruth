@@ -47,6 +47,7 @@ class CreditNoteController extends Controller
             ->get(['id', 'name', 'code']);
 
         return Inertia::render('Erp/Invoicing/CreditNotes/Index', [
+            'company' => $company,
             'creditNotes' => $creditNotes,
             'customers' => $customers,
             'filters' => $request->only(['search', 'status']),
@@ -100,6 +101,7 @@ class CreditNoteController extends Controller
         $currencies = \App\Models\Currency::query()->orderBy('code')->get(['code', 'name']);
 
         return Inertia::render('Erp/Invoicing/CreditNotes/Create', [
+            'company' => $company,
             'customers' => $customers,
             'invoices' => $invoices,
             'products' => $products,
@@ -139,7 +141,10 @@ class CreditNoteController extends Controller
             'fiscalDocuments',
         ]);
 
+        $company = app(CompanyContext::class)->requireActiveCompany();
+
         return Inertia::render('Erp/Invoicing/CreditNotes/Show', [
+            'company' => $company,
             'creditNote' => $creditNote,
             'canIssue' => $this->allowsErpPermission('erp.invoicing.manage'),
             'canCancel' => $this->allowsErpPermission('erp.invoicing.manage'),

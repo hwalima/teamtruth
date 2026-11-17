@@ -36,6 +36,7 @@ class CustomerController extends Controller
         $customers = $query->orderBy('name')->paginate(20)->withQueryString();
 
         return Inertia::render('Erp/Invoicing/Customers/Index', [
+            'company' => $company,
             'customers' => $customers,
             'filters' => $request->only(['search', 'is_active']),
         ]);
@@ -54,6 +55,7 @@ class CustomerController extends Controller
         $currencies = \App\Models\Currency::query()->orderBy('code')->get(['code', 'name']);
 
         return Inertia::render('Erp/Invoicing/Customers/Create', [
+            'company' => $company,
             'paymentTerms' => $paymentTerms,
             'currencies' => $currencies,
         ]);
@@ -84,7 +86,10 @@ class CustomerController extends Controller
             $q->orderBy('credit_note_date', 'desc')->limit(10);
         }]);
 
+        $company = app(CompanyContext::class)->requireActiveCompany();
+
         return Inertia::render('Erp/Invoicing/Customers/Show', [
+            'company' => $company,
             'customer' => $customer,
             'outstandingBalance' => $customer->getOutstandingBalance(),
             'isOverCreditLimit' => $customer->isOverCreditLimit(),

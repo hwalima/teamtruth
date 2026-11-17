@@ -50,6 +50,7 @@ class CustomerStatementController extends Controller
         });
 
         return Inertia::render('Erp/Invoicing/CustomerStatements/Index', [
+            'company' => $company,
             'customers' => $customers,
             'filters' => $request->only(['search']),
         ]);
@@ -111,6 +112,7 @@ class CustomerStatementController extends Controller
         $balance = $customer->getOutstandingBalance();
 
         return Inertia::render('Erp/Invoicing/CustomerStatements/Show', [
+            'company' => $company,
             'customer' => $customer,
             'statementLines' => $statementLines,
             'totals' => [
