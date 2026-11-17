@@ -1,4 +1,4 @@
-const CACHE_NAME = 'teamtruth-v2';
+const CACHE_NAME = 'teamtruth-v3';
 const OFFLINE_URL = '/offline.html';
 
 const PRECACHE_ASSETS = [
@@ -33,7 +33,7 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
     if (event.request.mode === 'navigate') {
         event.respondWith(
-            fetch(event.request).catch(() => {
+            fetch(event.request, { cache: 'no-store' }).catch(() => {
                 return caches.match(OFFLINE_URL);
             })
         );

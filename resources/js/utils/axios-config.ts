@@ -25,7 +25,17 @@ axios.interceptors.request.use((config) => {
   if (csrfToken) {
     config.headers['X-CSRF-TOKEN'] = csrfToken;
   }
-  
+
+  // Ask browser and intermediary caches to revalidate app requests so stale
+  // HTML cannot be reused for session-bound Inertia visits or form submissions.
+  if (typeof window !== 'undefined' && config.url) {
+    const requestUrl = new URL(config.url, config.baseURL || window.location.href);
+    if (requestUrl.origin === window.location.origin) {
+      config.headers['Cache-Control'] = 'no-cache, no-store, max-age=0';
+      config.headers['Pragma'] = 'no-cache';
+    }
+  }
+
   return config;
 });
 
