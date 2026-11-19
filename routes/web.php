@@ -479,6 +479,290 @@ Route::middleware(['auth', 'verified'])->prefix('erp')->name('erp.')->group(func
             ->name('approvals.delegate');
     });
 
+    // HRM Routes
+    Route::prefix('hrm')->name('hrm.')->group(function () {
+        // Employees
+        Route::get('employees', [\App\Modules\Hrm\Http\Controllers\EmployeeController::class, 'index'])
+            ->middleware('erp.permission:erp.hrm.employee.view')
+            ->name('employees.index');
+        Route::get('employees/create', [\App\Modules\Hrm\Http\Controllers\EmployeeController::class, 'create'])
+            ->middleware('erp.permission:erp.hrm.employee.manage')
+            ->name('employees.create');
+        Route::post('employees', [\App\Modules\Hrm\Http\Controllers\EmployeeController::class, 'store'])
+            ->middleware('erp.permission:erp.hrm.employee.manage')
+            ->name('employees.store');
+        Route::get('employees/{employee}', [\App\Modules\Hrm\Http\Controllers\EmployeeController::class, 'show'])
+            ->middleware('erp.permission:erp.hrm.employee.view')
+            ->name('employees.show');
+        Route::get('employees/{employee}/edit', [\App\Modules\Hrm\Http\Controllers\EmployeeController::class, 'edit'])
+            ->middleware('erp.permission:erp.hrm.employee.manage')
+            ->name('employees.edit');
+        Route::put('employees/{employee}', [\App\Modules\Hrm\Http\Controllers\EmployeeController::class, 'update'])
+            ->middleware('erp.permission:erp.hrm.employee.manage')
+            ->name('employees.update');
+        Route::post('employees/{employee}/terminate', [\App\Modules\Hrm\Http\Controllers\EmployeeController::class, 'terminate'])
+            ->middleware('erp.permission:erp.hrm.employee.manage')
+            ->name('employees.terminate');
+        Route::post('employees/{employee}/rehire', [\App\Modules\Hrm\Http\Controllers\EmployeeController::class, 'rehire'])
+            ->middleware('erp.permission:erp.hrm.employee.manage')
+            ->name('employees.rehire');
+        Route::post('employees/{employee}/documents', [\App\Modules\Hrm\Http\Controllers\EmployeeController::class, 'storeDocument'])
+            ->middleware('erp.permission:erp.hrm.employee.manage')
+            ->name('employees.documents.store');
+        Route::delete('employees/{employee}/documents/{document}', [\App\Modules\Hrm\Http\Controllers\EmployeeController::class, 'destroyDocument'])
+            ->middleware('erp.permission:erp.hrm.employee.manage')
+            ->name('employees.documents.destroy');
+
+        // Leave Management
+        Route::prefix('leave')->name('leave.')->group(function () {
+            Route::get('types', [\App\Modules\Hrm\Http\Controllers\LeaveTypeController::class, 'index'])
+                ->middleware('erp.permission:erp.hrm.leave.view')
+                ->name('types.index');
+            Route::post('types', [\App\Modules\Hrm\Http\Controllers\LeaveTypeController::class, 'store'])
+                ->middleware('erp.permission:erp.hrm.leave.manage')
+                ->name('types.store');
+            Route::put('types/{leaveType}', [\App\Modules\Hrm\Http\Controllers\LeaveTypeController::class, 'update'])
+                ->middleware('erp.permission:erp.hrm.leave.manage')
+                ->name('types.update');
+            Route::delete('types/{leaveType}', [\App\Modules\Hrm\Http\Controllers\LeaveTypeController::class, 'destroy'])
+                ->middleware('erp.permission:erp.hrm.leave.manage')
+                ->name('types.destroy');
+
+            Route::get('balances', [\App\Modules\Hrm\Http\Controllers\LeaveBalanceController::class, 'index'])
+                ->middleware('erp.permission:erp.hrm.leave.view')
+                ->name('balances.index');
+            Route::post('balances', [\App\Modules\Hrm\Http\Controllers\LeaveBalanceController::class, 'store'])
+                ->middleware('erp.permission:erp.hrm.leave.manage')
+                ->name('balances.store');
+            Route::put('balances/{balance}', [\App\Modules\Hrm\Http\Controllers\LeaveBalanceController::class, 'update'])
+                ->middleware('erp.permission:erp.hrm.leave.manage')
+                ->name('balances.update');
+            Route::post('balances/{balance}/adjust', [\App\Modules\Hrm\Http\Controllers\LeaveBalanceController::class, 'adjust'])
+                ->middleware('erp.permission:erp.hrm.leave.manage')
+                ->name('balances.adjust');
+
+            Route::get('requests', [\App\Modules\Hrm\Http\Controllers\LeaveRequestController::class, 'index'])
+                ->middleware('erp.permission:erp.hrm.leave.view')
+                ->name('requests.index');
+            Route::get('requests/create', [\App\Modules\Hrm\Http\Controllers\LeaveRequestController::class, 'create'])
+                ->middleware('erp.permission:erp.hrm.leave.request')
+                ->name('requests.create');
+            Route::post('requests', [\App\Modules\Hrm\Http\Controllers\LeaveRequestController::class, 'store'])
+                ->middleware('erp.permission:erp.hrm.leave.request')
+                ->name('requests.store');
+            Route::get('requests/{leaveRequest}', [\App\Modules\Hrm\Http\Controllers\LeaveRequestController::class, 'show'])
+                ->middleware('erp.permission:erp.hrm.leave.view')
+                ->name('requests.show');
+            Route::post('requests/{leaveRequest}/approve', [\App\Modules\Hrm\Http\Controllers\LeaveRequestController::class, 'approve'])
+                ->middleware('erp.permission:erp.hrm.leave.approve')
+                ->name('requests.approve');
+            Route::post('requests/{leaveRequest}/reject', [\App\Modules\Hrm\Http\Controllers\LeaveRequestController::class, 'reject'])
+                ->middleware('erp.permission:erp.hrm.leave.approve')
+                ->name('requests.reject');
+            Route::post('requests/{leaveRequest}/cancel', [\App\Modules\Hrm\Http\Controllers\LeaveRequestController::class, 'cancel'])
+                ->middleware('erp.permission:erp.hrm.leave.request')
+                ->name('requests.cancel');
+
+            Route::get('holidays', [\App\Modules\Hrm\Http\Controllers\PublicHolidayController::class, 'index'])
+                ->middleware('erp.permission:erp.hrm.leave.view')
+                ->name('holidays.index');
+            Route::post('holidays', [\App\Modules\Hrm\Http\Controllers\PublicHolidayController::class, 'store'])
+                ->middleware('erp.permission:erp.hrm.leave.manage')
+                ->name('holidays.store');
+            Route::put('holidays/{holiday}', [\App\Modules\Hrm\Http\Controllers\PublicHolidayController::class, 'update'])
+                ->middleware('erp.permission:erp.hrm.leave.manage')
+                ->name('holidays.update');
+            Route::delete('holidays/{holiday}', [\App\Modules\Hrm\Http\Controllers\PublicHolidayController::class, 'destroy'])
+                ->middleware('erp.permission:erp.hrm.leave.manage')
+                ->name('holidays.destroy');
+        });
+
+        // Contracts
+        Route::prefix('contracts')->name('contracts.')->group(function () {
+            Route::get('templates', [\App\Modules\Hrm\Http\Controllers\ContractTemplateController::class, 'index'])
+                ->middleware('erp.permission:erp.hrm.contract.view')
+                ->name('templates.index');
+            Route::post('templates', [\App\Modules\Hrm\Http\Controllers\ContractTemplateController::class, 'store'])
+                ->middleware('erp.permission:erp.hrm.contract.manage')
+                ->name('templates.store');
+            Route::put('templates/{template}', [\App\Modules\Hrm\Http\Controllers\ContractTemplateController::class, 'update'])
+                ->middleware('erp.permission:erp.hrm.contract.manage')
+                ->name('templates.update');
+            Route::delete('templates/{template}', [\App\Modules\Hrm\Http\Controllers\ContractTemplateController::class, 'destroy'])
+                ->middleware('erp.permission:erp.hrm.contract.manage')
+                ->name('templates.destroy');
+
+            Route::get('/', [\App\Modules\Hrm\Http\Controllers\ContractController::class, 'index'])
+                ->middleware('erp.permission:erp.hrm.contract.view')
+                ->name('index');
+            Route::get('create', [\App\Modules\Hrm\Http\Controllers\ContractController::class, 'create'])
+                ->middleware('erp.permission:erp.hrm.contract.manage')
+                ->name('create');
+            Route::post('/', [\App\Modules\Hrm\Http\Controllers\ContractController::class, 'store'])
+                ->middleware('erp.permission:erp.hrm.contract.manage')
+                ->name('store');
+            Route::get('{contract}', [\App\Modules\Hrm\Http\Controllers\ContractController::class, 'show'])
+                ->middleware('erp.permission:erp.hrm.contract.view')
+                ->name('show');
+            Route::put('{contract}', [\App\Modules\Hrm\Http\Controllers\ContractController::class, 'update'])
+                ->middleware('erp.permission:erp.hrm.contract.manage')
+                ->name('update');
+            Route::post('{contract}/sign/employee', [\App\Modules\Hrm\Http\Controllers\ContractController::class, 'signByEmployee'])
+                ->middleware('erp.permission:erp.hrm.contract.sign')
+                ->name('sign.employee');
+            Route::post('{contract}/sign/employer', [\App\Modules\Hrm\Http\Controllers\ContractController::class, 'signByEmployer'])
+                ->middleware('erp.permission:erp.hrm.contract.manage')
+                ->name('sign.employer');
+            Route::post('{contract}/renew', [\App\Modules\Hrm\Http\Controllers\ContractController::class, 'renew'])
+                ->middleware('erp.permission:erp.hrm.contract.manage')
+                ->name('renew');
+            Route::post('{contract}/terminate', [\App\Modules\Hrm\Http\Controllers\ContractController::class, 'terminate'])
+                ->middleware('erp.permission:erp.hrm.contract.manage')
+                ->name('terminate');
+        });
+
+        // Disciplinary
+        Route::prefix('disciplinary')->name('disciplinary.')->group(function () {
+            Route::get('/', [\App\Modules\Hrm\Http\Controllers\DisciplinaryCaseController::class, 'index'])
+                ->middleware('erp.permission:erp.hrm.disciplinary.view')
+                ->name('index');
+            Route::get('create', [\App\Modules\Hrm\Http\Controllers\DisciplinaryCaseController::class, 'create'])
+                ->middleware('erp.permission:erp.hrm.disciplinary.manage')
+                ->name('create');
+            Route::post('/', [\App\Modules\Hrm\Http\Controllers\DisciplinaryCaseController::class, 'store'])
+                ->middleware('erp.permission:erp.hrm.disciplinary.manage')
+                ->name('store');
+            Route::get('{case}', [\App\Modules\Hrm\Http\Controllers\DisciplinaryCaseController::class, 'show'])
+                ->middleware('erp.permission:erp.hrm.disciplinary.view')
+                ->name('show');
+            Route::post('{case}/investigate', [\App\Modules\Hrm\Http\Controllers\DisciplinaryCaseController::class, 'startInvestigation'])
+                ->middleware('erp.permission:erp.hrm.disciplinary.manage')
+                ->name('investigate');
+            Route::post('{case}/investigation/complete', [\App\Modules\Hrm\Http\Controllers\DisciplinaryCaseController::class, 'completeInvestigation'])
+                ->middleware('erp.permission:erp.hrm.disciplinary.manage')
+                ->name('investigation.complete');
+            Route::post('{case}/hearing', [\App\Modules\Hrm\Http\Controllers\DisciplinaryCaseController::class, 'scheduleHearing'])
+                ->middleware('erp.permission:erp.hrm.disciplinary.manage')
+                ->name('hearing.schedule');
+            Route::post('{case}/hearing/complete', [\App\Modules\Hrm\Http\Controllers\DisciplinaryCaseController::class, 'completeHearing'])
+                ->middleware('erp.permission:erp.hrm.disciplinary.manage')
+                ->name('hearing.complete');
+            Route::post('{case}/outcome', [\App\Modules\Hrm\Http\Controllers\DisciplinaryCaseController::class, 'recordOutcome'])
+                ->middleware('erp.permission:erp.hrm.disciplinary.manage')
+                ->name('outcome.record');
+            Route::post('{case}/appeal', [\App\Modules\Hrm\Http\Controllers\DisciplinaryCaseController::class, 'submitAppeal'])
+                ->middleware('erp.permission:erp.hrm.disciplinary.appeal')
+                ->name('appeal.submit');
+            Route::post('{case}/appeal/decide', [\App\Modules\Hrm\Http\Controllers\DisciplinaryCaseController::class, 'decideAppeal'])
+                ->middleware('erp.permission:erp.hrm.disciplinary.manage')
+                ->name('appeal.decide');
+            Route::post('{case}/close', [\App\Modules\Hrm\Http\Controllers\DisciplinaryCaseController::class, 'close'])
+                ->middleware('erp.permission:erp.hrm.disciplinary.manage')
+                ->name('close');
+            Route::post('{case}/documents', [\App\Modules\Hrm\Http\Controllers\DisciplinaryCaseController::class, 'storeDocument'])
+                ->middleware('erp.permission:erp.hrm.disciplinary.manage')
+                ->name('documents.store');
+            Route::delete('{case}/documents/{document}', [\App\Modules\Hrm\Http\Controllers\DisciplinaryCaseController::class, 'destroyDocument'])
+                ->middleware('erp.permission:erp.hrm.disciplinary.manage')
+                ->name('documents.destroy');
+        });
+
+        // Organization
+        Route::prefix('organization')->name('organization.')->group(function () {
+            Route::get('departments', [\App\Modules\Hrm\Http\Controllers\DepartmentController::class, 'index'])
+                ->middleware('erp.permission:erp.hrm.department.view')
+                ->name('departments.index');
+            Route::post('departments', [\App\Modules\Hrm\Http\Controllers\DepartmentController::class, 'store'])
+                ->middleware('erp.permission:erp.hrm.department.manage')
+                ->name('departments.store');
+            Route::put('departments/{department}', [\App\Modules\Hrm\Http\Controllers\DepartmentController::class, 'update'])
+                ->middleware('erp.permission:erp.hrm.department.manage')
+                ->name('departments.update');
+            Route::delete('departments/{department}', [\App\Modules\Hrm\Http\Controllers\DepartmentController::class, 'destroy'])
+                ->middleware('erp.permission:erp.hrm.department.manage')
+                ->name('departments.destroy');
+            Route::post('departments/{department}/move', [\App\Modules\Hrm\Http\Controllers\DepartmentController::class, 'move'])
+                ->middleware('erp.permission:erp.hrm.department.manage')
+                ->name('departments.move');
+
+            Route::get('positions', [\App\Modules\Hrm\Http\Controllers\PositionController::class, 'index'])
+                ->middleware('erp.permission:erp.hrm.position.view')
+                ->name('positions.index');
+            Route::post('positions', [\App\Modules\Hrm\Http\Controllers\PositionController::class, 'store'])
+                ->middleware('erp.permission:erp.hrm.position.manage')
+                ->name('positions.store');
+            Route::put('positions/{position}', [\App\Modules\Hrm\Http\Controllers\PositionController::class, 'update'])
+                ->middleware('erp.permission:erp.hrm.position.manage')
+                ->name('positions.update');
+            Route::delete('positions/{position}', [\App\Modules\Hrm\Http\Controllers\PositionController::class, 'destroy'])
+                ->middleware('erp.permission:erp.hrm.position.manage')
+                ->name('positions.destroy');
+            Route::post('positions/{position}/assign', [\App\Modules\Hrm\Http\Controllers\PositionController::class, 'assignEmployee'])
+                ->middleware('erp.permission:erp.hrm.position.manage')
+                ->name('positions.assign');
+            Route::delete('positions/{position}/remove/{employee}', [\App\Modules\Hrm\Http\Controllers\PositionController::class, 'removeEmployee'])
+                ->middleware('erp.permission:erp.hrm.position.manage')
+                ->name('positions.remove');
+
+            Route::get('grades', [\App\Modules\Hrm\Http\Controllers\GradeController::class, 'index'])
+                ->middleware('erp.permission:erp.hrm.grade.view')
+                ->name('grades.index');
+            Route::post('grades', [\App\Modules\Hrm\Http\Controllers\GradeController::class, 'store'])
+                ->middleware('erp.permission:erp.hrm.grade.manage')
+                ->name('grades.store');
+            Route::put('grades/{grade}', [\App\Modules\Hrm\Http\Controllers\GradeController::class, 'update'])
+                ->middleware('erp.permission:erp.hrm.grade.manage')
+                ->name('grades.update');
+            Route::delete('grades/{grade}', [\App\Modules\Hrm\Http\Controllers\GradeController::class, 'destroy'])
+                ->middleware('erp.permission:erp.hrm.grade.manage')
+                ->name('grades.destroy');
+
+            Route::get('cost-centers', [\App\Modules\Hrm\Http\Controllers\CostCenterController::class, 'index'])
+                ->middleware('erp.permission:erp.hrm.cost_center.view')
+                ->name('cost-centers.index');
+            Route::post('cost-centers', [\App\Modules\Hrm\Http\Controllers\CostCenterController::class, 'store'])
+                ->middleware('erp.permission:erp.hrm.cost_center.manage')
+                ->name('cost-centers.store');
+            Route::put('cost-centers/{costCenter}', [\App\Modules\Hrm\Http\Controllers\CostCenterController::class, 'update'])
+                ->middleware('erp.permission:erp.hrm.cost_center.manage')
+                ->name('cost-centers.update');
+            Route::delete('cost-centers/{costCenter}', [\App\Modules\Hrm\Http\Controllers\CostCenterController::class, 'destroy'])
+                ->middleware('erp.permission:erp.hrm.cost_center.manage')
+                ->name('cost-centers.destroy');
+        });
+
+        // Self Service
+        Route::prefix('self-service')->name('self-service.')->group(function () {
+            Route::get('/', [\App\Modules\Hrm\Http\Controllers\SelfServiceController::class, 'index'])
+                ->middleware('erp.permission:erp.hrm.self_service.view')
+                ->name('index');
+            Route::get('create', [\App\Modules\Hrm\Http\Controllers\SelfServiceController::class, 'create'])
+                ->middleware('erp.permission:erp.hrm.self_service.request')
+                ->name('create');
+            Route::post('/', [\App\Modules\Hrm\Http\Controllers\SelfServiceController::class, 'store'])
+                ->middleware('erp.permission:erp.hrm.self_service.request')
+                ->name('store');
+            Route::get('{request}', [\App\Modules\Hrm\Http\Controllers\SelfServiceController::class, 'show'])
+                ->middleware('erp.permission:erp.hrm.self_service.view')
+                ->name('show');
+            Route::put('{request}', [\App\Modules\Hrm\Http\Controllers\SelfServiceController::class, 'update'])
+                ->middleware('erp.permission:erp.hrm.self_service.request')
+                ->name('update');
+            Route::post('{request}/assign', [\App\Modules\Hrm\Http\Controllers\SelfServiceController::class, 'assign'])
+                ->middleware('erp.permission:erp.hrm.self_service.manage')
+                ->name('assign');
+            Route::post('{request}/review', [\App\Modules\Hrm\Http\Controllers\SelfServiceController::class, 'review'])
+                ->middleware('erp.permission:erp.hrm.self_service.manage')
+                ->name('review');
+            Route::post('{request}/cancel', [\App\Modules\Hrm\Http\Controllers\SelfServiceController::class, 'cancel'])
+                ->middleware('erp.permission:erp.hrm.self_service.request')
+                ->name('cancel');
+            Route::post('{request}/documents', [\App\Modules\Hrm\Http\Controllers\SelfServiceController::class, 'storeDocument'])
+                ->middleware('erp.permission:erp.hrm.self_service.request')
+                ->name('documents.store');
+        });
+    });
+
     Route::middleware(['erp.company', 'erp.permission:erp.dashboard.view'])->get('/', [\App\Modules\Core\Http\Controllers\ErpDashboardController::class, 'index'])
         ->name('dashboard');
     Route::middleware(['erp.company', 'erp.permission:erp.settings.view'])->get('sample-document', [\App\Modules\Core\Http\Controllers\CompanyController::class, 'sampleDocument'])

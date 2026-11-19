@@ -5,4 +5,5 @@ return [
     App\Providers\AuthServiceProvider::class,
     App\Providers\EventServiceProvider::class,
     Paytabscom\Laravel_paytabs\PaypageServiceProvider::class,
+    App\Modules\Hrm\Providers\HrmServiceProvider::class,
 ];
