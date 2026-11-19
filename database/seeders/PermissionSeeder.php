@@ -458,6 +458,46 @@ class PermissionSeeder extends Seeder
             ['name' => 'project_report_export', 'module' => 'project_report', 'label' => 'Export Project Report', 'description' => 'Export project reports to various formats'],
             ['name' => 'project_report_dashboard', 'module' => 'project_report', 'label' => 'View Project Report Dashboard', 'description' => 'Access project report dashboard with analytics'],
 
+            // HRM Module
+            ['name' => 'erp.hrm.view', 'module' => 'hrm', 'label' => 'Access HRM Module', 'description' => 'Access the HRM module'],
+            ['name' => 'erp.hrm.manage', 'module' => 'hrm', 'label' => 'Manage HRM', 'description' => 'Manage all HRM records'],
+
+            // HRM Employees
+            ['name' => 'erp.hrm.employee.view', 'module' => 'hrm', 'label' => 'View Employees', 'description' => 'View employee records'],
+            ['name' => 'erp.hrm.employee.manage', 'module' => 'hrm', 'label' => 'Manage Employees', 'description' => 'Create, update, delete employee records'],
+
+            // HRM Leave
+            ['name' => 'erp.hrm.leave.view', 'module' => 'hrm', 'label' => 'View Leave', 'description' => 'View leave records and balances'],
+            ['name' => 'erp.hrm.leave.manage', 'module' => 'hrm', 'label' => 'Manage Leave', 'description' => 'Create, update, delete leave types and policies'],
+            ['name' => 'erp.hrm.leave.request', 'module' => 'hrm', 'label' => 'Request Leave', 'description' => 'Submit leave requests'],
+            ['name' => 'erp.hrm.leave.approve', 'module' => 'hrm', 'label' => 'Approve Leave', 'description' => 'Approve or reject leave requests'],
+
+            // HRM Contracts
+            ['name' => 'erp.hrm.contract.view', 'module' => 'hrm', 'label' => 'View Contracts', 'description' => 'View employee contracts'],
+            ['name' => 'erp.hrm.contract.manage', 'module' => 'hrm', 'label' => 'Manage Contracts', 'description' => 'Create, update, delete contracts'],
+            ['name' => 'erp.hrm.contract.sign', 'module' => 'hrm', 'label' => 'Sign Contracts', 'description' => 'Digitally sign contracts'],
+
+            // HRM Organization
+            ['name' => 'erp.hrm.organization.view', 'module' => 'hrm', 'label' => 'View Organization', 'description' => 'View organizational structure'],
+            ['name' => 'erp.hrm.department.view', 'module' => 'hrm', 'label' => 'View Departments', 'description' => 'View departments'],
+            ['name' => 'erp.hrm.department.manage', 'module' => 'hrm', 'label' => 'Manage Departments', 'description' => 'Create, update, delete departments'],
+            ['name' => 'erp.hrm.position.view', 'module' => 'hrm', 'label' => 'View Positions', 'description' => 'View positions'],
+            ['name' => 'erp.hrm.position.manage', 'module' => 'hrm', 'label' => 'Manage Positions', 'description' => 'Create, update, delete positions'],
+            ['name' => 'erp.hrm.grade.view', 'module' => 'hrm', 'label' => 'View Grades', 'description' => 'View job grades'],
+            ['name' => 'erp.hrm.grade.manage', 'module' => 'hrm', 'label' => 'Manage Grades', 'description' => 'Create, update, delete job grades'],
+            ['name' => 'erp.hrm.cost_center.view', 'module' => 'hrm', 'label' => 'View Cost Centers', 'description' => 'View cost centers'],
+            ['name' => 'erp.hrm.cost_center.manage', 'module' => 'hrm', 'label' => 'Manage Cost Centers', 'description' => 'Create, update, delete cost centers'],
+
+            // HRM Disciplinary
+            ['name' => 'erp.hrm.disciplinary.view', 'module' => 'hrm', 'label' => 'View Disciplinary Cases', 'description' => 'View disciplinary cases'],
+            ['name' => 'erp.hrm.disciplinary.manage', 'module' => 'hrm', 'label' => 'Manage Disciplinary Cases', 'description' => 'Create, update, delete disciplinary cases'],
+            ['name' => 'erp.hrm.disciplinary.appeal', 'module' => 'hrm', 'label' => 'Appeal Disciplinary', 'description' => 'File appeals on disciplinary cases'],
+
+            // HRM Self Service
+            ['name' => 'erp.hrm.self_service.view', 'module' => 'hrm', 'label' => 'View Self Service', 'description' => 'View self-service requests'],
+            ['name' => 'erp.hrm.self_service.request', 'module' => 'hrm', 'label' => 'Request Self Service', 'description' => 'Submit self-service requests'],
+            ['name' => 'erp.hrm.self_service.manage', 'module' => 'hrm', 'label' => 'Manage Self Service', 'description' => 'Approve and manage self-service requests'],
+
             // ToDo Module
             ['name' => 'todo_view_any', 'module' => 'todos', 'label' => 'View All ToDos', 'description' => 'View all todos in workspace'],
             ['name' => 'todo_view', 'module' => 'todos', 'label' => 'View ToDo', 'description' => 'View individual todo'],

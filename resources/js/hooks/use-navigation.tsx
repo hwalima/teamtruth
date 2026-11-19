@@ -42,6 +42,12 @@ import {
     FileMinus,
     Repeat,
     Users as UsersIcon,
+    Briefcase,
+    UserCheck,
+    FileSignature,
+    CalendarDays,
+    ClipboardCheck,
+    HeartHandshake,
 } from 'lucide-react';
 
 export function useNavigation() {
@@ -385,6 +391,37 @@ export function useNavigation() {
             }
             if (canUseErp('erp.sales.view')) {
                 items.push({ title: t('Sales'), href: route('erp.sales.index'), icon: TrendingUp, group: t('Modules') });
+            }
+            if (canUseErp('erp.hrm.view')) {
+                const hrmItems: NavItem[] = [];
+                if (canUseErp('erp.hrm.employees.view')) {
+                    hrmItems.push({ title: t('Employees'), href: route('erp.hrm.employees.index'), icon: Users });
+                }
+                if (canUseErp('erp.hrm.leave.view')) {
+                    hrmItems.push({ title: t('Leave Management'), href: route('erp.hrm.leave.index'), icon: CalendarDays });
+                }
+                if (canUseErp('erp.hrm.contracts.view')) {
+                    hrmItems.push({ title: t('Contracts'), href: route('erp.hrm.contracts.index'), icon: FileSignature });
+                }
+                if (canUseErp('erp.hrm.organization.view')) {
+                    hrmItems.push({
+                        title: t('Organization'),
+                        icon: Briefcase,
+                        children: [
+                            { title: t('Departments'), href: route('erp.hrm.organization.departments.index') },
+                            { title: t('Positions'), href: route('erp.hrm.organization.positions.index') },
+                        ],
+                    });
+                }
+                if (canUseErp('erp.hrm.disciplinary.view')) {
+                    hrmItems.push({ title: t('Disciplinary'), href: route('erp.hrm.disciplinary.index'), icon: ClipboardCheck });
+                }
+                if (canUseErp('erp.hrm.self_service.view')) {
+                    hrmItems.push({ title: t('Self Service'), href: route('erp.hrm.self-service.index'), icon: HeartHandshake });
+                }
+                if (hrmItems.length > 0) {
+                    items.push({ title: t('Human Resources'), icon: UserCheck, group: t('Modules'), children: hrmItems });
+                }
             }
             if (canUseErp('erp.approvals.view')) {
                 items.push({ title: t('My Approvals'), href: route('erp.approvals.index'), icon: ShieldCheck, group: t('Modules') });

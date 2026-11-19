@@ -86,6 +86,7 @@ class RoleSeeder extends Seeder
                 'project_permissions',
                 'todos',
                 'erp_core',
+                'hrm',
 
             ])->get();
 
@@ -170,6 +171,7 @@ class RoleSeeder extends Seeder
                 'project_permissions',
                 'todos',
                 'erp_core',
+                'hrm',
             ])->get();
         }
 
@@ -195,7 +197,7 @@ class RoleSeeder extends Seeder
             ['label' => 'Manager', 'description' => 'Manager with full workspace management']
         );
 
-        $managerPermissions = Permission::whereIn('module', ['dashboards', 'tasks', 'bugs', 'timesheet', 'budget', 'expense', 'expense_approval', 'invoice', 'media', 'report', 'notes', 'calendar', 'task_calendar', 'project_report'])
+        $managerPermissions = Permission::whereIn('module', ['dashboards', 'tasks', 'bugs', 'timesheet', 'budget', 'expense', 'expense_approval', 'invoice', 'media', 'report', 'notes', 'calendar', 'task_calendar', 'project_report', 'hrm'])
             ->orWhereIn('name', [
                 'workspace_switch',
                 'workspace_leave',
@@ -320,6 +322,12 @@ class RoleSeeder extends Seeder
             'erp.company.switch',
             'erp.document.download',
             'erp.approval.act',
+            'erp.hrm.employee.view',
+            'erp.hrm.leave.view',
+            'erp.hrm.leave.request',
+            'erp.hrm.contract.view',
+            'erp.hrm.self_service.view',
+            'erp.hrm.self_service.request',
         ])->get();
         $memberRole->syncPermissions($memberPermissions);
 
