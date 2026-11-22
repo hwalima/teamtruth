@@ -11,6 +11,7 @@ use App\Modules\Accounting\Models\JournalEntry;
 use App\Modules\Core\Models\AuditEvent;
 use App\Modules\Core\Models\Company;
 use App\Modules\Core\Services\CompanyContext;
+use App\Modules\Core\Services\DocumentRenderer;
 use App\Modules\Invoicing\Events\InvoicePosted;
 use App\Modules\Invoicing\Models\CreditNote;
 use App\Modules\Invoicing\Models\Customer;
@@ -288,6 +289,14 @@ test('issuing a credit note posts a reversal entry against receivable, revenue a
     expect($arLine->credit)->toBe('115.0000')
         ->and($revenueLine->debit)->toBe('100.0000')
         ->and($taxLine->debit)->toBe('15.0000');
+
+    // Both documents print on the company's branded layout.
+    $renderer = app(DocumentRenderer::class);
+    foreach (['invoice' => $invoice, 'credit_note' => $issued] as $template => $document) {
+        $html = view("pdf.documents.{$template}", ['company' => $company, 'document' => $document->fresh(), 'approvalSignatories' => []])->render();
+        expect($html)->toContain($document->document_number)->toContain('Acme Industries')->toContain('document-company-name')
+            ->and($renderer->render($document->fresh(), "pdf.documents.{$template}"))->toStartWith('%PDF');
+    }
 
     expect($issued->isPosted())->toBeTrue()
         ->and($issued->status)->toBe('issued');
