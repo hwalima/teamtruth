@@ -11,28 +11,74 @@ use App\Modules\Banking\Models\Money;
 use App\Modules\Banking\Services\BankingAccess;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 
 /**
- * The banking dashboard. Figures arrive per company, currency and month, in
- * cents, so the page can filter by company, currency and period without
- * asking the server again.
+ * The banking dashboard. The period (a preset, one month or custom dates) is
+ * worked out here; figures arrive per company, currency and bucket (a day for
+ * ranges up to two months, otherwise a month), in cents, so the page can filter
+ * by company and currency without asking the server again.
  */
 class BankingDashboardController extends Controller
 {
+    public const PRESETS = ['1m', '3m', '6m', '12m', 'ytd', 'all', 'month', 'custom'];
+
     public function __invoke(Request $request, BankingAccess $access): Response
     {
         $user = $request->user();
+        $companies = $access->companies($user);
+        abort_if($companies->isEmpty(), 403, 'You do not have banking access in any company.');
         $companyIds = $access->companyIds($user);
-        abort_if($companyIds === [], 403, 'You do not have banking access in any company.');
-        $accounts = BankAccount::query()->with('company:id,code,name')->whereIn('company_id', $companyIds)->get();
-        $accountById = $accounts->keyBy('id');
 
-        $months = [];      // "company|currency|Y-m" => in/out/transfers
-        $types = [];       // "company|currency|Y-m|type" => debit/credit
-        $netByAccountMonth = [];
-        $firstMonth = null;
+        $input = $request->validate([
+            'preset' => ['nullable', Rule::in(self::PRESETS)],
+            'month' => ['nullable', 'date_format:Y-m'],
+            'from' => ['nullable', 'date'],
+            'to' => ['nullable', 'date', 'after_or_equal:from'],
+        ]);
+
+        $accounts = BankAccount::query()->whereIn('company_id', $companyIds)->get();
+        $accountById = $accounts->keyBy('id');
+        $today = CarbonImmutable::today();
+        $earliest = collect([
+            BankTransaction::query()->whereIn('account_id', $accounts->pluck('id'))->min('transaction_date'),
+            $accounts->min('opening_date'),
+        ])->filter()->map(fn ($date) => CarbonImmutable::parse(substr((string) $date, 0, 10)))->min() ?? $today;
+
+        $preset = $input['preset'] ?? '12m';
+        [$from, $to] = match ($preset) {
+            '1m' => [$today->subDays(29), $today],
+            '3m' => [$today->startOfMonth()->subMonthsNoOverflow(2), $today],
+            '6m' => [$today->startOfMonth()->subMonthsNoOverflow(5), $today],
+            'ytd' => [$today->startOfYear(), $today],
+            'all' => [$earliest->min($today), $today],
+            'month' => [
+                CarbonImmutable::parse(($input['month'] ?? $today->format('Y-m')).'-01'),
+                CarbonImmutable::parse(($input['month'] ?? $today->format('Y-m')).'-01')->endOfMonth()->startOfDay(),
+            ],
+            'custom' => [
+                isset($input['from']) ? CarbonImmutable::parse($input['from']) : $today->subDays(29),
+                isset($input['to']) ? CarbonImmutable::parse($input['to']) : $today,
+            ],
+            default => [$today->startOfMonth()->subMonthsNoOverflow(11), $today],
+        };
+        $byDay = $from->diffInDays($to) < 62;
+        $bucketOf = fn (string $date) => $byDay ? substr($date, 0, 10) : substr($date, 0, 7);
+        $fromKey = $from->toDateString();
+        $toKey = $to->toDateString();
+
+        $buckets = [];
+        for ($cursor = $byDay ? $from : $from->startOfMonth(); $cursor->lte($to) && count($buckets) < 400; $cursor = $byDay ? $cursor->addDay() : $cursor->addMonthNoOverflow()) {
+            $buckets[] = $byDay ? $cursor->toDateString() : $cursor->format('Y-m');
+        }
+
+        $flowsIn = [];     // "company|currency|bucket" => in/out/transfers
+        $types = [];       // "company|currency|type" => debit/credit
+        $netByAccountBucket = [];
+        $before = [];      // account => net movement before the period
+        $balanceNow = [];  // account => net movement of every line
 
         $rows = BankTransaction::query()
             ->whereIn('account_id', $accounts->pluck('id'))
@@ -41,81 +87,72 @@ class BankingDashboardController extends Controller
             ->cursor();
         foreach ($rows as $row) {
             $account = $accountById[$row->account_id];
-            $month = substr((string) $row->transaction_date, 0, 7);
-            $firstMonth = $firstMonth === null || $month < $firstMonth ? $month : $firstMonth;
+            $date = substr((string) $row->transaction_date, 0, 10);
             $debit = Money::cents($row->debit);
             $credit = Money::cents($row->credit);
-            $key = $account->company_id.'|'.$account->currency.'|'.$month;
-            $months[$key] ??= ['in' => 0, 'out' => 0, 'transfers_in' => 0, 'transfers_out' => 0];
-            $months[$key][$row->transfer_id ? 'transfers_in' : 'in'] += $credit;
-            $months[$key][$row->transfer_id ? 'transfers_out' : 'out'] += $debit;
-            $netByAccountMonth[$account->id][$month] = ($netByAccountMonth[$account->id][$month] ?? 0) + $credit - $debit;
+            $balanceNow[$account->id] = ($balanceNow[$account->id] ?? 0) + $credit - $debit;
+            if ($date < $fromKey) {
+                $before[$account->id] = ($before[$account->id] ?? 0) + $credit - $debit;
 
-            $type = trim((string) $row->type) ?: 'Other';
-            $typeKey = $key.'|'.$type;
+                continue;
+            }
+            if ($date > $toKey) {
+                continue;
+            }
+            $bucket = $bucketOf($date);
+            $key = $account->company_id.'|'.$account->currency.'|'.$bucket;
+            $flowsIn[$key] ??= ['in' => 0, 'out' => 0, 'transfers_in' => 0, 'transfers_out' => 0];
+            $flowsIn[$key][$row->transfer_id ? 'transfers_in' : 'in'] += $credit;
+            $flowsIn[$key][$row->transfer_id ? 'transfers_out' : 'out'] += $debit;
+            $netByAccountBucket[$account->id][$bucket] = ($netByAccountBucket[$account->id][$bucket] ?? 0) + $credit - $debit;
+
+            $typeKey = $account->company_id.'|'.$account->currency.'|'.(trim((string) $row->type) ?: 'Other');
             $types[$typeKey] ??= ['debit' => 0, 'credit' => 0];
             $types[$typeKey]['debit'] += $debit;
             $types[$typeKey]['credit'] += $credit;
         }
 
-        foreach ($accounts as $account) {
-            if ($account->opening_date) {
-                $m = $account->opening_date->format('Y-m');
-                $firstMonth = $firstMonth === null || $m < $firstMonth ? $m : $firstMonth;
-            }
-        }
-        $currentMonth = now()->format('Y-m');
-        $firstMonth ??= $currentMonth;
-        $monthList = [];
-        for ($cursor = CarbonImmutable::parse($firstMonth.'-01'); $cursor->format('Y-m') <= max($currentMonth, $firstMonth); $cursor = $cursor->addMonth()) {
-            $monthList[] = $cursor->format('Y-m');
-            if (count($monthList) > 240) {
-                break;
-            }
-        }
-
-        // Month-end balance per company and currency: opening balance from the
-        // opening month, plus every line up to the end of the month.
+        // Balance at the end of each bucket: opening balance once the account
+        // is open, plus every line up to the end of the bucket.
         $closing = [];
         foreach ($accounts as $account) {
-            $running = 0;
-            $openMonth = $account->opening_date?->format('Y-m') ?? $firstMonth;
-            $started = false;
-            foreach ($monthList as $month) {
-                if (! $started && $month >= $openMonth) {
-                    $running += Money::cents($account->opening_balance);
-                    $started = true;
+            $opening = Money::cents($account->opening_balance);
+            $openedOn = $account->opening_date?->toDateString();
+            $running = ($before[$account->id] ?? 0) + ($openedOn === null || $openedOn < $fromKey ? $opening : 0);
+            $openBucket = $openedOn !== null && $openedOn >= $fromKey && $openedOn <= $toKey ? $bucketOf($openedOn) : null;
+            foreach ($buckets as $bucket) {
+                if ($bucket === $openBucket) {
+                    $running += $opening;
                 }
-                $running += $netByAccountMonth[$account->id][$month] ?? 0;
-                if ($started || isset($netByAccountMonth[$account->id][$month])) {
-                    $key = $account->company_id.'|'.$account->currency.'|'.$month;
-                    $closing[$key] = ($closing[$key] ?? 0) + $running;
-                }
+                $running += $netByAccountBucket[$account->id][$bucket] ?? 0;
+                $key = $account->company_id.'|'.$account->currency.'|'.$bucket;
+                $closing[$key] = ($closing[$key] ?? 0) + $running;
             }
         }
 
         $series = [];
-        foreach (array_unique([...array_keys($months), ...array_keys($closing)]) as $key) {
-            [$company, $currency, $month] = explode('|', $key);
-            $series[] = ['company_id' => (int) $company, 'currency' => $currency, 'month' => $month, ...($months[$key] ?? ['in' => 0, 'out' => 0, 'transfers_in' => 0, 'transfers_out' => 0]), 'closing' => $closing[$key] ?? 0];
+        foreach (array_unique([...array_keys($flowsIn), ...array_keys($closing)]) as $key) {
+            [$company, $currency, $bucket] = explode('|', $key);
+            $series[] = ['company_id' => (int) $company, 'currency' => $currency, 'bucket' => $bucket, ...($flowsIn[$key] ?? ['in' => 0, 'out' => 0, 'transfers_in' => 0, 'transfers_out' => 0]), 'closing' => $closing[$key] ?? 0];
         }
-        usort($series, fn ($a, $b) => [$a['month'], $a['company_id']] <=> [$b['month'], $b['company_id']]);
+        usort($series, fn ($a, $b) => [$a['bucket'], $a['company_id']] <=> [$b['bucket'], $b['company_id']]);
 
         $typeRows = [];
         foreach ($types as $key => $values) {
-            [$company, $currency, $month, $type] = explode('|', $key, 4);
-            $typeRows[] = ['company_id' => (int) $company, 'currency' => $currency, 'month' => $month, 'type' => $type, ...$values];
+            [$company, $currency, $type] = explode('|', $key, 3);
+            $typeRows[] = ['company_id' => (int) $company, 'currency' => $currency, 'type' => $type, ...$values];
         }
 
         $flows = BankTransfer::query()
             ->with(['fromAccount:id,company_id,currency', 'toAccount:id,company_id'])
             ->whereHas('fromAccount', fn ($q) => $q->whereIn('company_id', $companyIds))
+            ->whereBetween('transfer_date', [$fromKey, $toKey])
             ->get()
-            ->groupBy(fn (BankTransfer $t) => $t->fromAccount->company_id.'|'.$t->toAccount->company_id.'|'.$t->fromAccount->currency.'|'.$t->transfer_date->format('Y-m'))
+            ->groupBy(fn (BankTransfer $t) => $t->fromAccount->company_id.'|'.$t->toAccount->company_id.'|'.$t->fromAccount->currency)
             ->map(function ($group, $key) {
-                [$from, $to, $currency, $month] = explode('|', $key);
+                [$from, $to, $currency] = explode('|', $key);
 
-                return ['from_company_id' => (int) $from, 'to_company_id' => (int) $to, 'currency' => $currency, 'month' => $month, 'amount' => $group->sum(fn ($t) => Money::cents($t->amount)), 'count' => $group->count()];
+                return ['from_company_id' => (int) $from, 'to_company_id' => (int) $to, 'currency' => $currency, 'amount' => $group->sum(fn ($t) => Money::cents($t->amount)), 'count' => $group->count()];
             })
             ->filter(fn ($f) => $f['from_company_id'] !== $f['to_company_id'])
             ->values();
@@ -126,7 +163,7 @@ class BankingDashboardController extends Controller
         $approveIds = $access->companyIds($user, 'erp.banking.approve');
 
         return Inertia::render('Erp/Banking/Dashboard', [
-            'companies' => $accounts->pluck('company')->unique('id')->sortBy('name')->map->only(['id', 'code', 'name'])->values(),
+            'companies' => $companies->map->only(['id', 'code', 'name'])->values(),
             'accounts' => $accounts->map(fn (BankAccount $a) => [
                 'id' => $a->id,
                 'account_number' => $a->account_number,
@@ -134,9 +171,17 @@ class BankingDashboardController extends Controller
                 'company_id' => $a->company_id,
                 'currency' => $a->currency,
                 'status' => $a->status,
-                'balance' => Money::cents($a->opening_balance) + array_sum($netByAccountMonth[$a->id] ?? []),
+                'balance' => Money::cents($a->opening_balance) + ($balanceNow[$a->id] ?? 0),
             ])->values(),
-            'months' => $monthList,
+            'range' => [
+                'preset' => $preset,
+                'from' => $fromKey,
+                'to' => $toKey,
+                'month' => $preset === 'month' ? $from->format('Y-m') : null,
+                'granularity' => $byDay ? 'day' : 'month',
+                'earliest' => $earliest->toDateString(),
+            ],
+            'buckets' => $buckets,
             'series' => $series,
             'types' => $typeRows,
             'flows' => $flows,

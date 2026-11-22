@@ -195,11 +195,27 @@ test('the banking dashboard sums balances and flows per company and month', func
     $this->post(route('erp.banking.fund-requests.transfer', $request), ['transfer_date' => '2026-11-05']);
 
     $props = $this->get(route('erp.banking.dashboard'))->assertOk()->viewData('page')['props'];
-    $november = collect($props['series'])->where('month', '2026-11');
-    expect(collect($props['accounts'])->sum('balance'))->toBe(500000)
+    $november = collect($props['series'])->where('bucket', '2026-11');
+    expect($props['range']['granularity'])->toBe('month')
+        ->and(collect($props['accounts'])->sum('balance'))->toBe(500000)
         ->and($november->firstWhere('company_id', $this->payer->id)['closing'])->toBe(400000)
         ->and($november->firstWhere('company_id', $this->payer->id)['transfers_out'])->toBe(100000)
         ->and($november->firstWhere('company_id', $this->receiver->id)['closing'])->toBe(100000)
         ->and($props['flows'][0]['amount'])->toBe(100000)
         ->and($props['requests']['by_status'][0]['status'])->toBe('transferred');
+
+    // One month, shown day by day: the balance moves on the transfer date.
+    $props = $this->get(route('erp.banking.dashboard', ['preset' => 'month', 'month' => '2026-11']))->assertOk()->viewData('page')['props'];
+    $payerDays = collect($props['series'])->where('company_id', $this->payer->id)->keyBy('bucket');
+    expect($props['range'])->toMatchArray(['from' => '2026-11-01', 'to' => '2026-11-30', 'granularity' => 'day'])
+        ->and($props['buckets'])->toHaveCount(30)
+        ->and($payerDays['2026-11-04']['closing'])->toBe(500000)
+        ->and($payerDays['2026-11-05']['closing'])->toBe(400000);
+
+    // A custom range before the transfer sees no flows, but keeps the balance.
+    $props = $this->get(route('erp.banking.dashboard', ['preset' => 'custom', 'from' => '2026-11-01', 'to' => '2026-11-04']))->assertOk()->viewData('page')['props'];
+    expect($props['flows'])->toBeEmpty()
+        ->and(collect($props['series'])->where('company_id', $this->payer->id)->last()['closing'])->toBe(500000);
+
+    $this->get(route('erp.banking.dashboard', ['preset' => 'custom', 'from' => '2026-11-10', 'to' => '2026-11-01']))->assertSessionHasErrors('to');
 });
