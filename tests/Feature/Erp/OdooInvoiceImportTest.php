@@ -109,6 +109,18 @@ test('Odoo customer invoices are previewed, then imported, posted and paid', fun
         ->and((float) InvoicePayment::query()->withoutGlobalScopes()->sum('amount'))->toBe(1980.0);
 
     expect(FiscalDocument::query()->withoutGlobalScopes()->where('status', 'success')->count())->toBe(2);
+
+    $list = $this->get(route('erp.invoicing.index'))->assertOk()->viewData('page')['props']['invoices']['data'];
+    expect(collect($list)->pluck('can_cancel')->unique()->all())->toBe([false])
+        ->and(collect($list)->pluck('is_posted')->unique()->all())->toBe([true]);
+
+    $this->post(route('erp.invoicing.cancel', $invoices['INV/2026/00003']))->assertSessionHas('error');
+    expect($invoices['INV/2026/00003']->fresh()->status)->toBe('sent');
+
+    $this->withoutExceptionHandling();
+    foreach ($invoices as $invoice) {
+        $this->get(route('erp.invoicing.pdf', $invoice))->assertOk()->assertHeader('Content-Type', 'application/pdf');
+    }
 });
 
 test('re-importing records only the new payments, and undo takes it all back out', function () {

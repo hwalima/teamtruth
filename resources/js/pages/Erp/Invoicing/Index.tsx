@@ -1,8 +1,52 @@
+import { formatDay } from '@/lib/utils';
 import { router, useForm } from '@inertiajs/react';
-import type { FormEvent } from 'react';
+import { Ban, Eye, FileDown, Pencil } from 'lucide-react';
+import type { FormEvent, ReactNode } from 'react';
 import { route } from 'ziggy-js';
 
-type Customer = { id: number; code: string; name: string; currency_code: string; payment_term: { id: number; name: string; net_days: number } | null };
+function IconAction({
+    label,
+    href,
+    onClick,
+    danger,
+    newTab,
+    children,
+}: {
+    label: string;
+    href?: string;
+    onClick?: () => void;
+    danger?: boolean;
+    newTab?: boolean;
+    children: ReactNode;
+}) {
+    const className = `inline-flex size-8 items-center justify-center rounded-lg border transition-colors ${
+        danger ? 'text-destructive hover:bg-destructive/10' : 'text-primary hover:bg-primary/10'
+    }`;
+    return href ? (
+        <a
+            href={href}
+            title={label}
+            aria-label={label}
+            className={className}
+            target={newTab ? '_blank' : undefined}
+            rel={newTab ? 'noreferrer' : undefined}
+        >
+            {children}
+        </a>
+    ) : (
+        <button type="button" title={label} aria-label={label} className={className} onClick={onClick}>
+            {children}
+        </button>
+    );
+}
+
+type Customer = {
+    id: number;
+    code: string;
+    name: string;
+    currency_code: string;
+    payment_term: { id: number; name: string; net_days: number } | null;
+};
 type Invoice = {
     id: number;
     document_number: string;
@@ -16,6 +60,9 @@ type Invoice = {
     total_amount: string;
     paid_amount: string;
     balance_due: string;
+    can_edit: boolean;
+    can_cancel: boolean;
+    is_posted: boolean;
     customer: { id: number; code: string; name: string };
 };
 type Props = {
@@ -86,13 +133,11 @@ export default function InvoicingIndex(props: Props) {
             <header>
                 <p className="text-muted-foreground text-sm">{props.company.code}</p>
                 <h1 className="text-2xl font-semibold">{props.company.name} Invoicing</h1>
-                <p className="text-muted-foreground mt-2 text-sm">
-                    Create and manage customer invoices, credit notes, and recurring invoices.
-                </p>
+                <p className="text-muted-foreground mt-2 text-sm">Create and manage customer invoices, credit notes, and recurring invoices.</p>
             </header>
 
             <section className="space-y-4 rounded-xl border p-4 sm:p-6">
-                <div className="flex flex-wrap justify-between gap-3 items-center">
+                <div className="flex flex-wrap items-center justify-between gap-3">
                     <h2 className="text-lg font-medium">Invoices</h2>
                     <a
                         href={route('erp.invoicing.create')}
@@ -240,58 +285,79 @@ export default function InvoicingIndex(props: Props) {
                 {props.invoices.data.map((invoice) => (
                     <article
                         key={invoice.id}
-                        className="space-y-3 rounded-xl border bg-card/70 p-4 shadow-[0_8px_32px_rgba(0,26,77,0.06)] backdrop-blur-xl transition-shadow hover:shadow-[0_12px_40px_rgba(0,26,77,0.09)]"
+                        className="bg-card/70 space-y-3 rounded-xl border p-4 shadow-[0_8px_32px_rgba(0,26,77,0.06)] backdrop-blur-xl transition-shadow hover:shadow-[0_12px_40px_rgba(0,26,77,0.09)]"
                     >
-                        <header className="flex flex-wrap justify-between gap-3 items-start">
+                        <header className="flex flex-wrap items-start justify-between gap-3">
                             <div>
-                                <h3 className="font-semibold text-lg">
+                                <h3 className="text-lg font-semibold">
                                     <a href={route('erp.invoicing.show', invoice.id)} className="hover:underline">
                                         {invoice.document_number}
                                     </a>
                                 </h3>
-                                <p className="text-muted-foreground text-sm mt-1">
+                                <p className="text-muted-foreground mt-1 text-sm">
                                     {invoice.type === 'proforma' ? 'Proforma' : 'Invoice'} · {invoice.customer.code} — {invoice.customer.name}
                                 </p>
                             </div>
                             <div className="flex flex-wrap items-center gap-3 text-right">
-                                <span className={`px-2 py-1 rounded text-xs ${statusColors[invoice.status] ?? 'bg-gray-100 text-gray-800'}`}>
+                                <span className={`rounded px-2 py-1 text-xs ${statusColors[invoice.status] ?? 'bg-gray-100 text-gray-800'}`}>
                                     {props.statusOptions[invoice.status] ?? invoice.status.replaceAll('_', ' ')}
                                 </span>
                                 <div>
-                                    <p className="text-muted-foreground text-sm">{invoice.invoice_date}</p>
-                                    <p className="font-medium">{invoice.currency_code} {Number(invoice.total_amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
+                                    <p className="text-muted-foreground text-sm">{formatDay(invoice.invoice_date)}</p>
+                                    <p className="font-medium">
+                                        {invoice.currency_code} {Number(invoice.total_amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                    </p>
                                 </div>
                             </div>
                         </header>
                         <div className="flex flex-wrap items-center justify-between gap-3 text-sm">
-                            <div className="flex flex-wrap gap-4 text-muted-foreground">
-                                <span>Due: {invoice.due_date}</span>
-                                <span>Paid: {invoice.currency_code} {Number(invoice.paid_amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                            <div className="text-muted-foreground flex flex-wrap gap-4">
+                                <span>Due: {formatDay(invoice.due_date)}</span>
+                                <span>
+                                    Paid: {invoice.currency_code}{' '}
+                                    {Number(invoice.paid_amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                </span>
                                 <span className={Number(invoice.balance_due) > 0 ? 'text-destructive' : 'text-green-600'}>
-                                    Balance: {invoice.currency_code} {Number(invoice.balance_due).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                    Balance: {invoice.currency_code}{' '}
+                                    {Number(invoice.balance_due).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                                 </span>
                             </div>
-                            <div className="flex gap-2">
-                                <a
-                                    href={route('erp.invoicing.show', invoice.id)}
-                                    className="text-primary underline text-sm"
-                                >
-                                    View
-                                </a>
-                                <a
-                                    href={route('erp.invoicing.pdf', invoice.id)}
-                                    target="_blank"
-                                    className="text-primary underline text-sm"
-                                >
-                                    PDF
-                                </a>
+                            <div className="flex gap-1.5">
+                                <IconAction label="View" href={route('erp.invoicing.show', invoice.id)}>
+                                    <Eye className="size-4" />
+                                </IconAction>
+                                {invoice.can_edit && (
+                                    <IconAction label="Edit" href={route('erp.invoicing.edit', invoice.id)}>
+                                        <Pencil className="size-4" />
+                                    </IconAction>
+                                )}
+                                <IconAction label="PDF" href={route('erp.invoicing.pdf', invoice.id)} newTab>
+                                    <FileDown className="size-4" />
+                                </IconAction>
+                                {invoice.can_cancel && (
+                                    <IconAction
+                                        label="Cancel invoice"
+                                        danger
+                                        onClick={() => {
+                                            if (confirm(`Cancel invoice ${invoice.document_number}?`)) {
+                                                router.post(route('erp.invoicing.cancel', invoice.id), {}, { preserveScroll: true });
+                                            }
+                                        }}
+                                    >
+                                        <Ban className="size-4" />
+                                    </IconAction>
+                                )}
                             </div>
                         </div>
                     </article>
                 ))}
                 {props.invoices.data.length === 0 && (
                     <div className="border-border/80 bg-muted/20 text-muted-foreground rounded-xl border border-dashed px-4 py-10 text-center text-sm leading-6">
-                        No invoices found. <a href={route('erp.invoicing.create')} className="text-primary underline">Create your first invoice</a>.
+                        No invoices found.{' '}
+                        <a href={route('erp.invoicing.create')} className="text-primary underline">
+                            Create your first invoice
+                        </a>
+                        .
                     </div>
                 )}
 
@@ -306,7 +372,7 @@ export default function InvoicingIndex(props: Props) {
                                 Previous
                             </a>
                         )}
-                        <span className="text-sm text-muted-foreground">
+                        <span className="text-muted-foreground text-sm">
                             Page {props.invoices.current_page} of {props.invoices.last_page}
                         </span>
                         {props.invoices.current_page < props.invoices.last_page && (

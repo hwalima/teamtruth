@@ -1,10 +1,20 @@
+import { formatDay } from '@/lib/utils';
 import { router, useForm } from '@inertiajs/react';
 import type { FormEvent } from 'react';
 import { route } from 'ziggy-js';
 
 type Product = { id: number; sku: string; name: string; unit: { abbreviation: string } | null };
 type Account = { id: number; code: string; name: string };
-type Customer = { id: number; code: string; name: string; email: string | null; tax_no: string | null; billing_address: string | null; shipping_address: string | null; currency_code: string };
+type Customer = {
+    id: number;
+    code: string;
+    name: string;
+    email: string | null;
+    tax_no: string | null;
+    billing_address: string | null;
+    shipping_address: string | null;
+    currency_code: string;
+};
 type Line = {
     id: number;
     product: Product | null;
@@ -85,7 +95,14 @@ type Invoice = {
     created_at: string;
     updated_at: string;
 };
-type Company = { id: number; code: string; name: string; default_currency: string; branding: { logo_url: string | null } | null; signatories: Array<{ name: string; title: string; signature_url: string | null }> | null };
+type Company = {
+    id: number;
+    code: string;
+    name: string;
+    default_currency: string;
+    branding: { logo_url: string | null } | null;
+    signatories: Array<{ name: string; title: string; signature_url: string | null }> | null;
+};
 type Props = {
     company: Company;
     invoice: Invoice;
@@ -158,14 +175,14 @@ export default function InvoicingShow(props: Props) {
 
     return (
         <main className="mx-auto max-w-5xl space-y-6 p-6">
-            <header className="flex flex-wrap justify-between gap-4 items-start">
+            <header className="flex flex-wrap items-start justify-between gap-4">
                 <div>
                     <p className="text-muted-foreground text-sm">{props.company.code}</p>
-                    <div className="flex flex-wrap items-baseline gap-3 mt-1">
+                    <div className="mt-1 flex flex-wrap items-baseline gap-3">
                         <h1 className="text-2xl font-semibold">
                             {invoice.type === 'proforma' ? 'Proforma' : 'Invoice'} {invoice.document_number}
                         </h1>
-                        <span className={`px-2 py-1 rounded text-xs ${statusColors[invoice.status] ?? 'bg-gray-100 text-gray-800'}`}>
+                        <span className={`rounded px-2 py-1 text-xs ${statusColors[invoice.status] ?? 'bg-gray-100 text-gray-800'}`}>
                             {invoice.status.replaceAll('_', ' ')}
                         </span>
                     </div>
@@ -198,7 +215,7 @@ export default function InvoicingShow(props: Props) {
                     {props.canPost && ['sent', 'draft'].includes(invoice.status) && (
                         <button
                             onClick={postInvoice}
-                            className="bg-green-600 text-white inline-flex min-h-10 items-center justify-center rounded-xl px-4 py-2 text-sm font-semibold shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+                            className="inline-flex min-h-10 items-center justify-center rounded-xl bg-green-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
                         >
                             Post to Accounting
                         </button>
@@ -206,7 +223,7 @@ export default function InvoicingShow(props: Props) {
                     {props.canCancel && !['paid', 'cancelled'].includes(invoice.status) && (
                         <button
                             onClick={cancelInvoice}
-                            className="text-destructive inline-flex min-h-10 items-center justify-center rounded-xl px-4 py-2 text-sm font-semibold transition hover:bg-destructive/10"
+                            className="text-destructive hover:bg-destructive/10 inline-flex min-h-10 items-center justify-center rounded-xl px-4 py-2 text-sm font-semibold transition"
                         >
                             Cancel
                         </button>
@@ -226,20 +243,22 @@ export default function InvoicingShow(props: Props) {
                 {/* Main Content */}
                 <div className="space-y-6">
                     {/* Invoice Details */}
-                    <section className="space-y-4 rounded-xl border bg-card/70 p-5 shadow-[0_8px_32px_rgba(0,26,77,0.06)] backdrop-blur-xl">
+                    <section className="bg-card/70 space-y-4 rounded-xl border p-5 shadow-[0_8px_32px_rgba(0,26,77,0.06)] backdrop-blur-xl">
                         <h2 className="text-lg font-medium">Invoice Details</h2>
                         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                             <div>
                                 <p className="text-muted-foreground text-sm">Invoice Date</p>
-                                <p className="font-medium">{invoice.invoice_date}</p>
+                                <p className="font-medium">{formatDay(invoice.invoice_date)}</p>
                             </div>
                             <div>
                                 <p className="text-muted-foreground text-sm">Due Date</p>
-                                <p className="font-medium">{invoice.due_date}</p>
+                                <p className="font-medium">{formatDay(invoice.due_date)}</p>
                             </div>
                             <div>
                                 <p className="text-muted-foreground text-sm">Currency</p>
-                                <p className="font-medium">{invoice.currency_code} @ {invoice.exchange_rate}</p>
+                                <p className="font-medium">
+                                    {invoice.currency_code} @ {invoice.exchange_rate}
+                                </p>
                             </div>
                             <div>
                                 <p className="text-muted-foreground text-sm">Type</p>
@@ -257,7 +276,7 @@ export default function InvoicingShow(props: Props) {
                     </section>
 
                     {/* Customer Details */}
-                    <section className="space-y-4 rounded-xl border bg-card/70 p-5 shadow-[0_8px_32px_rgba(0,26,77,0.06)] backdrop-blur-xl">
+                    <section className="bg-card/70 space-y-4 rounded-xl border p-5 shadow-[0_8px_32px_rgba(0,26,77,0.06)] backdrop-blur-xl">
                         <h2 className="text-lg font-medium">Customer</h2>
                         <div className="grid gap-4 sm:grid-cols-2">
                             <div>
@@ -296,7 +315,7 @@ export default function InvoicingShow(props: Props) {
                     </section>
 
                     {/* Invoice Lines */}
-                    <section className="space-y-4 rounded-xl border bg-card/70 p-5 shadow-[0_8px_32px_rgba(0,26,77,0.06)] backdrop-blur-xl">
+                    <section className="bg-card/70 space-y-4 rounded-xl border p-5 shadow-[0_8px_32px_rgba(0,26,77,0.06)] backdrop-blur-xl">
                         <h2 className="text-lg font-medium">Invoice Lines</h2>
                         <div className="overflow-x-auto">
                             <table className="w-full min-w-[800px] text-left text-sm">
@@ -319,37 +338,57 @@ export default function InvoicingShow(props: Props) {
                                                 {line.description && <p className="text-muted-foreground text-xs">{line.description}</p>}
                                                 {(line.product || line.account) && (
                                                     <p className="text-muted-foreground text-xs">
-                                                        {line.product ? `Product: ${line.product.sku} — ${line.product.name}` : `Account: ${line.account?.code} — ${line.account?.name}`}
+                                                        {line.product
+                                                            ? `Product: ${line.product.sku} — ${line.product.name}`
+                                                            : `Account: ${line.account?.code} — ${line.account?.name}`}
                                                     </p>
                                                 )}
                                             </td>
-                                            <td className="px-3 py-3 text-right tabular-nums">{Number(line.quantity).toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
+                                            <td className="px-3 py-3 text-right tabular-nums">
+                                                {Number(line.quantity).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                            </td>
                                             <td className="px-3 py-3 text-right">{line.unit}</td>
-                                            <td className="px-3 py-3 text-right tabular-nums">{formatCurrency(invoice.currency_code, line.unit_price)}</td>
+                                            <td className="px-3 py-3 text-right tabular-nums">
+                                                {formatCurrency(invoice.currency_code, line.unit_price)}
+                                            </td>
                                             <td className="px-3 py-3 text-right tabular-nums">{line.discount_percent}%</td>
                                             <td className="px-3 py-3 text-right tabular-nums">{line.tax_rate}%</td>
-                                            <td className="px-3 py-3 text-right font-medium tabular-nums">{formatCurrency(invoice.currency_code, line.line_total)}</td>
+                                            <td className="px-3 py-3 text-right font-medium tabular-nums">
+                                                {formatCurrency(invoice.currency_code, line.line_total)}
+                                            </td>
                                         </tr>
                                     ))}
                                 </tbody>
                                 <tfoot>
                                     <tr className="bg-muted/30 font-semibold">
-                                        <td className="px-3 py-3 text-right" colSpan={6}>Subtotal</td>
-                                        <td className="px-3 py-3 text-right tabular-nums">{formatCurrency(invoice.currency_code, invoice.subtotal)}</td>
+                                        <td className="px-3 py-3 text-right" colSpan={6}>
+                                            Subtotal
+                                        </td>
+                                        <td className="px-3 py-3 text-right tabular-nums">
+                                            {formatCurrency(invoice.currency_code, invoice.subtotal)}
+                                        </td>
                                     </tr>
                                     <tr className="bg-muted/30">
-                                        <td className="px-3 py-3 text-right" colSpan={6}>Tax</td>
-                                        <td className="px-3 py-3 text-right tabular-nums">{formatCurrency(invoice.currency_code, invoice.tax_amount)}</td>
+                                        <td className="px-3 py-3 text-right" colSpan={6}>
+                                            Tax
+                                        </td>
+                                        <td className="px-3 py-3 text-right tabular-nums">
+                                            {formatCurrency(invoice.currency_code, invoice.tax_amount)}
+                                        </td>
                                     </tr>
                                     <tr className="bg-primary/10 font-bold">
-                                        <td className="px-3 py-3 text-right" colSpan={6}>Total</td>
-                                        <td className="px-3 py-3 text-right tabular-nums">{formatCurrency(invoice.currency_code, invoice.total_amount)}</td>
+                                        <td className="px-3 py-3 text-right" colSpan={6}>
+                                            Total
+                                        </td>
+                                        <td className="px-3 py-3 text-right tabular-nums">
+                                            {formatCurrency(invoice.currency_code, invoice.total_amount)}
+                                        </td>
                                     </tr>
                                 </tfoot>
                             </table>
                         </div>
                         {invoice.footer_notes && (
-                            <div className="mt-4 p-3 bg-muted/30 rounded-lg text-sm">
+                            <div className="bg-muted/30 mt-4 rounded-lg p-3 text-sm">
                                 <p className="font-medium">Footer Notes:</p>
                                 <p className="text-muted-foreground">{invoice.footer_notes}</p>
                             </div>
@@ -357,8 +396,11 @@ export default function InvoicingShow(props: Props) {
                     </section>
 
                     {/* Payments */}
-                    <section className="space-y-4 rounded-xl border bg-card/70 p-5 shadow-[0_8px_32px_rgba(0,26,77,0.06)] backdrop-blur-xl" id="payment-form">
-                        <div className="flex flex-wrap justify-between gap-3 items-center">
+                    <section
+                        className="bg-card/70 space-y-4 rounded-xl border p-5 shadow-[0_8px_32px_rgba(0,26,77,0.06)] backdrop-blur-xl"
+                        id="payment-form"
+                    >
+                        <div className="flex flex-wrap items-center justify-between gap-3">
                             <h2 className="text-lg font-medium">Payments</h2>
                             {props.canRecordPayment && Number(invoice.balance_due) > 0 && (
                                 <button
@@ -378,25 +420,25 @@ export default function InvoicingShow(props: Props) {
                                             <div>
                                                 <h3 className="font-medium">{payment.document_number}</h3>
                                                 <p className="text-muted-foreground text-sm">
-                                                    {payment.payment_date} · {payment.payment_method ?? '—'} {payment.reference ? `· Ref: ${payment.reference}` : ''}
+                                                    {formatDay(payment.payment_date)} · {payment.payment_method ?? '—'}{' '}
+                                                    {payment.reference ? `· Ref: ${payment.reference}` : ''}
                                                 </p>
                                             </div>
                                             <div className="flex flex-wrap gap-3 text-sm">
-                                                <span className={`px-2 py-1 rounded text-xs ${statusColors[payment.status] ?? 'bg-gray-100 text-gray-800'}`}>
+                                                <span
+                                                    className={`rounded px-2 py-1 text-xs ${statusColors[payment.status] ?? 'bg-gray-100 text-gray-800'}`}
+                                                >
                                                     {payment.status.replaceAll('_', ' ')}
                                                 </span>
                                                 <span className="font-medium">{formatCurrency(payment.currency_code, payment.amount)}</span>
                                                 {payment.journal_entry && (
-                                                    <a
-                                                        href={route('erp.accounting.index')}
-                                                        className="text-primary underline text-xs"
-                                                    >
+                                                    <a href={route('erp.accounting.index')} className="text-primary text-xs underline">
                                                         Journal: {payment.journal_entry.document_number}
                                                     </a>
                                                 )}
                                             </div>
                                         </header>
-                                        {payment.notes && <p className="text-sm text-muted-foreground">{payment.notes}</p>}
+                                        {payment.notes && <p className="text-muted-foreground text-sm">{payment.notes}</p>}
                                     </article>
                                 ))}
                             </div>
@@ -434,7 +476,9 @@ export default function InvoicingShow(props: Props) {
                                                 className="border-input bg-background/70 text-foreground focus:border-primary/60 focus:ring-primary/10 w-full rounded-xl border px-3 py-2.5 shadow-sm transition outline-none focus:ring-4"
                                                 required
                                             />
-                                            {paymentErrors.payment_date && <span className="text-destructive text-sm">{paymentErrors.payment_date}</span>}
+                                            {paymentErrors.payment_date && (
+                                                <span className="text-destructive text-sm">{paymentErrors.payment_date}</span>
+                                            )}
                                         </label>
                                     </div>
                                     <div>
@@ -465,7 +509,9 @@ export default function InvoicingShow(props: Props) {
                                                 <option value="mobile_money">Mobile Money</option>
                                                 <option value="other">Other</option>
                                             </select>
-                                            {paymentErrors.payment_method && <span className="text-destructive text-sm">{paymentErrors.payment_method}</span>}
+                                            {paymentErrors.payment_method && (
+                                                <span className="text-destructive text-sm">{paymentErrors.payment_method}</span>
+                                            )}
                                         </label>
                                     </div>
                                     <div className="sm:col-span-2">
@@ -487,7 +533,7 @@ export default function InvoicingShow(props: Props) {
                                                 value={paymentForm.data.notes}
                                                 onChange={(e) => paymentForm.setData('notes', e.target.value)}
                                                 rows={2}
-                                                className="border-input bg-background/70 text-foreground focus:border-primary/60 focus:ring-primary/10 w-full rounded-xl border px-3 py-2.5 shadow-sm transition outline-none focus:ring-4 resize-none"
+                                                className="border-input bg-background/70 text-foreground focus:border-primary/60 focus:ring-primary/10 w-full resize-none rounded-xl border px-3 py-2.5 shadow-sm transition outline-none focus:ring-4"
                                             />
                                             {paymentErrors.notes && <span className="text-destructive text-sm">{paymentErrors.notes}</span>}
                                         </label>
@@ -508,7 +554,7 @@ export default function InvoicingShow(props: Props) {
 
                     {/* Credit Notes Applied */}
                     {invoice.credit_notes.length > 0 && (
-                        <section className="space-y-4 rounded-xl border bg-card/70 p-5 shadow-[0_8px_32px_rgba(0,26,77,0.06)] backdrop-blur-xl">
+                        <section className="bg-card/70 space-y-4 rounded-xl border p-5 shadow-[0_8px_32px_rgba(0,26,77,0.06)] backdrop-blur-xl">
                             <h2 className="text-lg font-medium">Credit Notes Applied</h2>
                             <div className="space-y-2">
                                 {invoice.credit_notes.map((cn) => (
@@ -518,7 +564,7 @@ export default function InvoicingShow(props: Props) {
                                             <p className="text-muted-foreground text-sm">{cn.credit_note_date}</p>
                                         </div>
                                         <div className="flex flex-wrap gap-3 text-sm">
-                                            <span className={`px-2 py-1 rounded text-xs ${statusColors[cn.status] ?? 'bg-gray-100 text-gray-800'}`}>
+                                            <span className={`rounded px-2 py-1 text-xs ${statusColors[cn.status] ?? 'bg-gray-100 text-gray-800'}`}>
                                                 {cn.status.replaceAll('_', ' ')}
                                             </span>
                                             <span className="font-medium">{formatCurrency(invoice.currency_code, cn.total_amount)}</span>
@@ -531,7 +577,7 @@ export default function InvoicingShow(props: Props) {
 
                     {/* Fiscal Documents */}
                     {invoice.fiscal_documents.length > 0 && (
-                        <section className="space-y-4 rounded-xl border bg-card/70 p-5 shadow-[0_8px_32px_rgba(0,26,77,0.06)] backdrop-blur-xl">
+                        <section className="bg-card/70 space-y-4 rounded-xl border p-5 shadow-[0_8px_32px_rgba(0,26,77,0.06)] backdrop-blur-xl">
                             <h2 className="text-lg font-medium">Fiscal Documents (ZIMRA)</h2>
                             <div className="space-y-2">
                                 {invoice.fiscal_documents.map((fd) => (
@@ -541,7 +587,7 @@ export default function InvoicingShow(props: Props) {
                                             <p className="text-muted-foreground text-sm">{fd.fiscal_device?.name ?? 'Unknown device'}</p>
                                         </div>
                                         <div className="flex flex-wrap gap-3 text-sm">
-                                            <span className={`px-2 py-1 rounded text-xs ${statusColors[fd.status] ?? 'bg-gray-100 text-gray-800'}`}>
+                                            <span className={`rounded px-2 py-1 text-xs ${statusColors[fd.status] ?? 'bg-gray-100 text-gray-800'}`}>
                                                 {fd.status.replaceAll('_', ' ')}
                                             </span>
                                             {fd.fiscalized_at && (
@@ -558,13 +604,10 @@ export default function InvoicingShow(props: Props) {
 
                     {/* Journal Entry */}
                     {invoice.journal_entry && (
-                        <section className="space-y-4 rounded-xl border bg-card/70 p-5 shadow-[0_8px_32px_rgba(0,26,77,0.06)] backdrop-blur-xl">
-                            <div className="flex flex-wrap justify-between gap-3 items-center">
+                        <section className="bg-card/70 space-y-4 rounded-xl border p-5 shadow-[0_8px_32px_rgba(0,26,77,0.06)] backdrop-blur-xl">
+                            <div className="flex flex-wrap items-center justify-between gap-3">
                                 <h2 className="text-lg font-medium">Journal Entry</h2>
-                                <a
-                                    href={route('erp.accounting.index')}
-                                    className="text-primary text-sm underline"
-                                >
+                                <a href={route('erp.accounting.index')} className="text-primary text-sm underline">
                                     View Full Entry
                                 </a>
                             </div>
@@ -583,7 +626,10 @@ export default function InvoicingShow(props: Props) {
                                 </div>
                                 <div className="text-right">
                                     <p className="text-muted-foreground text-sm">Total Debit / Credit</p>
-                                    <p className="font-medium">{formatCurrency(invoice.journal_entry.currency_code, invoice.journal_entry.total_debit)} / {formatCurrency(invoice.journal_entry.currency_code, invoice.journal_entry.total_credit)}</p>
+                                    <p className="font-medium">
+                                        {formatCurrency(invoice.journal_entry.currency_code, invoice.journal_entry.total_debit)} /{' '}
+                                        {formatCurrency(invoice.journal_entry.currency_code, invoice.journal_entry.total_credit)}
+                                    </p>
                                 </div>
                             </div>
                             <div className="overflow-x-auto">
@@ -599,9 +645,15 @@ export default function InvoicingShow(props: Props) {
                                     <tbody>
                                         {invoice.journal_entry.lines.map((line) => (
                                             <tr key={line.id} className="border-border/60 border-b last:border-0">
-                                                <td className="px-3 py-2.5">{line.account.code} — {line.account.name}</td>
-                                                <td className="px-3 py-2.5 text-right tabular-nums">{formatCurrency(invoice.journal_entry.currency_code, line.debit)}</td>
-                                                <td className="px-3 py-2.5 text-right tabular-nums">{formatCurrency(invoice.journal_entry.currency_code, line.credit)}</td>
+                                                <td className="px-3 py-2.5">
+                                                    {line.account.code} — {line.account.name}
+                                                </td>
+                                                <td className="px-3 py-2.5 text-right tabular-nums">
+                                                    {formatCurrency(invoice.journal_entry.currency_code, line.debit)}
+                                                </td>
+                                                <td className="px-3 py-2.5 text-right tabular-nums">
+                                                    {formatCurrency(invoice.journal_entry.currency_code, line.credit)}
+                                                </td>
                                                 <td className="px-3 py-2.5">{line.description ?? '—'}</td>
                                             </tr>
                                         ))}
@@ -612,7 +664,7 @@ export default function InvoicingShow(props: Props) {
                     )}
 
                     {/* Timestamps */}
-                    <section className="rounded-xl border bg-card/70 p-5 shadow-[0_8px_32px_rgba(0,26,77,0.06)] backdrop-blur-xl">
+                    <section className="bg-card/70 rounded-xl border p-5 shadow-[0_8px_32px_rgba(0,26,77,0.06)] backdrop-blur-xl">
                         <div className="grid gap-4 sm:grid-cols-2">
                             <div>
                                 <p className="text-muted-foreground text-sm">Created</p>
@@ -628,8 +680,8 @@ export default function InvoicingShow(props: Props) {
 
                 {/* Sidebar Totals */}
                 <div className="space-y-6">
-                    <section className="rounded-xl border bg-card/70 p-5 shadow-[0_8px_32px_rgba(0,26,77,0.06)] backdrop-blur-xl">
-                        <h2 className="text-lg font-medium mb-4">Totals</h2>
+                    <section className="bg-card/70 rounded-xl border p-5 shadow-[0_8px_32px_rgba(0,26,77,0.06)] backdrop-blur-xl">
+                        <h2 className="mb-4 text-lg font-medium">Totals</h2>
                         <div className="space-y-3">
                             <div className="flex justify-between text-sm">
                                 <span className="text-muted-foreground">Subtotal</span>
@@ -639,7 +691,7 @@ export default function InvoicingShow(props: Props) {
                                 <span className="text-muted-foreground">Tax</span>
                                 <span className="font-medium">{formatCurrency(invoice.currency_code, invoice.tax_amount)}</span>
                             </div>
-                            <div className="flex justify-between text-lg font-semibold border-t pt-2">
+                            <div className="flex justify-between border-t pt-2 text-lg font-semibold">
                                 <span>Total</span>
                                 <span>{formatCurrency(invoice.currency_code, invoice.total_amount)}</span>
                             </div>
@@ -647,7 +699,7 @@ export default function InvoicingShow(props: Props) {
                                 <span className="text-muted-foreground">Paid</span>
                                 <span className="font-medium">{formatCurrency(invoice.currency_code, invoice.paid_amount)}</span>
                             </div>
-                            <div className="flex justify-between text-sm font-semibold text-destructive">
+                            <div className="text-destructive flex justify-between text-sm font-semibold">
                                 <span>Balance Due</span>
                                 <span>{formatCurrency(invoice.currency_code, invoice.balance_due)}</span>
                             </div>
@@ -655,59 +707,47 @@ export default function InvoicingShow(props: Props) {
                     </section>
 
                     {/* Quick Actions */}
-                    <section className="rounded-xl border bg-card/70 p-5 shadow-[0_8px_32px_rgba(0,26,77,0.06)] backdrop-blur-xl">
-                        <h2 className="text-lg font-medium mb-4">Quick Actions</h2>
+                    <section className="bg-card/70 rounded-xl border p-5 shadow-[0_8px_32px_rgba(0,26,77,0.06)] backdrop-blur-xl">
+                        <h2 className="mb-4 text-lg font-medium">Quick Actions</h2>
                         <div className="space-y-2">
                             <a
                                 href={route('erp.invoicing.pdf', invoice.id)}
                                 target="_blank"
-                                className="flex items-center gap-2 text-primary underline text-sm"
+                                className="text-primary flex items-center gap-2 text-sm underline"
                             >
                                 Download PDF
                             </a>
                             {props.canSend && invoice.status === 'draft' && (
-                                <button
-                                    onClick={sendInvoice}
-                                    className="w-full text-left text-primary underline text-sm"
-                                >
+                                <button onClick={sendInvoice} className="text-primary w-full text-left text-sm underline">
                                     Send to Customer
                                 </button>
                             )}
                             {props.canPost && ['sent', 'draft'].includes(invoice.status) && (
-                                <button
-                                    onClick={postInvoice}
-                                    className="w-full text-left text-green-600 underline text-sm"
-                                >
+                                <button onClick={postInvoice} className="w-full text-left text-sm text-green-600 underline">
                                     Post to Accounting
                                 </button>
                             )}
                             {props.canCancel && !['paid', 'cancelled'].includes(invoice.status) && (
-                                <button
-                                    onClick={cancelInvoice}
-                                    className="w-full text-left text-destructive underline text-sm"
-                                >
+                                <button onClick={cancelInvoice} className="text-destructive w-full text-left text-sm underline">
                                     Cancel Invoice
                                 </button>
                             )}
                             {props.canRecordPayment && Number(invoice.balance_due) > 0 && (
                                 <button
                                     onClick={() => document.getElementById('payment-form')?.scrollIntoView({ behavior: 'smooth' })}
-                                    className="w-full text-left text-primary underline text-sm"
+                                    className="text-primary w-full text-left text-sm underline"
                                 >
                                     Record Payment
                                 </button>
                             )}
-                            <a
-                                href={route('erp.invoicing.credit-notes.create')}
-                                className="flex items-center gap-2 text-primary underline text-sm"
-                            >
+                            <a href={route('erp.invoicing.credit-notes.create')} className="text-primary flex items-center gap-2 text-sm underline">
                                 Create Credit Note
                             </a>
                         </div>
                     </section>
 
                     {/* Navigation */}
-                    <section className="rounded-xl border bg-card/70 p-5 shadow-[0_8px_32px_rgba(0,26,77,0.06)] backdrop-blur-xl">
+                    <section className="bg-card/70 rounded-xl border p-5 shadow-[0_8px_32px_rgba(0,26,77,0.06)] backdrop-blur-xl">
                         <div className="flex flex-wrap gap-2">
                             <a
                                 href={route('erp.invoicing.index')}

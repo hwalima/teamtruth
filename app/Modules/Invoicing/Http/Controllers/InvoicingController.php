@@ -3,15 +3,21 @@
 namespace App\Modules\Invoicing\Http\Controllers;
 
 use App\Http\Controllers\Controller;
+use App\Models\Currency;
 use App\Models\User;
-use App\Modules\Core\Models\Company;
+use App\Modules\Accounting\Models\AccountingAccount;
+use App\Modules\Accounting\Models\AccountingJournal;
 use App\Modules\Core\Services\CompanyContext;
+use App\Modules\Core\Services\DocumentRenderer;
+use App\Modules\Inventory\Models\InventoryProduct;
 use App\Modules\Invoicing\Http\Requests\StoreInvoiceRequest;
 use App\Modules\Invoicing\Http\Requests\UpdateInvoiceRequest;
+use App\Modules\Invoicing\Models\Customer;
 use App\Modules\Invoicing\Models\Invoice;
 use App\Modules\Invoicing\Models\InvoiceLine;
-use App\Modules\Invoicing\Models\InvoicePayment;
+use App\Modules\Invoicing\Models\PaymentTerm;
 use App\Modules\Invoicing\Services\InvoicingService;
+use App\Notifications\InvoiceCreatedNotification;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -69,10 +75,18 @@ class InvoicingController extends Controller
         }
         $query->orderBy($sortBy, $sortOrder);
 
-        $invoices = $query->paginate(20)->withQueryString();
+        $invoices = $query->with('journalEntry:id,source_type,source_id,status')->paginate(20)->withQueryString()
+            ->through(function (Invoice $invoice) {
+                $posted = $invoice->journalEntry?->status === 'posted';
+
+                return $invoice->setAttribute('can_edit', $invoice->canBeEdited())
+                    ->setAttribute('can_cancel', in_array($invoice->status, ['draft', 'sent'], true) && ! $posted)
+                    ->setAttribute('is_posted', $posted)
+                    ->unsetRelation('journalEntry');
+            });
 
         // Get customers for filter dropdown
-        $customers = \App\Modules\Invoicing\Models\Customer::query()
+        $customers = Customer::query()
             ->where('company_id', $company->id)
             ->where('is_active', true)
             ->orderBy('name')
@@ -103,26 +117,26 @@ class InvoicingController extends Controller
     {
         $company = app(CompanyContext::class)->requireActiveCompany();
 
-        $customers = \App\Modules\Invoicing\Models\Customer::query()
+        $customers = Customer::query()
             ->where('company_id', $company->id)
             ->where('is_active', true)
             ->orderBy('name')
             ->get(['id', 'name', 'code', 'currency_code', 'payment_term_id']);
 
-        $paymentTerms = \App\Modules\Invoicing\Models\PaymentTerm::query()
+        $paymentTerms = PaymentTerm::query()
             ->where('company_id', $company->id)
             ->where('is_active', true)
             ->orderBy('name')
             ->get(['id', 'name', 'net_days', 'discount_days', 'discount_percent']);
 
-        $products = \App\Modules\Inventory\Models\InventoryProduct::query()
+        $products = InventoryProduct::query()
             ->where('company_id', $company->id)
             ->where('is_active', true)
             ->with('unit')
             ->orderBy('name')
             ->get(['id', 'sku', 'name', 'unit_id', 'type']);
 
-        $accounts = \App\Modules\Accounting\Models\AccountingAccount::query()
+        $accounts = AccountingAccount::query()
             ->where('company_id', $company->id)
             ->where('is_active', true)
             ->where('is_group', false)
@@ -130,13 +144,13 @@ class InvoicingController extends Controller
             ->orderBy('code')
             ->get(['id', 'code', 'name']);
 
-        $journals = \App\Modules\Accounting\Models\AccountingJournal::query()
+        $journals = AccountingJournal::query()
             ->where('company_id', $company->id)
             ->where('is_active', true)
             ->where('journal_type', 'sales')
             ->get(['id', 'code', 'name']);
 
-        $currencies = \App\Models\Currency::query()->orderBy('code')->get(['code', 'name']);
+        $currencies = Currency::query()->orderBy('code')->get(['code', 'name']);
 
         return Inertia::render('Erp/Invoicing/Create', [
             'company' => $company,
@@ -204,20 +218,20 @@ class InvoicingController extends Controller
 
         $company = app(CompanyContext::class)->requireActiveCompany();
 
-        $customers = \App\Modules\Invoicing\Models\Customer::query()
+        $customers = Customer::query()
             ->where('company_id', $company->id)
             ->where('is_active', true)
             ->orderBy('name')
             ->get(['id', 'name', 'code', 'currency_code', 'payment_term_id']);
 
-        $products = \App\Modules\Inventory\Models\InventoryProduct::query()
+        $products = InventoryProduct::query()
             ->where('company_id', $company->id)
             ->where('is_active', true)
             ->with('unit')
             ->orderBy('name')
             ->get(['id', 'sku', 'name', 'unit_id', 'type']);
 
-        $accounts = \App\Modules\Accounting\Models\AccountingAccount::query()
+        $accounts = AccountingAccount::query()
             ->where('company_id', $company->id)
             ->where('is_active', true)
             ->where('is_group', false)
@@ -225,13 +239,13 @@ class InvoicingController extends Controller
             ->orderBy('code')
             ->get(['id', 'code', 'name']);
 
-        $journals = \App\Modules\Accounting\Models\AccountingJournal::query()
+        $journals = AccountingJournal::query()
             ->where('company_id', $company->id)
             ->where('is_active', true)
             ->where('journal_type', 'sales')
             ->get(['id', 'code', 'name']);
 
-        $currencies = \App\Models\Currency::query()->orderBy('code')->get(['code', 'name']);
+        $currencies = Currency::query()->orderBy('code')->get(['code', 'name']);
 
         $invoice->load(['lines.product', 'lines.account']);
 
@@ -311,17 +325,18 @@ class InvoicingController extends Controller
                 'invoice_id' => $invoice->id,
                 'customer_id' => $invoice->customer_id,
             ]);
+
             return;
         }
 
         // Generate PDF
-        $renderer = app(\App\Modules\Core\Services\DocumentRenderer::class);
+        $renderer = app(DocumentRenderer::class);
         $pdf = $renderer->render($invoice, 'pdf.documents.invoice', [
             'company' => $invoice->company->load('branding', 'signatories'),
         ]);
 
         // Send notification with PDF attachment
-        $invoice->customer->notify(new \App\Notifications\InvoiceCreatedNotification(
+        $invoice->customer->notify(new InvoiceCreatedNotification(
             $invoice,
             $message // Optional custom message from user
         ));
@@ -339,6 +354,10 @@ class InvoicingController extends Controller
     public function cancel(Request $request, Invoice $invoice)
     {
         $this->authorizeErpPermission('erp.invoicing.manage');
+
+        if (! $invoice->canBeCancelled()) {
+            return back()->with('error', 'Only draft or unposted invoices can be cancelled. Raise a credit note against a posted invoice instead.');
+        }
 
         $invoice->update([
             'status' => 'cancelled',
@@ -370,13 +389,13 @@ class InvoicingController extends Controller
     {
         $this->authorizeErpPermission('erp.invoicing.view');
 
-        $renderer = app(\App\Modules\Core\Services\DocumentRenderer::class);
+        $renderer = app(DocumentRenderer::class);
         $pdf = $renderer->render($invoice, 'pdf.documents.invoice', [
             'company' => $invoice->company->load('branding', 'signatories'),
         ]);
 
         return response($pdf)
             ->header('Content-Type', 'application/pdf')
-            ->header('Content-Disposition', 'inline; filename="invoice-' . $invoice->document_number . '.pdf"');
+            ->header('Content-Disposition', 'inline; filename="invoice-'.$invoice->document_number.'.pdf"');
     }
 }

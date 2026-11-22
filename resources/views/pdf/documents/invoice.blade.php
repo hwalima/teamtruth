@@ -341,7 +341,7 @@
     </div>
     @endif
 
-    @if($approvalSignatories->isNotEmpty())
+    @if(collect($approvalSignatories)->isNotEmpty())
     <div class="signatories">
         <h4 class="section-title">Approved By</h4>
         @foreach($approvalSignatories as $signatory)
