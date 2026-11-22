@@ -384,7 +384,15 @@ export function useNavigation() {
                 });
             }
             if (canUseErp('erp.accounting.view')) {
-                items.push({ title: t('Finance & Accounting'), href: route('erp.accounting.index'), icon: Landmark, group: t('Modules') });
+                items.push({
+                    title: t('Finance & Accounting'),
+                    icon: Landmark,
+                    group: t('Modules'),
+                    children: [
+                        { title: t('Overview'), href: route('erp.accounting.index') },
+                        { title: t('Financial Reports'), href: route('erp.accounting.financial-reports.index') },
+                    ],
+                });
             }
             if (canUseErp('erp.banking.view')) {
                 items.push({

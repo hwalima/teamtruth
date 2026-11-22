@@ -358,7 +358,15 @@ Route::middleware(['auth', 'verified'])->prefix('erp')->name('erp.')->group(func
         Route::get('accounting', [\App\Modules\Accounting\Http\Controllers\AccountingController::class, 'index'])
             ->middleware('erp.permission:erp.accounting.view')
             ->name('accounting.index');
-        Route::get('accounting/reports/{report}/{format}', \App\Modules\Accounting\Http\Controllers\AccountingReportExportController::class)
+        Route::get('accounting/financial-reports', [\App\Modules\Accounting\Http\Controllers\FinancialReportController::class, 'index'])
+            ->middleware('erp.permission:erp.accounting.view')
+            ->name('accounting.financial-reports.index');
+        Route::get('accounting/financial-reports/{report}/{format}', [\App\Modules\Accounting\Http\Controllers\FinancialReportController::class, 'export'])
+            ->middleware('erp.permission:erp.accounting.view')
+            ->whereIn('report', ['balance-sheet', 'aged-receivables', 'aged-payables'])
+            ->whereIn('format', ['csv', 'pdf'])
+            ->name('accounting.financial-reports.export');
+        Route::get('accounting/reports/{report}/{format}',\App\Modules\Accounting\Http\Controllers\AccountingReportExportController::class)
             ->middleware('erp.permission:erp.accounting.view')
             ->name('accounting.reports.export');
         Route::post('accounting/accounts', [\App\Modules\Accounting\Http\Controllers\AccountingController::class, 'storeAccount'])

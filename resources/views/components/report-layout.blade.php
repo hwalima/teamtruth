@@ -33,7 +33,7 @@
         table.data td { padding: 6px 8px; border-bottom: 1px solid #e5e7eb; vertical-align: top; }
         table.data tr.zebra td { background: {{ $primaryTint }}; }
         table.data tr { page-break-inside: avoid; }
-        .num { text-align: right; white-space: nowrap; }
+        .num, table.data th.num { text-align: right; white-space: nowrap; }
         .empty { text-align: center; color: {{ $secondaryColor }}; padding: 24px 8px; }
 
         .footer { position: fixed; bottom: -36px; left: 0; right: 0; height: 24px; border-top: 1.5px solid {{ $accentColor }}; padding-top: 6px; font-size: 7.5px; color: {{ $secondaryColor }}; }

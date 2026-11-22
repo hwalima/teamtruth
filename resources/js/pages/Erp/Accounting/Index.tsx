@@ -218,10 +218,19 @@ export default function AccountingIndex({
                                 Manage the chart of accounts, journals, fiscal periods, and company ledger from one place.
                             </p>
                         </div>
+                        <div className="flex flex-wrap items-center gap-2">
+                        <a
+                            href={route('erp.accounting.financial-reports.index')}
+                            className="inline-flex items-center gap-2 rounded-2xl border border-white/15 bg-white/10 px-4 py-3 text-sm font-medium shadow-inner shadow-white/5 backdrop-blur-xl transition hover:bg-white/20"
+                        >
+                            <FileText className="text-primary h-5 w-5" />
+                            Balance sheet & aged balances
+                        </a>
                         <div className="inline-flex items-center gap-2 rounded-2xl border border-white/15 bg-white/10 px-4 py-3 text-sm shadow-inner shadow-white/5 backdrop-blur-xl">
                             <CircleDollarSign className="text-primary h-5 w-5" />
                             <span className="text-white/65">Base currency</span>
                             <strong className="font-semibold">{company.default_currency}</strong>
+                        </div>
                         </div>
                     </div>
                     <div className="mt-7 grid gap-3 sm:grid-cols-3">
