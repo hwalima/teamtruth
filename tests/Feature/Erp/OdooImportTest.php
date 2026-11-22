@@ -238,3 +238,26 @@ test('an import is not undone once its products have been used', function () {
         ->and(InventoryProduct::query()->withoutGlobalScopes()->count())->toBe(5)
         ->and(onHand($ring))->toBe(9.0);
 });
+
+test('a product variants file updates prices and stock without blanking what the products file set', function () {
+    importProducts();
+
+    $this->post(route('erp.data-import.store'), ['file' => odooFile('Product Variant (product.product).xlsx', [
+        ['Favorite', 'Internal Reference', 'Name', 'Variant Values', 'Sales Price', 'Cost', 'Quantity On Hand', 'Forecasted Quantity', 'Unit'],
+        [false, 'EP0008', 'O Ring 164-3903', null, 6, 3.2, 12, 12, 'Units'],
+        [false, null, 'Overall', 'Size: L', 25, 15, 4, 4, 'Units'],
+        [false, null, 'Overall', 'Size: XL', 25, 15, 2, 2, 'Units'],
+    ])]);
+    $import = DataImport::query()->withoutGlobalScopes()->latest('id')->first();
+    expect($import->model)->toBe('product.template');
+    $this->post(route('erp.data-import.commit', $import));
+
+    $ring = InventoryProduct::query()->withoutGlobalScopes()->where('name', 'O Ring 164-3903')->sole();
+    expect($import->refresh()->status)->toBe(DataImport::IMPORTED)
+        ->and((float) $ring->sale_price)->toBe(6.0)
+        ->and((float) $ring->cost_price)->toBe(3.2)
+        ->and($ring->category?->name)->toBe('Spares')
+        ->and(onHand($ring))->toBe(12.0)
+        ->and(InventoryProduct::query()->withoutGlobalScopes()->where('name', 'like', 'Overall (%')->orderBy('name')->pluck('name')->all())
+        ->toBe(['Overall (Size: L)', 'Overall (Size: XL)']);
+});

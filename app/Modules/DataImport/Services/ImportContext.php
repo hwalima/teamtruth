@@ -100,10 +100,11 @@ class ImportContext
             return;
         }
 
-        ExternalId::query()->updateOrCreate(
-            ['source' => $this->import->source, 'model' => $model, 'external_id' => $externalId],
-            ['record_type' => $record->getMorphClass(), 'record_id' => $record->getKey(), 'data_import_id' => $this->import->id],
-        );
+        // A link keeps the import that first made it, so undoing a later file never cuts an earlier one's links.
+        $link = ExternalId::query()->firstOrNew(['source' => $this->import->source, 'model' => $model, 'external_id' => $externalId]);
+        $link->fill(['record_type' => $record->getMorphClass(), 'record_id' => $record->getKey()]);
+        $link->data_import_id ??= $this->import->id;
+        $link->save();
     }
 
     public function summary(): array

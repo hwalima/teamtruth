@@ -73,6 +73,7 @@ class ProductImporter extends OdooImporter
         return [
             'id' => ['id', 'External ID', 'ID'],
             'name' => ['name', 'Name', 'Product Name', 'Product'],
+            'variant_values' => ['product_template_variant_value_ids', 'product_template_attribute_value_ids', 'Variant Values', 'Attribute Values'],
             'default_code' => ['default_code', 'Internal Reference', 'Reference'],
             'barcode' => ['barcode', 'Barcode'],
             'category' => ['categ_id', 'Product Category', 'Category'],
@@ -104,7 +105,7 @@ class ProductImporter extends OdooImporter
 
         $seen = [];
         foreach ($products as $product) {
-            $name = $this->text($product['data'], $columns, 'name', 255);
+            $name = $this->productName($product['data'], $columns);
             $key = $this->nameKey($name);
             $seen[$key] = ($seen[$key] ?? 0) + 1;
             $nameKey = $seen[$key] > 1 ? "{$key}#{$seen[$key]}" : $key;
@@ -140,7 +141,7 @@ class ProductImporter extends OdooImporter
     {
         $byName = [];
         foreach ($products as $product) {
-            $name = $this->text($product['data'], $columns, 'name');
+            $name = $this->productName($product['data'], $columns);
             if ($name !== null) {
                 $byName[OdooSheet::key($name)][] = $product['row_number'];
             }
@@ -196,7 +197,12 @@ class ProductImporter extends OdooImporter
             'metadata' => $metadata,
         ];
 
-        if ($barcode !== null && InventoryProduct::query()->where('barcode', $barcode)->when($existing, fn ($q) => $q->whereKeyNot($existing->id))->exists()) {
+        if ($existing) {
+            // A partial export (product variants, say) must not blank what an earlier, fuller file set.
+            $attributes = array_filter($attributes, fn (string $attribute) => $this->hasColumnFor($columns, $attribute), ARRAY_FILTER_USE_KEY);
+        }
+
+        if ($barcode !== null && array_key_exists('barcode', $attributes) && InventoryProduct::query()->where('barcode', $barcode)->when($existing, fn ($q) => $q->whereKeyNot($existing->id))->exists()) {
             $attributes['barcode'] = null;
             $context->row($rowNumber, 'pending', ["Barcode {$barcode} is already used by another product, so it was left off."]);
         }
@@ -225,6 +231,38 @@ class ProductImporter extends OdooImporter
         $this->image($context, $rowNumber, $record, $this->text($data, $columns, 'image'));
         $this->vendors($context, $rowNumber, $record, [$product, ...$product['extra']], $columns);
         $this->openingStock($context, $rowNumber, $record, $this->number($data, $columns, 'quantity'));
+    }
+
+    /** "T-shirt (Red, L)" for a variant; the plain name otherwise. */
+    private function productName(array $data, array $columns): ?string
+    {
+        $name = $this->text($data, $columns, 'name', 255);
+        $values = $this->text($data, $columns, 'variant_values');
+        if ($name === null || $values === null || str_contains(Str::lower($name), Str::lower($values))) {
+            return $name;
+        }
+
+        return Str::limit("{$name} ({$values})", 255, '');
+    }
+
+    /** Whether the file has a column behind this product attribute. */
+    private function hasColumnFor(array $columns, string $attribute): bool
+    {
+        $fields = match ($attribute) {
+            'barcode' => ['barcode'],
+            'internal_reference' => ['default_code'],
+            'category_id' => ['category'],
+            'unit_id' => ['unit'],
+            'description' => ['description', 'description_sale'],
+            'type' => ['type', 'is_storable'],
+            'tracking' => ['tracking'],
+            'is_active' => ['active'],
+            'sale_price' => ['sale_price'],
+            'cost_price' => ['cost'],
+            default => null,
+        };
+
+        return $fields === null || array_intersect($fields, array_keys($columns)) !== [];
     }
 
     /** Every column of the Odoo row (pictures aside), so nothing on the sheet is lost. */
