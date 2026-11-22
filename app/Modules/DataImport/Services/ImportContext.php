@@ -57,9 +57,15 @@ class ImportContext
         $this->rows[$rowNumber]['action'] ??= 'skipped';
     }
 
-    public function created(string $kind, string $label): void
+    /** @var array<string, list<int>> ids of what was created, so an import can be undone */
+    public array $createdIds = [];
+
+    public function created(string $kind, string $label, ?Model $record = null): void
     {
         $this->created[$kind][] = $label;
+        if ($record) {
+            $this->createdIds[$kind][] = (int) $record->getKey();
+        }
     }
 
     public function warn(string $message): void
@@ -112,6 +118,7 @@ class ImportContext
             'created' => array_map(fn ($names) => array_values(array_unique($names)), $this->created),
             'totals' => $this->totals,
             'warnings' => array_values(array_unique($this->warnings)),
+            'created_ids' => array_map(fn ($ids) => array_values(array_unique($ids)), $this->createdIds),
         ];
     }
 }

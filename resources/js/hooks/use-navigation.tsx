@@ -365,7 +365,8 @@ export function useNavigation() {
                     icon: Boxes,
                     group: t('Modules'),
                     children: [
-                        { title: t('Products & Locations'), href: route('erp.inventory.setup') },
+                        { title: t('Products'), href: route('erp.inventory.products.index') },
+                        { title: t('Categories, Units & Warehouses'), href: route('erp.inventory.setup') },
                         { title: t('Stock on Hand & Movements'), href: route('erp.inventory.stock.index') },
                     ],
                 });

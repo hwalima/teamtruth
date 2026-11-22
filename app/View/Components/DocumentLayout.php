@@ -60,12 +60,12 @@ class DocumentLayout extends Component
         return view('components.document-layout');
     }
 
-    private function safeColor(?string $color, string $fallback): string
+    protected function safeColor(?string $color, string $fallback): string
     {
         return $color && preg_match('/^#[0-9a-fA-F]{6}$/', $color) ? $color : $fallback;
     }
 
-    private function imageDataUri(?string $path): ?string
+    protected function imageDataUri(?string $path): ?string
     {
         if (! $path || ! Storage::disk('public')->exists($path)) {
             return null;

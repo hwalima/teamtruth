@@ -34,7 +34,7 @@ class Partners
                 'payment_terms_days' => 0,
                 ...array_filter($details, fn ($value) => $value !== null),
             ]);
-            $context->created('vendors', $vendor->name);
+            $context->created('vendors', $vendor->name, $vendor);
         } elseif ($details !== []) {
             $vendor->fill(array_filter($details, fn ($value) => $value !== null))->save();
         }
@@ -65,7 +65,7 @@ class Partners
                 'created_by' => $context->user->id,
                 ...array_filter($details, fn ($value) => $value !== null),
             ]);
-            $context->created('customers', $customer->name);
+            $context->created('customers', $customer->name, $customer);
         } elseif ($details !== []) {
             $customer->fill([...array_filter($details, fn ($value) => $value !== null), 'updated_by' => $context->user->id])->save();
         }

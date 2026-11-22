@@ -13,6 +13,7 @@ use App\Modules\Inventory\Models\InventoryUnit;
 use App\Modules\Inventory\Models\InventoryWarehouse;
 use App\Modules\Inventory\Models\StockLocation;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -27,21 +28,184 @@ class InventorySetupController extends Controller
     {
         $company = app(CompanyContext::class)->requireActiveCompany();
 
+        $productsPerUnit = InventoryProduct::query()->selectRaw('unit_id, count(*) as total')->groupBy('unit_id')->pluck('total', 'unit_id');
+        $productsPerCategory = InventoryProduct::query()->whereNotNull('category_id')->selectRaw('category_id, count(*) as total')->groupBy('category_id')->pluck('total', 'category_id');
+
         return Inertia::render('Erp/Inventory/Setup', [
             'company' => $company->only(['id', 'code', 'name']),
-            'units' => InventoryUnit::query()->where('is_active', true)->orderBy('name')->get(),
-            'categories' => InventoryCategory::query()->where('is_active', true)->orderBy('name')->get(),
-            'products' => InventoryProduct::query()
-                ->with(['category:id,name', 'unit:id,name,abbreviation'])
-                ->orderBy('name')
-                ->limit(300)
-                ->get(),
+            'units' => InventoryUnit::query()->orderByDesc('is_active')->orderBy('category')->orderBy('name')->get()
+                ->map(fn (InventoryUnit $unit) => [...$unit->only(['id', 'name', 'abbreviation', 'category', 'factor_to_base', 'is_base', 'is_active']), 'products_count' => (int) ($productsPerUnit[$unit->id] ?? 0)]),
+            'categories' => InventoryCategory::query()->orderByDesc('is_active')->orderBy('name')->get()
+                ->map(fn (InventoryCategory $category) => [...$category->only(['id', 'name', 'description', 'parent_id', 'is_active']), 'products_count' => (int) ($productsPerCategory[$category->id] ?? 0)]),
+            'productCount' => InventoryProduct::query()->count(),
             'warehouses' => InventoryWarehouse::query()
-                ->with(['locations' => fn ($query) => $query->where('is_active', true)->orderBy('code')])
-                ->where('is_active', true)
+                ->with(['locations' => fn ($query) => $query->orderByDesc('is_active')->orderBy('code')])
+                ->orderByDesc('is_active')
                 ->orderBy('name')
-                ->get(),
+                ->get()
+                ->map(fn (InventoryWarehouse $warehouse) => [
+                    ...$warehouse->only(['id', 'code', 'name', 'address', 'is_active']),
+                    'locations' => $warehouse->locations->map(fn (StockLocation $location) => $location->only(['id', 'warehouse_id', 'parent_id', 'code', 'name', 'usage', 'is_active']))->values(),
+                ]),
+            'canManage' => app(ErpRoleService::class)->allows($company, request()->user(), 'erp.inventory.manage'),
         ]);
+    }
+
+    public function updateUnit(Request $request, InventoryUnit $unit): RedirectResponse
+    {
+        $company = app(CompanyContext::class)->requireActiveCompany();
+        $this->authorizeManagement($request, $company);
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:100'],
+            'abbreviation' => ['required', 'string', 'max:20', 'regex:/^[A-Za-z0-9._-]+$/', Rule::unique('inventory_units', 'abbreviation')->where('company_id', $company->id)->ignore($unit->id)],
+            'is_active' => ['required', 'boolean'],
+        ]);
+        $before = $unit->only(array_keys($validated));
+        $unit->update($validated);
+        $this->auditChange($company, $request, 'inventory.unit.updated', $unit, $before, $validated);
+
+        return back()->with('success', __('Unit of measure updated.'));
+    }
+
+    public function destroyUnit(Request $request, InventoryUnit $unit): RedirectResponse
+    {
+        return $this->remove($request, $unit, 'inventory.unit.deleted', fn () => $unit->delete(),
+            __(':name is used by products or documents, so it cannot be deleted. Mark it inactive instead.', ['name' => $unit->name]),
+            __('Unit of measure deleted.'));
+    }
+
+    public function updateCategory(Request $request, InventoryCategory $category): RedirectResponse
+    {
+        $company = app(CompanyContext::class)->requireActiveCompany();
+        $this->authorizeManagement($request, $company);
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:120', Rule::unique('inventory_categories', 'name')->where('company_id', $company->id)->ignore($category->id)],
+            'description' => ['nullable', 'string', 'max:1000'],
+            'parent_id' => ['nullable', 'integer', Rule::exists('inventory_categories', 'id')->where('company_id', $company->id)],
+            'is_active' => ['required', 'boolean'],
+        ]);
+        if (! empty($validated['parent_id']) && $this->isSelfOrDescendant($category, (int) $validated['parent_id'])) {
+            throw ValidationException::withMessages(['parent_id' => __('A category cannot sit inside itself or one of its own sub-categories.')]);
+        }
+        $before = $category->only(array_keys($validated));
+        $category->update($validated);
+        $this->auditChange($company, $request, 'inventory.category.updated', $category, $before, $validated);
+
+        return back()->with('success', __('Product category updated.'));
+    }
+
+    public function destroyCategory(Request $request, InventoryCategory $category): RedirectResponse
+    {
+        return $this->remove($request, $category, 'inventory.category.deleted', fn () => $category->delete(),
+            __(':name still has products or sub-categories. Move them first, or mark it inactive instead.', ['name' => $category->name]),
+            __('Product category deleted.'));
+    }
+
+    public function updateWarehouse(Request $request, InventoryWarehouse $warehouse): RedirectResponse
+    {
+        $company = app(CompanyContext::class)->requireActiveCompany();
+        $this->authorizeManagement($request, $company);
+        $validated = $request->validate([
+            'code' => ['required', 'string', 'max:40', 'regex:/^[A-Za-z0-9_-]+$/', Rule::unique('inventory_warehouses', 'code')->where('company_id', $company->id)->ignore($warehouse->id)],
+            'name' => ['required', 'string', 'max:160'],
+            'address' => ['nullable', 'string', 'max:1000'],
+            'is_active' => ['required', 'boolean'],
+        ]);
+        $before = $warehouse->only(array_keys($validated));
+        $warehouse->update($validated);
+        $this->auditChange($company, $request, 'inventory.warehouse.updated', $warehouse, $before, $validated);
+
+        return back()->with('success', __('Warehouse updated.'));
+    }
+
+    public function destroyWarehouse(Request $request, InventoryWarehouse $warehouse): RedirectResponse
+    {
+        return $this->remove($request, $warehouse, 'inventory.warehouse.deleted', function () use ($warehouse): void {
+            // Child locations first, so nested ones go before their parents.
+            $locations = StockLocation::query()->where('warehouse_id', $warehouse->id)->get();
+            while ($locations->isNotEmpty()) {
+                $parents = $locations->pluck('parent_id')->filter()->all();
+                $leaves = $locations->reject(fn ($location) => in_array($location->id, $parents, true));
+                if ($leaves->isEmpty()) {
+                    $leaves = $locations;
+                }
+                $leaves->each->delete();
+                $locations = $locations->diff($leaves);
+            }
+            $warehouse->delete();
+        },
+            __(':name has stock movements or documents, so it cannot be deleted. Mark it inactive instead.', ['name' => $warehouse->name]),
+            __('Warehouse and its locations deleted.'));
+    }
+
+    public function updateLocation(Request $request, StockLocation $location): RedirectResponse
+    {
+        $company = app(CompanyContext::class)->requireActiveCompany();
+        $this->authorizeManagement($request, $company);
+        $validated = $request->validate([
+            'code' => ['required', 'string', 'max:40', 'regex:/^[A-Za-z0-9_-]+$/'],
+            'name' => ['required', 'string', 'max:160'],
+            'usage' => ['required', Rule::in(['internal', 'supplier', 'customer', 'department', 'production', 'scrap', 'adjustment'])],
+            'is_active' => ['required', 'boolean'],
+        ]);
+        $codeTaken = StockLocation::query()->where('warehouse_id', $location->warehouse_id)->where('code', $validated['code'])->whereKeyNot($location->id)->exists();
+        if ($codeTaken) {
+            throw ValidationException::withMessages(['code' => __('This location code is already used in the selected warehouse.')]);
+        }
+        $hasMovements = DB::table('stock_move_lines')->where('from_location_id', $location->id)->orWhere('to_location_id', $location->id)->exists();
+        if ($hasMovements && $validated['usage'] !== $location->usage) {
+            throw ValidationException::withMessages(['usage' => __('Stock has already moved through this location, so its type cannot change.')]);
+        }
+        $before = $location->only(array_keys($validated));
+        $location->update($validated);
+        $this->auditChange($company, $request, 'inventory.location.updated', $location, $before, $validated);
+
+        return back()->with('success', __('Stock location updated.'));
+    }
+
+    public function destroyLocation(Request $request, StockLocation $location): RedirectResponse
+    {
+        return $this->remove($request, $location, 'inventory.location.deleted', fn () => $location->delete(),
+            __(':name has stock movements, documents or sub-locations, so it cannot be deleted. Mark it inactive instead.', ['name' => $location->name]),
+            __('Stock location deleted.'));
+    }
+
+    /** Delete inside a transaction; anything still pointing at the record blocks it. */
+    private function remove(Request $request, Model $record, string $event, callable $delete, string $inUse, string $done): RedirectResponse
+    {
+        $company = app(CompanyContext::class)->requireActiveCompany();
+        $this->authorizeManagement($request, $company);
+        $values = $record->only(['code', 'name', 'abbreviation']);
+
+        try {
+            DB::transaction(function () use ($company, $request, $record, $event, $delete, $values): void {
+                $delete();
+                app(AuditLogService::class)->record($company, $event, $record, changes: ['before' => $values], actor: $request->user());
+            });
+        } catch (QueryException) {
+            return back()->with('error', $inUse);
+        }
+
+        return back()->with('success', $done);
+    }
+
+    private function isSelfOrDescendant(InventoryCategory $category, int $candidateId): bool
+    {
+        $parents = InventoryCategory::query()->pluck('parent_id', 'id');
+        $seen = [];
+        for ($id = $candidateId; $id && ! isset($seen[$id]); $id = $parents[$id] ?? null) {
+            if ($id === $category->id) {
+                return true;
+            }
+            $seen[$id] = true;
+        }
+
+        return false;
+    }
+
+    private function auditChange(Company $company, Request $request, string $event, Model $record, array $before, array $after): void
+    {
+        app(AuditLogService::class)->record($company, $event, $record, changes: ['before' => $before, 'after' => $after], actor: $request->user());
     }
 
     public function storeUnit(Request $request): RedirectResponse
@@ -106,54 +270,6 @@ class InventorySetupController extends Controller
         });
 
         return back()->with('success', __('Product category created.'));
-    }
-
-    public function storeProduct(Request $request): RedirectResponse
-    {
-        $company = app(CompanyContext::class)->requireActiveCompany();
-        $this->authorizeManagement($request, $company);
-        $validated = $request->validate([
-            'sku' => [
-                'required',
-                'string',
-                'max:80',
-                'regex:/^[A-Za-z0-9._-]+$/',
-                Rule::unique('inventory_products', 'sku')->where('company_id', $company->id),
-            ],
-            'barcode' => [
-                'nullable',
-                'string',
-                'max:120',
-                Rule::unique('inventory_products', 'barcode')->where('company_id', $company->id),
-            ],
-            'name' => ['required', 'string', 'max:255'],
-            'description' => ['nullable', 'string', 'max:10000'],
-            'category_id' => [
-                'nullable',
-                'integer',
-                Rule::exists('inventory_categories', 'id')->where('company_id', $company->id),
-            ],
-            'unit_id' => [
-                'required',
-                'integer',
-                Rule::exists('inventory_units', 'id')->where('company_id', $company->id)->where('is_active', true),
-            ],
-            'type' => ['required', Rule::in(['storable', 'consumable', 'service'])],
-            'costing_method' => ['required', Rule::in(['average', 'fifo'])],
-            'tracking' => ['required', Rule::in(['none', 'lot', 'serial'])],
-        ]);
-        if ($validated['type'] === 'service' && $validated['tracking'] !== 'none') {
-            return back()->withErrors(['tracking' => __('Service products cannot use lot or serial tracking.')]);
-        }
-
-        DB::transaction(function () use ($company, $request, $validated): void {
-            $product = InventoryProduct::query()->create([...$validated, 'company_id' => $company->id]);
-            $this->audit($company, $request, 'inventory.product.created', $product, $product->only([
-                'sku', 'barcode', 'name', 'type', 'category_id', 'unit_id', 'costing_method', 'tracking',
-            ]));
-        });
-
-        return back()->with('success', __('Product created.'));
     }
 
     public function storeWarehouse(Request $request): RedirectResponse

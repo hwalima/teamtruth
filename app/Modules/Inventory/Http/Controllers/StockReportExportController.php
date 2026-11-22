@@ -51,8 +51,22 @@ class StockReportExportController extends Controller
         $pdf = $renderer->renderForCompany($company, 'pdf.documents.inventory-report', [
             'documentTitle' => $title,
             'reportTitle' => $title,
+            'reportSubtitle' => $company->name,
             'columns' => $columns,
             'rows' => $rows,
+            'numericColumns' => $report === 'on-hand' ? [4] : [5],
+            'stats' => $report === 'on-hand'
+                ? [
+                    'Stock lines' => number_format(count($rows)),
+                    'Products' => number_format(count(array_unique(array_column($rows, 0)))),
+                    'Locations' => number_format(count(array_unique(array_column($rows, 2)))),
+                ]
+                : [
+                    'Movements' => number_format(count(array_unique(array_column($rows, 0)))),
+                    'Lines' => number_format(count($rows)),
+                    'Products' => number_format(count(array_unique(array_column($rows, 3)))),
+                ],
+            'emptyMessage' => 'No inventory activity to report.',
         ]);
 
         return response($pdf, 200, [

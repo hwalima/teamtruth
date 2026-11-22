@@ -19,6 +19,7 @@ export type ImportItem = {
 };
 
 type Props = {
+    company: { id: number; code: string; name: string };
     models: Options;
     locations: { id: number; label: string }[];
     imports: ImportItem[];
@@ -30,7 +31,7 @@ export function actionSummary(actions: Record<string, number>): string {
         .join(', ');
 }
 
-export default function DataImportIndex({ models, locations, imports }: Props) {
+export default function DataImportIndex({ company, models, locations, imports }: Props) {
     const form = useForm<{
         file: File | null;
         model: string;
@@ -60,6 +61,8 @@ export default function DataImportIndex({ models, locations, imports }: Props) {
 
     return (
         <Page title="Data import" subtitle="Bring records across from Odoo. Every file is previewed first; nothing is saved until you confirm.">
+            <CompanyBanner company={company} />
+
             <Card title="Upload an Odoo export">
                 <form onSubmit={submit} className="grid gap-4 md:grid-cols-2">
                     <div className="grid gap-1.5 text-sm md:col-span-2">
@@ -208,4 +211,15 @@ function guessModel(fileName: string): string {
     if (name.includes('(product.template)') || name.includes('(product.product)')) return 'product.template';
     if (name.includes('(res.partner)')) return 'res.partner';
     return '';
+}
+
+export function CompanyBanner({ company, done = false }: { company: { code: string; name: string }; done?: boolean }) {
+    return (
+        <div className="border-primary/30 bg-primary/5 flex flex-wrap items-center justify-between gap-2 rounded-xl border px-4 py-3 text-sm">
+            <span>
+                {done ? 'Imported into' : 'Importing into'} <strong className="text-base">{company.name}</strong> <span className="text-muted-foreground">({company.code})</span>
+            </span>
+            {!done && <span className="text-muted-foreground text-xs">Wrong company? Switch company first, from the company switcher in the sidebar.</span>}
+        </div>
+    );
 }

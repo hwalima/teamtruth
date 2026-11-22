@@ -149,15 +149,50 @@ Route::middleware(['auth', 'verified'])->prefix('erp')->name('erp.')->group(func
         Route::post('inventory/categories', [\App\Modules\Inventory\Http\Controllers\InventorySetupController::class, 'storeCategory'])
             ->middleware('erp.permission:erp.inventory.manage')
             ->name('inventory.categories.store');
-        Route::post('inventory/products', [\App\Modules\Inventory\Http\Controllers\InventorySetupController::class, 'storeProduct'])
+        Route::get('inventory/products', [\App\Modules\Inventory\Http\Controllers\InventoryProductController::class, 'index'])
+            ->middleware('erp.permission:erp.inventory.view')
+            ->name('inventory.products.index');
+        Route::get('inventory/products/create', [\App\Modules\Inventory\Http\Controllers\InventoryProductController::class, 'create'])
+            ->middleware('erp.permission:erp.inventory.manage')
+            ->name('inventory.products.create');
+        Route::get('inventory/products/pdf', [\App\Modules\Inventory\Http\Controllers\InventoryProductController::class, 'pdf'])
+            ->middleware('erp.permission:erp.inventory.view')
+            ->name('inventory.products.pdf');
+        Route::post('inventory/products', [\App\Modules\Inventory\Http\Controllers\InventoryProductController::class, 'store'])
             ->middleware('erp.permission:erp.inventory.manage')
             ->name('inventory.products.store');
+        Route::get('inventory/products/{product}', [\App\Modules\Inventory\Http\Controllers\InventoryProductController::class, 'show'])
+            ->whereNumber('product')
+            ->middleware('erp.permission:erp.inventory.view')
+            ->name('inventory.products.show');
+        Route::get('inventory/products/{product}/edit', [\App\Modules\Inventory\Http\Controllers\InventoryProductController::class, 'edit'])
+            ->whereNumber('product')
+            ->middleware('erp.permission:erp.inventory.manage')
+            ->name('inventory.products.edit');
+        Route::put('inventory/products/{product}', [\App\Modules\Inventory\Http\Controllers\InventoryProductController::class, 'update'])
+            ->whereNumber('product')
+            ->middleware('erp.permission:erp.inventory.manage')
+            ->name('inventory.products.update');
+        Route::delete('inventory/products/{product}', [\App\Modules\Inventory\Http\Controllers\InventoryProductController::class, 'destroy'])
+            ->whereNumber('product')
+            ->middleware('erp.permission:erp.inventory.manage')
+            ->name('inventory.products.destroy');
         Route::post('inventory/warehouses', [\App\Modules\Inventory\Http\Controllers\InventorySetupController::class, 'storeWarehouse'])
             ->middleware('erp.permission:erp.inventory.manage')
             ->name('inventory.warehouses.store');
         Route::post('inventory/locations', [\App\Modules\Inventory\Http\Controllers\InventorySetupController::class, 'storeLocation'])
             ->middleware('erp.permission:erp.inventory.manage')
             ->name('inventory.locations.store');
+        foreach (['units' => ['unit', 'Unit'], 'categories' => ['category', 'Category'], 'warehouses' => ['warehouse', 'Warehouse'], 'locations' => ['location', 'Location']] as $path => [$parameter, $model]) {
+            Route::put("inventory/{$path}/{{$parameter}}", [\App\Modules\Inventory\Http\Controllers\InventorySetupController::class, "update{$model}"])
+                ->whereNumber($parameter)
+                ->middleware('erp.permission:erp.inventory.manage')
+                ->name("inventory.{$path}.update");
+            Route::delete("inventory/{$path}/{{$parameter}}", [\App\Modules\Inventory\Http\Controllers\InventorySetupController::class, "destroy{$model}"])
+                ->whereNumber($parameter)
+                ->middleware('erp.permission:erp.inventory.manage')
+                ->name("inventory.{$path}.destroy");
+        }
         Route::get('inventory/stock', [\App\Modules\Inventory\Http\Controllers\StockMovementController::class, 'index'])
             ->middleware('erp.permission:erp.inventory.view')
             ->name('inventory.stock.index');
@@ -178,6 +213,8 @@ Route::middleware(['auth', 'verified'])->prefix('erp')->name('erp.')->group(func
             ->name('data-import.preview');
         Route::post('data-import/{import}/commit', [\App\Modules\DataImport\Http\Controllers\DataImportController::class, 'commit'])
             ->name('data-import.commit');
+        Route::post('data-import/{import}/undo', [\App\Modules\DataImport\Http\Controllers\DataImportController::class, 'undo'])
+            ->name('data-import.undo');
         Route::get('data-import/{import}/download', [\App\Modules\DataImport\Http\Controllers\DataImportController::class, 'download'])
             ->name('data-import.download');
 

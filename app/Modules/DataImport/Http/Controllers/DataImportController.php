@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Modules\Core\Services\CompanyContext;
 use App\Modules\DataImport\Models\DataImport;
 use App\Modules\DataImport\Services\DataImportService;
+use App\Modules\DataImport\Services\DataImportUndoService;
 use App\Modules\Inventory\Models\StockLocation;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -21,9 +22,10 @@ class DataImportController extends Controller
 
     public function index(): Response
     {
-        app(CompanyContext::class)->requireActiveCompany();
+        $company = app(CompanyContext::class)->requireActiveCompany();
 
         return Inertia::render('Erp/DataImport/Index', [
+            'company' => $company->only(['id', 'code', 'name']),
             'models' => $this->imports->models(),
             'locations' => StockLocation::query()
                 ->with('warehouse:id,code,name')
@@ -93,6 +95,7 @@ class DataImportController extends Controller
             ]);
 
         return Inertia::render('Erp/DataImport/Show', [
+            'company' => app(CompanyContext::class)->requireActiveCompany()->only(['id', 'code', 'name']),
             'import' => [
                 ...$this->listItem($import->load(['creator:id,name', 'importer:id,name'])),
                 'options' => $import->options ?? [],
@@ -110,6 +113,15 @@ class DataImportController extends Controller
         $this->imports->commit($import, $request->user());
 
         return redirect()->route('erp.data-import.show', $import)->with('success', 'Imported.');
+    }
+
+    public function undo(Request $request, DataImport $import): RedirectResponse
+    {
+        $this->belongs($import);
+        $removed = app(DataImportUndoService::class)->undo($import, $request->user());
+        $list = collect($removed)->map(fn ($count, $kind) => "{$count} {$kind}")->implode(', ');
+
+        return redirect()->route('erp.data-import.show', $import)->with('success', 'Import undone'.($list ? ": removed {$list}." : '.'));
     }
 
     public function preview(Request $request, DataImport $import): RedirectResponse

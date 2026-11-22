@@ -1,8 +1,9 @@
 import { router, useForm } from '@inertiajs/react';
 import { useState, type FormEvent } from 'react';
 import { route } from 'ziggy-js';
-import { Card, Checkbox, Detail, Empty, Field, Page, Pagination, Select, StatusBadge, TextInput, formatDate, humanize, primaryButton, secondaryButton, type Paginated } from '@/components/hrm/ui';
-import { actionSummary, type ImportItem } from './Index';
+import { Card, Checkbox, dangerButton, Detail, Empty, Field, Page, Pagination, Select, StatusBadge, TextInput, formatDate, humanize, primaryButton, secondaryButton, type Paginated } from '@/components/hrm/ui';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { actionSummary, CompanyBanner, type ImportItem } from './Index';
 
 type Row = {
     id: number;
@@ -23,8 +24,10 @@ type Props = {
             totals?: Record<string, number>;
             warnings?: string[];
             error?: string;
+            undone?: { by: string; at: string; removed: Record<string, number> };
         };
     };
+    company: { id: number; code: string; name: string };
     rows: Paginated<Row>;
     filters: { action: string; search: string; messages: boolean };
 };
@@ -47,9 +50,11 @@ const totalLabels: Record<string, string> = {
     possible_duplicates: 'Products sharing a name',
 };
 
-export default function DataImportShow({ import: item, rows, filters }: Props) {
+export default function DataImportShow({ company, import: item, rows, filters }: Props) {
     const imported = item.status === 'imported';
+    const undone = item.status === 'undone';
     const [confirming, setConfirming] = useState(false);
+    const [dialog, setDialog] = useState<'commit' | 'undo' | null>(null);
     const filter = useForm({ action: filters.action, search: filters.search, messages: filters.messages });
     const summary = item.summary ?? {};
     const errors = summary.actions?.error ?? 0;
@@ -63,14 +68,22 @@ export default function DataImportShow({ import: item, rows, filters }: Props) {
         );
     };
 
-    const commit = () => {
-        router.post(route('erp.data-import.commit', item.id), {}, { onStart: () => setConfirming(true), onFinish: () => setConfirming(false) });
+    const run = (action: 'commit' | 'undo') => {
+        router.post(route(action === 'commit' ? 'erp.data-import.commit' : 'erp.data-import.undo', item.id), {}, {
+            onStart: () => setConfirming(true),
+            onFinish: () => {
+                setConfirming(false);
+                setDialog(null);
+            },
+        });
     };
+
+    const status = undone ? 'undone' : imported ? `imported ${formatDate(item.imported_at)} by ${item.imported_by ?? '—'}` : 'preview, nothing saved yet';
 
     return (
         <Page
             title={item.file_name}
-            subtitle={`${item.label} · ${item.total_rows} rows · ${imported ? `imported ${formatDate(item.imported_at)} by ${item.imported_by ?? '—'}` : 'preview, nothing saved yet'}`}
+            subtitle={`${item.label} · ${item.total_rows} rows · ${status}`}
             actions={
                 <>
                     <a href={route('erp.data-import.index')} className={secondaryButton}>
@@ -79,19 +92,31 @@ export default function DataImportShow({ import: item, rows, filters }: Props) {
                     <a href={route('erp.data-import.download', item.id)} className={secondaryButton}>
                         Original file
                     </a>
-                    {!imported && (
+                    {imported && (
+                        <button type="button" className={dangerButton} onClick={() => setDialog('undo')}>
+                            Undo import
+                        </button>
+                    )}
+                    {!imported && !undone && (
                         <button type="button" className={secondaryButton} onClick={() => router.post(route('erp.data-import.preview', item.id))}>
                             Preview again
                         </button>
                     )}
-                    {!imported && (
-                        <button type="button" className={primaryButton} onClick={commit} disabled={confirming}>
+                    {!imported && !undone && (
+                        <button type="button" className={primaryButton} onClick={() => setDialog('commit')} disabled={confirming}>
                             {confirming ? 'Importing…' : `Confirm import${errors ? ` (${errors} rows with errors left out)` : ''}`}
                         </button>
                     )}
                 </>
             }
         >
+            {!undone && <CompanyBanner company={company} done={imported} />}
+            {undone && summary.undone && (
+                <Empty>
+                    Undone by {summary.undone.by} on {formatDate(summary.undone.at)}. Removed: {actionSummary(summary.undone.removed) || 'nothing'}. To bring the file into the right
+                    company, switch to it and upload the file again (Original file, above, downloads it).
+                </Empty>
+            )}
             {summary.error && <Empty>The last import attempt failed and nothing was saved: {summary.error}</Empty>}
 
             <div className="grid gap-4 lg:grid-cols-3">
@@ -185,6 +210,26 @@ export default function DataImportShow({ import: item, rows, filters }: Props) {
                     <Pagination page={rows} />
                 </div>
             </Card>
+            <Dialog open={dialog !== null} onOpenChange={(open) => !open && !confirming && setDialog(null)}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>{dialog === 'undo' ? 'Undo this import?' : `Import into ${company.name}?`}</DialogTitle>
+                        <DialogDescription>
+                            {dialog === 'undo'
+                                ? `This removes what the import created in ${company.name}: its products with their opening stock and vendor prices, and the categories, units, locations and vendors it added that nothing else uses. Records it only updated stay as they are. The import and its file are kept.`
+                                : `${item.total_rows} rows from ${item.file_name} will be saved to ${company.name} (${company.code}). You can undo it afterwards if something is wrong.`}
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter>
+                        <button type="button" className={secondaryButton} onClick={() => setDialog(null)} disabled={confirming}>
+                            Cancel
+                        </button>
+                        <button type="button" className={dialog === 'undo' ? dangerButton : primaryButton} onClick={() => dialog && run(dialog)} disabled={confirming}>
+                            {confirming ? 'Working…' : dialog === 'undo' ? 'Yes, undo it' : 'Yes, import'}
+                        </button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </Page>
     );
 }

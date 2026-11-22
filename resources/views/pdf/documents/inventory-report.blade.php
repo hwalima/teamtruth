@@ -1,33 +1,30 @@
-<x-document-layout
+@php($numeric = $numericColumns ?? [])
+<x-report-layout
     :company="$company"
-    :document-title="$documentTitle"
-    :document-type="$reportTitle"
-    :approval-signatories="$approvalSignatories ?? []"
+    :report-title="$reportTitle"
+    :report-subtitle="$reportSubtitle ?? null"
+    :stats="$stats ?? []"
 >
-    <style>
-        @page { size: A4 landscape; }
-    </style>
-    <h1 style="color: #1e293b; font-size: 20px; margin: 0 0 16px;">{{ $reportTitle }}</h1>
-    <table style="border-collapse: collapse; table-layout: fixed; width: 100%; font-size: 7px;">
+    <table class="data">
         <thead>
-            <tr style="background: #f1f5f9;">
-                @foreach ($columns as $column)
-                    <th style="border: 1px solid #cbd5e1; padding: 6px; text-align: left;">{{ $column }}</th>
+            <tr>
+                @foreach ($columns as $index => $column)
+                    <th class="{{ in_array($index, $numeric, true) ? 'num' : '' }}">{{ $column }}</th>
                 @endforeach
             </tr>
         </thead>
         <tbody>
             @forelse ($rows as $row)
-                <tr>
-                    @foreach ($row as $cell)
-                        <td style="border: 1px solid #cbd5e1; padding: 5px;">{{ $cell }}</td>
+                <tr class="{{ $loop->even ? 'zebra' : '' }}">
+                    @foreach (array_values($row) as $index => $cell)
+                        <td class="{{ in_array($index, $numeric, true) ? 'num' : '' }}">{{ $cell }}</td>
                     @endforeach
                 </tr>
             @empty
                 <tr>
-                    <td colspan="{{ count($columns) }}" style="border: 1px solid #cbd5e1; padding: 8px;">No inventory activity to report.</td>
+                    <td colspan="{{ count($columns) }}" class="empty">{{ $emptyMessage ?? 'Nothing to report.' }}</td>
                 </tr>
             @endforelse
         </tbody>
     </table>
-</x-document-layout>
+</x-report-layout>

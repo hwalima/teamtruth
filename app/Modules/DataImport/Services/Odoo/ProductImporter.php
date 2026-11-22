@@ -297,7 +297,7 @@ class ProductImporter extends OdooImporter
             if (! $category) {
                 $category = InventoryCategory::query()->create(['name' => $part, 'parent_id' => $parent?->id, 'is_active' => true]);
                 $this->categories[$key] = $category;
-                $context->created('categories', $parent ? "{$parent->name} / {$part}" : $part);
+                $context->created('categories', $parent ? "{$parent->name} / {$part}" : $part, $category);
             }
             $parent = $category;
         }
@@ -342,7 +342,7 @@ class ProductImporter extends OdooImporter
                 'is_base' => ! InventoryUnit::query()->where('category', $kind)->where('is_base', true)->exists(),
                 'is_active' => true,
             ]);
-            $context->created('units', $label);
+            $context->created('units', $label, $unit);
             if (! $isEach && ! in_array($key, array_merge(...array_values(self::UNIT_KINDS)), true)) {
                 $context->warn("Unit \"{$odooName}\" is not a standard unit. Check it under Inventory setup.");
             }
@@ -476,12 +476,12 @@ class ProductImporter extends OdooImporter
             $warehouse = InventoryWarehouse::query()->where('code', 'MAIN')->first()
                 ?? InventoryWarehouse::query()->create(['code' => 'MAIN', 'name' => 'Main Warehouse', 'is_active' => true]);
             if ($warehouse->wasRecentlyCreated) {
-                $context->created('warehouses', $warehouse->name);
+                $context->created('warehouses', $warehouse->name, $warehouse);
             }
             $location = StockLocation::query()->where('warehouse_id', $warehouse->id)->where('usage', 'internal')->orderBy('id')->first()
                 ?? StockLocation::query()->create(['warehouse_id' => $warehouse->id, 'code' => 'STOCK', 'name' => 'Stock', 'usage' => 'internal', 'is_active' => true]);
             if ($location->wasRecentlyCreated) {
-                $context->created('locations', "{$warehouse->name} / {$location->name}");
+                $context->created('locations', "{$warehouse->name} / {$location->name}", $location);
             }
         }
 
@@ -494,7 +494,7 @@ class ProductImporter extends OdooImporter
             $adjustment = StockLocation::query()->create([
                 'warehouse_id' => $location->warehouse_id, 'code' => $code, 'name' => 'Inventory adjustments', 'usage' => 'adjustment', 'is_active' => true,
             ]);
-            $context->created('locations', $location->warehouse->name.' / Inventory adjustments');
+            $context->created('locations', $location->warehouse->name.' / Inventory adjustments', $adjustment);
         }
 
         return $this->stockLocations = [$location, $adjustment];

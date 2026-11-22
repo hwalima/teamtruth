@@ -178,3 +178,63 @@ test('a file that is not an Odoo export is refused and not kept', function () {
     expect(DataImport::query()->withoutGlobalScopes()->count())->toBe(0)
         ->and(Storage::disk('local')->allFiles())->toBe([]);
 });
+
+function importProducts(): DataImport
+{
+    test()->post(route('erp.data-import.store'), ['file' => odooProducts()]);
+    $import = DataImport::query()->withoutGlobalScopes()->latest('id')->first();
+    test()->post(route('erp.data-import.commit', $import));
+
+    return $import->refresh();
+}
+
+test('an import in the wrong company can be undone completely', function (bool $recordedIds) {
+    // Something that existed before the import must survive the undo.
+    app(CompanyContext::class)->setActiveCompany($this->company);
+    $ownCategory = InventoryCategory::query()->create(['name' => 'Office', 'is_active' => true]);
+
+    $import = importProducts();
+    if (! $recordedIds) {
+        // Imports made before created ids were recorded only list names.
+        $summary = $import->summary;
+        unset($summary['created_ids']);
+        $import->forceFill(['summary' => $summary])->save();
+    }
+
+    $this->post(route('erp.data-import.undo', $import))->assertRedirect(route('erp.data-import.show', $import));
+
+    expect($import->refresh()->status)->toBe('undone')
+        ->and($import->summary['undone']['removed']['products'])->toBe(5)
+        ->and(InventoryProduct::query()->withoutGlobalScopes()->count())->toBe(0)
+        ->and(InventoryUnit::query()->withoutGlobalScopes()->count())->toBe(0)
+        ->and(InventoryCategory::query()->withoutGlobalScopes()->pluck('id')->all())->toBe([$ownCategory->id])
+        ->and(PurchaseVendor::query()->withoutGlobalScopes()->count())->toBe(0)
+        ->and(PurchaseVendorPriceList::query()->withoutGlobalScopes()->count())->toBe(0)
+        ->and(StockLocation::query()->withoutGlobalScopes()->count())->toBe(0)
+        ->and(\App\Modules\Inventory\Models\StockMove::query()->withoutGlobalScopes()->count())->toBe(0)
+        ->and(ExternalId::query()->withoutGlobalScopes()->count())->toBe(0);
+
+    $this->get(route('erp.data-import.show', $import))->assertOk();
+
+    // The same file can then be imported again from scratch.
+    importProducts();
+    expect(InventoryProduct::query()->withoutGlobalScopes()->count())->toBe(5);
+})->with(['ids recorded' => true, 'older import, names only' => false]);
+
+test('an import is not undone once its products have been used', function () {
+    $import = importProducts();
+    $ring = InventoryProduct::query()->withoutGlobalScopes()->orderBy('id')->first();
+    app(CompanyContext::class)->setActiveCompany($this->company);
+    $stock = StockLocation::query()->where('usage', 'internal')->first();
+    $scrap = StockLocation::query()->create(['warehouse_id' => $stock->warehouse_id, 'code' => 'SCRAP', 'name' => 'Scrap', 'usage' => 'scrap', 'is_active' => true]);
+    app(InventoryStockService::class)->postMovement($this->company, $this->user, [
+        'operation' => 'scrap', 'product_id' => $ring->id, 'from_location_id' => $stock->id, 'to_location_id' => $scrap->id, 'quantity' => '1',
+    ]);
+
+    $this->withExceptionHandling();
+    $this->post(route('erp.data-import.undo', $import))->assertSessionHasErrors('import');
+
+    expect($import->refresh()->status)->toBe(DataImport::IMPORTED)
+        ->and(InventoryProduct::query()->withoutGlobalScopes()->count())->toBe(5)
+        ->and(onHand($ring))->toBe(9.0);
+});
