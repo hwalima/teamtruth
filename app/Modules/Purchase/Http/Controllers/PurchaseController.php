@@ -45,6 +45,7 @@ class PurchaseController extends Controller
         return Inertia::render('Erp/Purchase/Index', [
             'company' => $company->only(['id', 'code', 'name', 'default_currency']),
             'vendors' => PurchaseVendor::query()->where('is_active', true)->orderBy('name')->get(),
+            'nextVendorCode' => PurchaseVendor::nextCode(),
             'products' => InventoryProduct::query()
                 ->with('unit:id,name,abbreviation')
                 ->where('is_active', true)
@@ -252,39 +253,6 @@ class PurchaseController extends Controller
         return back()->with('success', __('Approved requisition :number issued to the selected department.', [
             'number' => $requisition->document_number,
         ]));
-    }
-
-    public function storeVendor(Request $request): RedirectResponse
-    {
-        $company = app(CompanyContext::class)->requireActiveCompany();
-        $this->authorizeManagement($request, $company);
-        $validated = $request->validate([
-            'code' => [
-                'required',
-                'string',
-                'max:40',
-                'regex:/^[A-Za-z0-9_-]+$/',
-                Rule::unique('purchase_vendors', 'code')->where('company_id', $company->id),
-            ],
-            'name' => ['required', 'string', 'max:255'],
-            'tax_no' => ['nullable', 'string', 'max:100'],
-            'email' => ['nullable', 'email', 'max:255'],
-            'phone' => ['nullable', 'string', 'max:100'],
-            'address' => ['nullable', 'string', 'max:5000'],
-            'payment_terms_days' => ['required', 'integer', 'min:0', 'max:3650'],
-            'currency_code' => ['nullable', 'string', 'size:3', Rule::exists('currencies', 'code')],
-        ]);
-
-        $vendor = PurchaseVendor::query()->create([...$validated, 'company_id' => $company->id]);
-        app(AuditLogService::class)->record(
-            $company,
-            'purchase.vendor.created',
-            $vendor,
-            changes: ['after' => $vendor->only(['code', 'name', 'tax_no', 'email', 'phone', 'payment_terms_days', 'currency_code'])],
-            actor: $request->user(),
-        );
-
-        return back()->with('success', __('Vendor created.'));
     }
 
     public function storeRfq(Request $request, PurchaseService $service): RedirectResponse

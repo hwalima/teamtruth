@@ -278,9 +278,28 @@ Route::middleware(['auth', 'verified'])->prefix('erp')->name('erp.')->group(func
         Route::get('purchase', [\App\Modules\Purchase\Http\Controllers\PurchaseController::class, 'index'])
             ->middleware('erp.permission:erp.purchase.view')
             ->name('purchase.index');
-        Route::post('purchase/vendors', [\App\Modules\Purchase\Http\Controllers\PurchaseController::class, 'storeVendor'])
+        Route::get('purchase/vendors', [\App\Modules\Purchase\Http\Controllers\VendorController::class, 'index'])
+            ->middleware('erp.permission:erp.purchase.view')
+            ->name('purchase.vendors.index');
+        Route::post('purchase/vendors', [\App\Modules\Purchase\Http\Controllers\VendorController::class, 'store'])
             ->middleware('erp.permission:erp.purchase.manage')
             ->name('purchase.vendors.store');
+        Route::get('purchase/vendors/{vendor}', [\App\Modules\Purchase\Http\Controllers\VendorController::class, 'show'])
+            ->whereNumber('vendor')
+            ->middleware('erp.permission:erp.purchase.view')
+            ->name('purchase.vendors.show');
+        Route::put('purchase/vendors/{vendor}', [\App\Modules\Purchase\Http\Controllers\VendorController::class, 'update'])
+            ->whereNumber('vendor')
+            ->middleware('erp.permission:erp.purchase.manage')
+            ->name('purchase.vendors.update');
+        Route::post('purchase/vendors/{vendor}/toggle', [\App\Modules\Purchase\Http\Controllers\VendorController::class, 'toggle'])
+            ->whereNumber('vendor')
+            ->middleware('erp.permission:erp.purchase.manage')
+            ->name('purchase.vendors.toggle');
+        Route::delete('purchase/vendors/{vendor}', [\App\Modules\Purchase\Http\Controllers\VendorController::class, 'destroy'])
+            ->whereNumber('vendor')
+            ->middleware('erp.permission:erp.purchase.manage')
+            ->name('purchase.vendors.destroy');
         Route::post('purchase/rfqs', [\App\Modules\Purchase\Http\Controllers\PurchaseController::class, 'storeRfq'])
             ->middleware('erp.permission:erp.purchase.manage')
             ->name('purchase.rfqs.store');

@@ -170,6 +170,42 @@ test('an Odoo contacts file fills in the vendors the products created and adds c
         ->and($customer->currency_code)->toBe('USD');
 });
 
+test('a contacts list export becomes vendors without contact persons or placeholder emails', function () {
+    $this->company->update(['email' => 'info@samplemining.example.test', 'website' => 'www.sample-mining.example.test']);
+
+    $this->post(route('erp.data-import.store'), ['file' => odooFile('Contact (res.partner).xlsx', [
+        ['Complete Name', 'Tax ID', 'Email', 'Phone', 'Street', 'City', 'Country'],
+        ['Acme Drilling', '2000111', 'Accounts@Acme.example.test', '+263 77 000 0001', '1 Main Rd', 'Harare', 'Zimbabwe'],
+        ['Acme Drilling, Jane Moyo', null, 'jane@acme.example.test', null, null, null, null],
+        ['Beta Fuel', null, 'buyer@samplemining.example.test', null, null, 'Kwekwe', 'Zimbabwe'],
+        ['Gamma Tools', null, 'sales@sample-mining.example.test', null, null, null, null],
+        ['Delta One', null, 'shared@agent.example.test', null, null, null, null],
+        ['Delta Two', null, 'shared@agent.example.test', null, null, null, null],
+        ['Delta Three', null, 'shared@agent.example.test', null, null, null, null],
+        ['Delta Four', null, 'shared@agent.example.test', null, null, null, null],
+        ['Echo Hardware', null, 'echo@mail,com', null, null, null, null],
+        ['Foxtrot Supplies', null, 'a@foxtrot.example.test; b@foxtrot.example.test', null, null, null, null],
+        ['Lonely Ltd, Sam Ncube', null, null, null, null, null, null],
+    ])])->assertRedirect();
+
+    $import = DataImport::query()->withoutGlobalScopes()->latest('id')->first();
+    expect($import->summary['actions'])->toMatchArray(['created' => 10, 'skipped' => 1]);
+    $this->post(route('erp.data-import.commit', $import));
+
+    $vendors = PurchaseVendor::query()->withoutGlobalScopes()->get()->keyBy('name');
+    expect($vendors)->toHaveCount(10)
+        ->and($vendors->has('Acme Drilling, Jane Moyo'))->toBeFalse()
+        ->and($vendors['Lonely Ltd, Sam Ncube'])->not->toBeNull()
+        ->and($vendors['Acme Drilling']->email)->toBe('accounts@acme.example.test')
+        ->and($vendors['Acme Drilling']->tax_no)->toBe('2000111')
+        ->and($vendors['Beta Fuel']->email)->toBeNull()
+        ->and($vendors['Gamma Tools']->email)->toBeNull()
+        ->and($vendors['Delta One']->email)->toBeNull()
+        ->and($vendors['Echo Hardware']->email)->toBeNull()
+        ->and($vendors['Foxtrot Supplies']->email)->toBe('a@foxtrot.example.test')
+        ->and($vendors->every->is_active)->toBeTrue();
+});
+
 test('a file that is not an Odoo export is refused and not kept', function () {
     $this->withExceptionHandling();
     $this->post(route('erp.data-import.store'), ['file' => odooFile('random.xlsx', [['Foo', 'Bar'], [1, 2]])])

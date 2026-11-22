@@ -373,7 +373,15 @@ export function useNavigation() {
                 });
             }
             if (canUseErp('erp.purchase.view')) {
-                items.push({ title: t('Procurement'), href: route('erp.purchase.index'), icon: ShoppingCart, group: t('Modules') });
+                items.push({
+                    title: t('Procurement'),
+                    icon: ShoppingCart,
+                    group: t('Modules'),
+                    children: [
+                        { title: t('Overview'), href: route('erp.purchase.index') },
+                        { title: t('Vendors'), href: route('erp.purchase.vendors.index') },
+                    ],
+                });
             }
             if (canUseErp('erp.accounting.view')) {
                 items.push({ title: t('Finance & Accounting'), href: route('erp.accounting.index'), icon: Landmark, group: t('Modules') });

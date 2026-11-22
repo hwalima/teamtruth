@@ -1,5 +1,6 @@
+import { VendorFormDialog } from '@/components/erp/vendor-form-dialog';
 import { useForm } from '@inertiajs/react';
-import type { FormEvent } from 'react';
+import { useState, type FormEvent } from 'react';
 import { route } from 'ziggy-js';
 
 type Product = { id: number; sku: string; name: string; type: string; tracking: string; unit: { abbreviation: string } };
@@ -164,6 +165,7 @@ type VendorPriceList = {
 };
 type Props = {
     company: { id: number; code: string; name: string; default_currency: string };
+    nextVendorCode: string;
     vendors: Vendor[];
     products: Product[];
     currencies: Array<{ code: string; name: string }>;
@@ -188,22 +190,12 @@ type RfqInputLine = { product_id: string; quantity: string };
 const blankRfqLine = (productId = ''): RfqInputLine => ({ product_id: productId, quantity: '1' });
 
 export default function PurchaseIndex(props: Props) {
-    const vendorForm = useForm({
-        code: '',
-        name: '',
-        tax_no: '',
-        email: '',
-        phone: '',
-        address: '',
-        payment_terms_days: '0',
-        currency_code: '',
-    });
+    const [addingVendor, setAddingVendor] = useState(false);
     const rfqForm = useForm({
         currency_code: props.company.default_currency,
         reference: '',
         lines: [blankRfqLine(props.products[0]?.id.toString() ?? '')],
     });
-    const vendorErrors = vendorForm.errors as Record<string, string>;
     const rfqErrors = rfqForm.errors as Record<string, string>;
 
     return (
@@ -225,86 +217,34 @@ export default function PurchaseIndex(props: Props) {
             </header>
 
             <section className="grid gap-6 lg:grid-cols-2">
-                <Panel title="Vendor directory">
-                    <form
-                        onSubmit={(event: FormEvent<HTMLFormElement>) => {
-                            event.preventDefault();
-                            vendorForm.post(route('erp.purchase.vendors.store'), { onSuccess: () => vendorForm.reset() });
-                        }}
-                        className="grid gap-3 sm:grid-cols-2"
-                    >
-                        <TextField
-                            label="Vendor code"
-                            value={vendorForm.data.code}
-                            onChange={(value) => vendorForm.setData('code', value)}
-                            error={vendorErrors.code}
-                            required
-                        />
-                        <TextField
-                            label="Vendor name"
-                            value={vendorForm.data.name}
-                            onChange={(value) => vendorForm.setData('name', value)}
-                            error={vendorErrors.name}
-                            required
-                        />
-                        <TextField
-                            label="Email"
-                            type="email"
-                            value={vendorForm.data.email}
-                            onChange={(value) => vendorForm.setData('email', value)}
-                            error={vendorErrors.email}
-                        />
-                        <TextField
-                            label="Phone"
-                            value={vendorForm.data.phone}
-                            onChange={(value) => vendorForm.setData('phone', value)}
-                            error={vendorErrors.phone}
-                        />
-                        <TextField
-                            label="Tax number"
-                            value={vendorForm.data.tax_no}
-                            onChange={(value) => vendorForm.setData('tax_no', value)}
-                            error={vendorErrors.tax_no}
-                        />
-                        <TextField
-                            label="Payment terms (days)"
-                            type="number"
-                            value={vendorForm.data.payment_terms_days}
-                            onChange={(value) => vendorForm.setData('payment_terms_days', value)}
-                            error={vendorErrors.payment_terms_days}
-                        />
-                        <TextField
-                            label="Address"
-                            value={vendorForm.data.address}
-                            onChange={(value) => vendorForm.setData('address', value)}
-                            error={vendorErrors.address}
-                        />
-                        <SelectField
-                            label="Default currency"
-                            value={vendorForm.data.currency_code}
-                            options={[
-                                { value: '', label: 'Use RFQ currency' },
-                                ...props.currencies.map((currency) => ({ value: currency.code, label: `${currency.code} — ${currency.name}` })),
-                            ]}
-                            onChange={(value) => vendorForm.setData('currency_code', value)}
-                            error={vendorErrors.currency_code}
-                        />
-                        <SubmitButton processing={vendorForm.processing}>Add vendor</SubmitButton>
-                    </form>
-                    <ul className="mt-4 divide-y">
-                        {props.vendors.map((vendor) => (
-                            <li key={vendor.id} className="flex flex-wrap justify-between gap-2 py-2 text-sm">
-                                <span>
-                                    <strong>
-                                        {vendor.code} — {vendor.name}
-                                    </strong>
-                                    {vendor.email ? ` · ${vendor.email}` : ''}
-                                </span>
-                                <span className="text-muted-foreground">{vendor.payment_terms_days} days</span>
-                            </li>
-                        ))}
-                        {props.vendors.length === 0 && <Empty>Add vendors before recording quotations.</Empty>}
-                    </ul>
+                <Panel title="Vendors">
+                    <p className="text-muted-foreground text-sm">
+                        {props.vendors.length === 0
+                            ? 'Add vendors before recording quotations, or import them from Odoo.'
+                            : `${props.vendors.length} active vendor${props.vendors.length === 1 ? '' : 's'}. Search, edit and see what you owe each one in the vendor directory.`}
+                    </p>
+                    <div className="mt-4 flex flex-wrap gap-2">
+                        <a
+                            href={route('erp.purchase.vendors.index')}
+                            className="bg-primary text-primary-foreground inline-flex min-h-10 items-center rounded-xl px-4 text-sm font-semibold shadow-sm"
+                        >
+                            Open vendor directory
+                        </a>
+                        <button
+                            type="button"
+                            onClick={() => setAddingVendor(true)}
+                            className="border-border/70 hover:bg-primary/10 inline-flex min-h-10 items-center rounded-xl border px-4 text-sm font-medium"
+                        >
+                            Add vendor
+                        </button>
+                    </div>
+                    <VendorFormDialog
+                        open={addingVendor}
+                        onClose={() => setAddingVendor(false)}
+                        currencies={props.currencies}
+                        defaultCurrency={props.company.default_currency}
+                        nextCode={props.nextVendorCode}
+                    />
                 </Panel>
 
                 <Panel title="Create request for quotation">

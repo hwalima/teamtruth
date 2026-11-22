@@ -37,4 +37,15 @@ class PurchaseVendor extends Model
     {
         return $this->hasMany(PurchaseOrder::class, 'vendor_id');
     }
+
+    /** The next free V-0001 style code in the active company. */
+    public static function nextCode(): string
+    {
+        $count = static::query()->count();
+        do {
+            $code = 'V-'.str_pad((string) ++$count, 4, '0', STR_PAD_LEFT);
+        } while (static::query()->where('code', $code)->exists());
+
+        return $code;
+    }
 }
