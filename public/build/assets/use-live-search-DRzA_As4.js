@@ -1,0 +1,1 @@
+import{r as e}from"./ui-KsqjVDMd.js";function i(s,t,r=350){const u=e.useRef(t);u.current=t;const n=e.useRef(!0);e.useEffect(()=>{if(n.current){n.current=!1;return}const o=window.setTimeout(()=>u.current(),r);return()=>window.clearTimeout(o)},[s,r])}export{i as u};

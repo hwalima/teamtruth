@@ -107,3 +107,16 @@ test('another company cannot open or change a vendor', function () {
     $this->post(route('erp.purchase.vendors.toggle', $acme))->assertNotFound();
     expect($acme->fresh()->is_active)->toBeTrue();
 });
+
+test('the vendor list exports to PDF with the same filters as the screen', function () {
+    [$user, $company] = vendorDirectoryFixture();
+    $this->actingAs($user)->withSession(['active_erp_company_id' => $company->id]);
+
+    $response = $this->get(route('erp.purchase.vendors.pdf', ['search' => 'acme']))->assertOk();
+    expect($response->headers->get('Content-Type'))->toBe('application/pdf')
+        ->and($response->headers->get('Content-Disposition'))->toContain('vendors-vdr-')
+        ->and(substr($response->getContent(), 0, 4))->toBe('%PDF');
+
+    $this->get(route('erp.purchase.vendors.pdf', ['status' => 'all']))->assertOk();
+    $this->get(route('erp.purchase.vendors.pdf', ['status' => 'nonsense']))->assertSessionHasErrors('status');
+});

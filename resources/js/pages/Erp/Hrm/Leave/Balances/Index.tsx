@@ -1,3 +1,4 @@
+import { useLiveSearch } from '@/hooks/use-live-search';
 import { router, useForm } from '@inertiajs/react';
 import { useState, type FormEvent } from 'react';
 import { route } from 'ziggy-js';
@@ -37,8 +38,9 @@ export default function LeaveBalancesIndex(props: Props) {
     const createForm = useForm({ employee_id: '', leave_type_id: '', period_start: `${year}-01-01`, period_end: `${year}-12-31`, brought_forward: '0', accrued: '0' });
     const adjustForm = useForm({ days: '', reason: '' });
 
-    const applyFilters = (event: FormEvent) => {
-        event.preventDefault();
+    useLiveSearch(filters.data.search, () => applyFilters());
+    const applyFilters = (event?: FormEvent) => {
+        event?.preventDefault();
         router.get(route('erp.hrm.leave.balances.index'), Object.fromEntries(Object.entries(filters.data).filter(([, v]) => v !== '')), { preserveState: true });
     };
 

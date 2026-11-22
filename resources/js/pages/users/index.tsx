@@ -1,4 +1,5 @@
 // pages/users/index.tsx
+import { useLiveSearch } from '@/hooks/use-live-search';
 import { useState, useEffect } from 'react';
 import { usersConfig } from '@/config/crud/users';
 import { PageTemplate } from '@/components/page-template';
@@ -55,6 +56,8 @@ export default function Users() {
     return (selectedRole !== 'all' ? 1 : 0) + (searchTerm ? 1 : 0);
   };
   
+  useLiveSearch(searchTerm, () => applyFilters());
+
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     applyFilters();

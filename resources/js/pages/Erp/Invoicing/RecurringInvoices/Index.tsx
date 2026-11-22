@@ -1,3 +1,4 @@
+import { useLiveSearch } from '@/hooks/use-live-search';
 import { router, useForm } from '@inertiajs/react';
 import type { FormEvent } from 'react';
 import { route } from 'ziggy-js';
@@ -52,8 +53,9 @@ export default function RecurringInvoicesIndex(props: Props) {
     });
     const filterErrors = filterForm.errors as Record<string, string>;
 
-    const submitFilters = (event: FormEvent<HTMLFormElement>) => {
-        event.preventDefault();
+    useLiveSearch(filterForm.data.search, () => submitFilters());
+    const submitFilters = (event?: FormEvent<HTMLFormElement>) => {
+        event?.preventDefault();
         const params: Record<string, string | undefined> = {};
         Object.entries(filterForm.data).forEach(([key, value]) => {
             if (value !== '' && value !== undefined) {

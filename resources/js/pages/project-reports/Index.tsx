@@ -45,7 +45,7 @@ export default function ProjectReportsIndex() {
 
     const handleSearch = (e: React.FormEvent) => {
         e.preventDefault();
-        router.get(route('project-reports.index'), buildParams(), { preserveState: false, preserveScroll: false });
+        router.get(route('project-reports.index'), buildParams(), { preserveState: true, preserveScroll: true, replace: true });
     };
     
     const buildParams = (overrides: Record<string, any> = {}) => {

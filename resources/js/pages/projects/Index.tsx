@@ -80,7 +80,7 @@ export default function ProjectIndex() {
 
     const handleSearch = (e: React.FormEvent) => {
         e.preventDefault();
-        navigate(buildParams({ page: 1 }));
+        router.get(route('projects.index'), buildParams({ page: 1 }), { preserveState: true, preserveScroll: true, replace: true });
     };
 
     const applyFilters = () => navigate(buildParams({ page: 1 }));

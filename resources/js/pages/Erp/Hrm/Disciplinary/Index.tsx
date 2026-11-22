@@ -1,3 +1,4 @@
+import { useLiveSearch } from '@/hooks/use-live-search';
 import { RecordActions } from '@/components/erp/record-actions';
 import {
     Card,
@@ -42,8 +43,9 @@ type Props = {
 export default function DisciplinaryIndex(props: Props) {
     const filters = useForm({ search: props.filters.search ?? '', status: props.filters.status ?? '', outcome: props.filters.outcome ?? '' });
 
-    const apply = (event: FormEvent) => {
-        event.preventDefault();
+    useLiveSearch(filters.data.search, () => apply());
+    const apply = (event?: FormEvent) => {
+        event?.preventDefault();
         router.get(route('erp.hrm.disciplinary.index'), Object.fromEntries(Object.entries(filters.data).filter(([, v]) => v !== '')), {
             preserveState: true,
         });

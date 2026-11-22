@@ -281,6 +281,9 @@ Route::middleware(['auth', 'verified'])->prefix('erp')->name('erp.')->group(func
         Route::get('purchase/vendors', [\App\Modules\Purchase\Http\Controllers\VendorController::class, 'index'])
             ->middleware('erp.permission:erp.purchase.view')
             ->name('purchase.vendors.index');
+        Route::get('purchase/vendors/export.pdf', [\App\Modules\Purchase\Http\Controllers\VendorController::class, 'pdf'])
+            ->middleware('erp.permission:erp.purchase.view')
+            ->name('purchase.vendors.pdf');
         Route::post('purchase/vendors', [\App\Modules\Purchase\Http\Controllers\VendorController::class, 'store'])
             ->middleware('erp.permission:erp.purchase.manage')
             ->name('purchase.vendors.store');

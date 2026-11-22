@@ -1,3 +1,4 @@
+import { useLiveSearch } from '@/hooks/use-live-search';
 import { formatDay } from '@/lib/utils';
 import { router, useForm } from '@inertiajs/react';
 import { Ban, Eye, FileDown, Pencil } from 'lucide-react';
@@ -112,8 +113,9 @@ export default function InvoicingIndex(props: Props) {
     });
     const filterErrors = filterForm.errors as Record<string, string>;
 
-    const submitFilters = (event: FormEvent<HTMLFormElement>) => {
-        event.preventDefault();
+    useLiveSearch(filterForm.data.search, () => submitFilters());
+    const submitFilters = (event?: FormEvent<HTMLFormElement>) => {
+        event?.preventDefault();
         const params: Record<string, string | undefined> = {};
         Object.entries(filterForm.data).forEach(([key, value]) => {
             if (value !== '' && value !== undefined) {

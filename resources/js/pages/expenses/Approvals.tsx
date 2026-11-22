@@ -70,7 +70,7 @@ export default function Approvals({ expenses, stats, projects, filters, permissi
 
     const handleSearch = (e: React.FormEvent) => {
         e.preventDefault();
-        router.get(route('expense-approvals.index'), buildParams({ page: 1 }), { preserveState: false });
+        router.get(route('expense-approvals.index'), buildParams({ page: 1 }), { preserveState: true, preserveScroll: true, replace: true });
     };
     
     const applyFilters = () => {

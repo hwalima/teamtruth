@@ -1,3 +1,4 @@
+import { useLiveSearch } from '@/hooks/use-live-search';
 import { router, useForm } from '@inertiajs/react';
 import { useState, type FormEvent } from 'react';
 import { route } from 'ziggy-js';
@@ -59,6 +60,7 @@ export default function DataImportShow({ company, import: item, rows, filters }:
     const summary = item.summary ?? {};
     const errors = summary.actions?.error ?? 0;
 
+    useLiveSearch(filter.data.search, () => apply());
     const apply = (event?: FormEvent) => {
         event?.preventDefault();
         router.get(

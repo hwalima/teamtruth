@@ -95,7 +95,7 @@ export default function BudgetIndex() {
 
     const handleSearch = (e: React.FormEvent) => {
         e.preventDefault();
-        router.get(route('budgets.index'), buildParams({ page: 1 }), { preserveState: false, preserveScroll: false });
+        router.get(route('budgets.index'), buildParams({ page: 1 }), { preserveState: true, preserveScroll: true, replace: true });
     };
 
     const applyFilters = () => {

@@ -1,4 +1,5 @@
 import { PageTemplate } from '@/components/page-template';
+import { useLiveSearch } from '@/hooks/use-live-search';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -237,8 +238,9 @@ export default function IctTicketsIndex({ tickets, stats, members, subsidiaries,
     const setFilter = (k: string, v: string) => {
         const updated = { ...localFilters, [k]: v };
         setLocalFilters(updated);
-        applyFilters(updated);
+        if (k !== 'search') applyFilters(updated);
     };
+    useLiveSearch(localFilters.search, () => applyFilters(localFilters));
 
     const clearFilters = () => {
         setLocalFilters({});

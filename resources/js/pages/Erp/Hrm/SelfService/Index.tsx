@@ -1,3 +1,4 @@
+import { useLiveSearch } from '@/hooks/use-live-search';
 import { RecordActions } from '@/components/erp/record-actions';
 import {
     Card,
@@ -56,8 +57,9 @@ export default function SelfServiceIndex(props: Props) {
     });
     const mine = Boolean(props.filters.mine);
 
-    const apply = (event: FormEvent) => {
-        event.preventDefault();
+    useLiveSearch(filters.data.search, () => apply());
+    const apply = (event?: FormEvent) => {
+        event?.preventDefault();
         router.get(
             route('erp.hrm.self-service.index'),
             Object.fromEntries(Object.entries({ ...filters.data, mine: mine ? '1' : '' }).filter(([, v]) => v !== '')),

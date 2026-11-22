@@ -1,3 +1,4 @@
+import { useLiveSearch } from '@/hooks/use-live-search';
 import { RecordActions } from '@/components/erp/record-actions';
 import {
     Card,
@@ -51,8 +52,9 @@ export default function LeaveRequestsIndex(props: Props) {
         date_to: props.filters.date_to ?? '',
     });
 
-    const apply = (event: FormEvent) => {
-        event.preventDefault();
+    useLiveSearch(filters.data.search, () => apply());
+    const apply = (event?: FormEvent) => {
+        event?.preventDefault();
         router.get(route('erp.hrm.leave.requests.index'), Object.fromEntries(Object.entries(filters.data).filter(([, v]) => v !== '')), {
             preserveState: true,
         });

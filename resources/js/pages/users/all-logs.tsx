@@ -42,7 +42,7 @@ export default function AllUserLogs() {
     router.get(route('users.all-logs'), { 
       search: searchTerm,
       per_page: filters.per_page || 10
-    });
+    }, { preserveState: true, preserveScroll: true, replace: true });
   };
 
   const handleViewDetails = async (historyId: number) => {

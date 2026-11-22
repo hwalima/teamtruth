@@ -131,7 +131,7 @@ export default function ContractsIndex() {
 
     const handleSearch = (e: React.FormEvent) => {
         e.preventDefault();
-        router.get(route('contracts.index'), buildParams({ page: 1 }), { preserveState: false, preserveScroll: false });
+        router.get(route('contracts.index'), buildParams({ page: 1 }), { preserveState: true, preserveScroll: true, replace: true });
     };
 
     const applyFilters = () => {

@@ -255,7 +255,7 @@ export default function TodosIndex() {
 
     const handleSearch = (e: React.FormEvent) => {
         e.preventDefault();
-        router.get(route('todos.index'), buildParams({ page: 1 }), { preserveState: false, preserveScroll: false });
+        router.get(route('todos.index'), buildParams({ page: 1 }), { preserveState: true, preserveScroll: true, replace: true });
     };
 
     const handleResetFilters = () => {

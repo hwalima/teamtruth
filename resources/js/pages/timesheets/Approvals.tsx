@@ -110,7 +110,7 @@ export default function TimesheetApprovals({ approvals, filters, userWorkspaceRo
 
     const handleSearch = (e: React.FormEvent) => {
         e.preventDefault();
-        navigate(buildParams({ page: 1 }));
+        router.get(route('timesheet-approvals.index'), buildParams({ page: 1 }), { preserveState: true, preserveScroll: true, replace: true });
     };
 
     const handleStatusFilter = (value: string) => {

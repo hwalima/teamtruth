@@ -80,7 +80,7 @@ export default function PlanOrdersPage() {
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    router.get(route(routeName), buildParams({ page: 1 }), { preserveState: false, preserveScroll: false });
+    router.get(route(routeName), buildParams({ page: 1 }), { preserveState: true, preserveScroll: true, replace: true });
   };
 
   const applyFilters = () => {

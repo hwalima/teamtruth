@@ -1,7 +1,8 @@
+import { useLiveSearch } from '@/hooks/use-live-search';
 import { ActionButton } from '@/components/erp/record-actions';
 import { formatAmounts, VendorFormDialog, type VendorFields } from '@/components/erp/vendor-form-dialog';
 import { Link, router } from '@inertiajs/react';
-import { Eye, Pencil, Plus, Power, RotateCcw, Search, Upload } from 'lucide-react';
+import { Eye, FileDown, Pencil, Plus, Power, RotateCcw, Search, Upload } from 'lucide-react';
 import { useState, type FormEvent } from 'react';
 import { route } from 'ziggy-js';
 
@@ -49,6 +50,8 @@ export default function VendorsIndex({ company, vendors, filters, counts, curren
         );
     };
 
+    useLiveSearch(search, () => go({ search: search.trim() }));
+
     const submitSearch = (event: FormEvent) => {
         event.preventDefault();
         go({ search: search.trim() });
@@ -83,6 +86,15 @@ export default function VendorsIndex({ company, vendors, filters, counts, curren
                     <p className="text-muted-foreground mt-1 text-sm">The suppliers you order from, and what you owe each of them.</p>
                 </div>
                 <div className="flex flex-wrap gap-2">
+                    <a
+                        href={route('erp.purchase.vendors.pdf', {
+                            ...(filters.search ? { search: filters.search } : {}),
+                            ...(filters.status !== 'active' ? { status: filters.status } : {}),
+                        })}
+                        className="border-border/70 bg-background/40 hover:bg-primary/10 inline-flex min-h-10 items-center gap-2 rounded-xl border px-4 text-sm font-medium transition-colors"
+                    >
+                        <FileDown className="size-4" /> Export PDF
+                    </a>
                     <a
                         href={route('erp.data-import.index')}
                         className="border-border/70 bg-background/40 hover:bg-primary/10 inline-flex min-h-10 items-center gap-2 rounded-xl border px-4 text-sm font-medium transition-colors"

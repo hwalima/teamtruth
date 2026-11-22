@@ -181,7 +181,7 @@ export default function TimesheetsIndex({ timesheets, members, projects = [], ov
 
     const handleSearch = (e: React.FormEvent) => {
         e.preventDefault();
-        applyFilters();
+        router.get(route('timesheets.index'), buildParams({ page: 1 }), { preserveState: true, preserveScroll: true, replace: true });
     };
     
     const applyFilters = () => {

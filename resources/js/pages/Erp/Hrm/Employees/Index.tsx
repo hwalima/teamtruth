@@ -1,3 +1,4 @@
+import { useLiveSearch } from '@/hooks/use-live-search';
 import { RecordActions, useConfirmDelete } from '@/components/erp/record-actions';
 import {
     Card,
@@ -55,8 +56,9 @@ export default function EmployeesIndex(props: Props) {
         position_id: props.filters.position_id ?? '',
     });
 
-    const apply = (event: FormEvent) => {
-        event.preventDefault();
+    useLiveSearch(filters.data.search, () => apply());
+    const apply = (event?: FormEvent) => {
+        event?.preventDefault();
         const params = Object.fromEntries(Object.entries(filters.data).filter(([, value]) => value !== ''));
         router.get(route('erp.hrm.employees.index'), params, { preserveState: true });
     };

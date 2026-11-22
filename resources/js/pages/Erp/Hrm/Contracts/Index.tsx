@@ -1,3 +1,4 @@
+import { useLiveSearch } from '@/hooks/use-live-search';
 import { RecordActions } from '@/components/erp/record-actions';
 import {
     Card,
@@ -56,8 +57,9 @@ export default function ContractsIndex(props: Props) {
         contract_type: props.filters.contract_type ?? '',
     });
 
-    const apply = (event: FormEvent) => {
-        event.preventDefault();
+    useLiveSearch(filters.data.search, () => apply());
+    const apply = (event?: FormEvent) => {
+        event?.preventDefault();
         router.get(route('erp.hrm.contracts.index'), Object.fromEntries(Object.entries(filters.data).filter(([, v]) => v !== '')), {
             preserveState: true,
         });

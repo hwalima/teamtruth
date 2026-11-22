@@ -1,3 +1,4 @@
+import { useLiveSearch } from '@/hooks/use-live-search';
 import { router } from '@inertiajs/react';
 import { FileDown, FileSpreadsheet, Package, Plus, Search, X } from 'lucide-react';
 import { useState, type FormEvent } from 'react';
@@ -77,6 +78,7 @@ export default function ProductsIndex({ company, products, filters, categories, 
     const params = Object.fromEntries(Object.entries(form).filter(([, value]) => value !== ''));
     const filtered = Object.keys(params).length > 0;
 
+    useLiveSearch(form.search, () => apply());
     const apply = (event?: FormEvent, next = form) => {
         event?.preventDefault();
         router.get(route('erp.inventory.products.index'), Object.fromEntries(Object.entries(next).filter(([, v]) => v !== '')), { preserveState: true, preserveScroll: true });

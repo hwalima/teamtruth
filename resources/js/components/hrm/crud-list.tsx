@@ -1,5 +1,6 @@
 import { ActionButton, useConfirmDelete } from '@/components/erp/record-actions';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { useLiveSearch } from '@/hooks/use-live-search';
 import { router, useForm, usePage } from '@inertiajs/react';
 import { Pencil, Plus, Trash2 } from 'lucide-react';
 import { useState, type FormEvent, type ReactNode } from 'react';
@@ -48,6 +49,8 @@ export default function CrudList<T extends { id: number }>(props: Props<T>) {
     const [editing, setEditing] = useState<T | null>(null);
     const [open, setOpen] = useState(false);
     const [search, setSearch] = useState(props.search?.value ?? '');
+    const runSearch = () => props.search && router.get(props.search.url, search ? { search } : {}, { preserveState: true, preserveScroll: true, replace: true });
+    useLiveSearch(search, runSearch);
     const form = useForm<FormValues>({ ...props.defaults });
     const errors = form.errors as Record<string, string>;
     const rows = Array.isArray(props.records) ? props.records : props.records.data;
@@ -195,7 +198,7 @@ export default function CrudList<T extends { id: number }>(props: Props<T>) {
                 <form
                     onSubmit={(e) => {
                         e.preventDefault();
-                        router.get(props.search!.url, search ? { search } : {}, { preserveState: true });
+                        runSearch();
                     }}
                     className="flex max-w-md gap-2"
                 >

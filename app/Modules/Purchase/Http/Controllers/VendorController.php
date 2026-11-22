@@ -6,15 +6,19 @@ use App\Http\Controllers\Controller;
 use App\Models\Currency;
 use App\Modules\Core\Services\AuditLogService;
 use App\Modules\Core\Services\CompanyContext;
+use App\Modules\Core\Services\DocumentRenderer;
 use App\Modules\Purchase\Models\PurchaseBill;
 use App\Modules\Purchase\Models\PurchaseOrder;
 use App\Modules\Purchase\Models\PurchasePayment;
 use App\Modules\Purchase\Models\PurchaseVendor;
 use App\Modules\Purchase\Models\PurchaseVendorPriceList;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response as HttpResponse;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -32,25 +36,9 @@ class VendorController extends Controller
     {
         $this->authorizeErpPermission('erp.purchase.view');
         $company = app(CompanyContext::class)->requireActiveCompany();
-        $filters = $request->validate([
-            'search' => ['nullable', 'string', 'max:100'],
-            'status' => ['nullable', Rule::in(['active', 'inactive', 'all'])],
-        ]);
-        $search = trim($filters['search'] ?? '');
-        $status = $filters['status'] ?? 'active';
+        [$search, $status] = $this->filters($request);
 
-        $vendors = PurchaseVendor::query()
-            ->when($status !== 'all', fn ($query) => $query->where('is_active', $status === 'active'))
-            ->when($search !== '', function ($query) use ($search) {
-                $like = '%'.str_replace(['%', '_'], ['\%', '\_'], $search).'%';
-                $query->where(fn ($inner) => $inner->where('name', 'like', $like)
-                    ->orWhere('code', 'like', $like)
-                    ->orWhere('tax_no', 'like', $like)
-                    ->orWhere('email', 'like', $like)
-                    ->orWhere('phone', 'like', $like));
-            })
-            ->withCount('orders')
-            ->orderBy('name')
+        $vendors = $this->filtered($search, $status)
             ->paginate(25)
             ->withQueryString();
 
@@ -70,6 +58,39 @@ class VendorController extends Controller
             ],
             'currencies' => Currency::query()->orderBy('code')->get(['code', 'name']),
             'nextCode' => PurchaseVendor::nextCode(),
+        ]);
+    }
+
+    /** The vendor list as a PDF, with the same search and status as the screen. */
+    public function pdf(Request $request, DocumentRenderer $renderer): HttpResponse
+    {
+        $this->authorizeErpPermission('erp.purchase.view');
+        $company = app(CompanyContext::class)->requireActiveCompany();
+        [$search, $status] = $this->filters($request);
+
+        $vendors = $this->filtered($search, $status)->limit(5000)->get();
+        $owed = $this->owed($vendors->modelKeys());
+        $totals = [];
+        foreach ($owed as $amounts) {
+            foreach ($amounts as $currency => $amount) {
+                $totals[$currency] = ($totals[$currency] ?? 0) + (float) $amount;
+            }
+        }
+        ksort($totals);
+
+        $pdf = $renderer->renderForCompany($company, 'pdf.documents.vendor-list', [
+            'vendors' => $vendors,
+            'owed' => $owed,
+            'owedTotals' => $totals,
+            'filterText' => implode(' · ', array_filter([
+                ['active' => 'Active vendors', 'inactive' => 'Inactive vendors', 'all' => 'All vendors'][$status],
+                $search !== '' ? 'matching "'.$search.'"' : null,
+            ])),
+        ]);
+
+        return response($pdf, 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'attachment; filename="'.Str::slug('vendors-'.$company->code.'-'.now()->format('Y-m-d')).'.pdf"',
         ]);
     }
 
@@ -155,6 +176,33 @@ class VendorController extends Controller
         $this->audit('purchase.vendor.deleted', $vendor, ['before' => $this->auditable($vendor)]);
 
         return redirect()->route('erp.purchase.vendors.index')->with('success', __('Vendor deleted.'));
+    }
+
+    /** @return array{0: string, 1: string} the search text and active / inactive / all */
+    private function filters(Request $request): array
+    {
+        $filters = $request->validate([
+            'search' => ['nullable', 'string', 'max:100'],
+            'status' => ['nullable', Rule::in(['active', 'inactive', 'all'])],
+        ]);
+
+        return [trim($filters['search'] ?? ''), $filters['status'] ?? 'active'];
+    }
+
+    private function filtered(string $search, string $status): Builder
+    {
+        return PurchaseVendor::query()
+            ->when($status !== 'all', fn ($query) => $query->where('is_active', $status === 'active'))
+            ->when($search !== '', function ($query) use ($search) {
+                $like = '%'.str_replace(['%', '_'], ['\%', '\_'], $search).'%';
+                $query->where(fn ($inner) => $inner->where('name', 'like', $like)
+                    ->orWhere('code', 'like', $like)
+                    ->orWhere('tax_no', 'like', $like)
+                    ->orWhere('email', 'like', $like)
+                    ->orWhere('phone', 'like', $like));
+            })
+            ->withCount('orders')
+            ->orderBy('name');
     }
 
     private function validated(Request $request, int $companyId, ?PurchaseVendor $vendor = null): array

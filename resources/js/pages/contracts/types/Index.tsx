@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { PageTemplate } from '@/components/page-template';
+import { useLiveSearch } from '@/hooks/use-live-search';
 import { usePage, router } from '@inertiajs/react';
 import { FileText, Edit, Trash2, Lock, Search, X, ChevronDown, ChevronUp } from 'lucide-react';
 import { hasPermission } from '@/utils/authorization';
@@ -63,8 +64,10 @@ export default function ContractTypesIndex() {
         setFormErrors({});
     };
 
-    const handleSearch = (e: React.FormEvent) => {
-        e.preventDefault();
+    useLiveSearch(searchTerm, () => handleSearch());
+
+    const handleSearch = (e?: React.FormEvent | React.KeyboardEvent | React.MouseEvent) => {
+        e?.preventDefault();
         router.get(route('contract-types.index'), {
             page: 1,
             search: searchTerm || undefined,
