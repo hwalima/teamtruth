@@ -10,6 +10,7 @@ use App\Modules\Hrm\Models\Department;
 use App\Modules\Hrm\Models\Employee;
 use App\Modules\Hrm\Models\EmployeeDocument;
 use App\Modules\Hrm\Models\Position;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -199,6 +200,12 @@ class EmployeeService
 
     public function searchEmployees(array $filters, int $perPage = 20)
     {
+        return $this->filteredEmployees($filters)->paginate($perPage)->withQueryString();
+    }
+
+    /** The employee list with its filters applied, sorted by surname. Also used by the exports. */
+    public function filteredEmployees(array $filters): Builder
+    {
         $query = Employee::query()
             ->with(['department:id,name', 'position:id,name', 'grade:id,name', 'lineManager:id,first_name,last_name,middle_name', 'user:id,name,email']);
 
@@ -219,7 +226,7 @@ class EmployeeService
             }
         }
 
-        return $query->orderBy('last_name')->orderBy('first_name')->paginate($perPage)->withQueryString();
+        return $query->orderBy('last_name')->orderBy('first_name')->orderBy('id');
     }
 
     private function assertUserIsFree(Company $company, mixed $userId, ?int $ignoreEmployeeId): void

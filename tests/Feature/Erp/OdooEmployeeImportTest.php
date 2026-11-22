@@ -10,6 +10,7 @@ use App\Modules\Hrm\Models\Employee;
 use App\Modules\Hrm\Models\Position;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
+use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 
@@ -119,4 +120,29 @@ test('employees are deleted unless they have HR history', function () {
     ContractFactory::new()->create(['employee_id' => $jordan->id]);
     $this->delete(route('erp.hrm.employees.destroy', $jordan))->assertSessionHas('error');
     expect(Employee::query()->find($jordan->id))->not->toBeNull();
+});
+
+test('the employee list exports to Excel, CSV and PDF with its filters', function () {
+    importEmployees();
+    $operator = Position::query()->where('name', 'Plant Operator')->value('id');
+    Employee::query()->where('first_name', 'Jordan')->update(['personal_phone' => '0771234567', 'bank_account_number' => '00123']);
+
+    $xlsx = $this->get(route('erp.hrm.employees.export', ['format' => 'xlsx']));
+    $xlsx->assertOk()->assertDownload('employees-smp-'.now()->format('Y-m-d').'.xlsx');
+    $path = tempnam(sys_get_temp_dir(), 'emp').'.xlsx';
+    file_put_contents($path, $xlsx->streamedContent());
+    $sheet = IOFactory::load($path)->getActiveSheet()->toArray();
+    expect($sheet[0])->toContain('Employee no.', 'Surname', 'Account number')
+        ->and(count($sheet))->toBe(4)
+        ->and(collect($sheet)->flatten()->all())->toContain('0771234567', '00123');
+
+    $csv = $this->get(route('erp.hrm.employees.export', ['format' => 'csv', 'position_id' => $operator]))->assertOk()->streamedContent();
+    expect(substr_count(trim($csv), "\n"))->toBe(2)
+        ->and($csv)->toContain('Doe')->not->toContain('Smith');
+
+    $pdf = $this->get(route('erp.hrm.employees.export', ['format' => 'pdf', 'search' => 'Smith']));
+    $pdf->assertOk()->assertHeader('Content-Type', 'application/pdf');
+    expect(substr($pdf->getContent(), 0, 4))->toBe('%PDF');
+
+    $this->get('/erp/hrm/employees/export/docx')->assertNotFound();
 });

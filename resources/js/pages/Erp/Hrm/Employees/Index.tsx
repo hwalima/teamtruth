@@ -17,6 +17,7 @@ import {
     type Paginated,
 } from '@/components/hrm/ui';
 import { router, useForm } from '@inertiajs/react';
+import { FileDown, FileSpreadsheet, FileText } from 'lucide-react';
 import type { FormEvent } from 'react';
 import { route } from 'ziggy-js';
 
@@ -65,11 +66,14 @@ export default function EmployeesIndex(props: Props) {
             title="Employees"
             subtitle={`${props.employees.total} employee(s) in ${props.company.name}`}
             actions={
-                props.canManage && (
-                    <a href={route('erp.hrm.employees.create')} className={primaryButton}>
-                        Add employee
-                    </a>
-                )
+                <>
+                    <ExportButtons filters={props.filters} />
+                    {props.canManage && (
+                        <a href={route('erp.hrm.employees.create')} className={primaryButton}>
+                            Add employee
+                        </a>
+                    )}
+                </>
             }
         >
             <Card>
@@ -177,5 +181,33 @@ export default function EmployeesIndex(props: Props) {
             <Pagination page={props.employees} />
             {deleteDialog}
         </Page>
+    );
+}
+
+/** Downloads of the list as filtered on the page (the applied filters, not unsaved ones). */
+function ExportButtons({ filters }: { filters: Record<string, string | undefined> }) {
+    const params = Object.fromEntries(
+        Object.entries(filters).filter(([key, value]) => ['search', 'status', 'department_id', 'position_id'].includes(key) && value),
+    );
+    const formats = [
+        { format: 'xlsx', label: 'Excel', icon: FileSpreadsheet, hint: 'Every detail, one row per employee' },
+        { format: 'csv', label: 'CSV', icon: FileText, hint: 'Every detail, for other systems' },
+        { format: 'pdf', label: 'PDF', icon: FileDown, hint: 'Branded staff list to print or share' },
+    ] as const;
+
+    return (
+        <div className="inline-flex overflow-hidden rounded-xl border shadow-sm" role="group" aria-label="Export employees">
+            {formats.map(({ format, label, icon: Icon, hint }, index) => (
+                <a
+                    key={format}
+                    href={route('erp.hrm.employees.export', { format, ...params })}
+                    title={`Export ${label}: ${hint}`}
+                    className={`bg-background hover:bg-muted inline-flex h-10 items-center gap-1.5 px-3 text-sm font-medium transition ${index > 0 ? 'border-l' : ''}`}
+                >
+                    <Icon className="text-primary size-4" aria-hidden />
+                    {label}
+                </a>
+            ))}
+        </div>
     );
 }

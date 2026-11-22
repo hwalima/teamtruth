@@ -1,1 +1,0 @@
-import{j as m}from"./ui-KsqjVDMd.js";import{E as t}from"./employee-form-DY0oQ_NK.js";import{P as o,e as r}from"./ui-DUFpMX2z.js";import"./vendor-B1hewrmX.js";import"./app-CIdq7ADr.js";import"./utils-DBYZG17H.js";function u(e){return m.jsx(o,{title:`Edit ${r(e.employee)}`,subtitle:`${e.employee.employee_number} · ${e.company.name}`,children:m.jsx(t,{...e})})}export{u as default};

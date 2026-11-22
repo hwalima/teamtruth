@@ -540,6 +540,10 @@ Route::middleware(['auth', 'verified'])->prefix('erp')->name('erp.')->group(func
         Route::get('employees', [\App\Modules\Hrm\Http\Controllers\EmployeeController::class, 'index'])
             ->middleware('erp.permission:erp.hrm.employee.view')
             ->name('employees.index');
+        Route::get('employees/export/{format}', \App\Modules\Hrm\Http\Controllers\EmployeeExportController::class)
+            ->whereIn('format', ['xlsx', 'csv', 'pdf'])
+            ->middleware('erp.permission:erp.hrm.employee.view')
+            ->name('employees.export');
         Route::get('employees/create', [\App\Modules\Hrm\Http\Controllers\EmployeeController::class, 'create'])
             ->middleware('erp.permission:erp.hrm.employee.manage')
             ->name('employees.create');
