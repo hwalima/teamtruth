@@ -1,0 +1,1 @@
+function o(t){if(t==null)return"";const i=(Math.abs(t)/100).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2});return t<0?`-${i}`:i}function a(t){return t<0?"text-rose-600 dark:text-rose-400":""}function e(t){if(!t)return"—";const[i,n,r]=t.slice(0,10).split("-");return`${r}/${n}/${i}`}export{a as b,o as m,e as s};

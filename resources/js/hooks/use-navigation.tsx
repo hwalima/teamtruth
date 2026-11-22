@@ -49,6 +49,7 @@ import {
     ClipboardCheck,
     HeartHandshake,
     FileUp,
+    Banknote,
 } from 'lucide-react';
 
 export function useNavigation() {
@@ -376,6 +377,17 @@ export function useNavigation() {
             }
             if (canUseErp('erp.accounting.view')) {
                 items.push({ title: t('Finance & Accounting'), href: route('erp.accounting.index'), icon: Landmark, group: t('Modules') });
+            }
+            if (canUseErp('erp.banking.view')) {
+                items.push({
+                    title: t('Banking'),
+                    icon: Banknote,
+                    group: t('Modules'),
+                    children: [
+                        { title: t('Accounts & Statements'), href: route('erp.banking.index') },
+                        ...(canUseErp('erp.banking.manage') ? [{ title: t('Import Statements'), href: route('erp.banking.imports.index') }] : []),
+                    ],
+                });
             }
             if (canUseErp('erp.invoicing.view')) {
                 items.push({

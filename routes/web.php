@@ -218,6 +218,36 @@ Route::middleware(['auth', 'verified'])->prefix('erp')->name('erp.')->group(func
         Route::get('data-import/{import}/download', [\App\Modules\DataImport\Http\Controllers\DataImportController::class, 'download'])
             ->name('data-import.download');
 
+        // Banking spans the group: each account is checked against the user's banking access in its own company.
+        Route::prefix('banking')->name('banking.')->group(function () {
+            $banking = \App\Modules\Banking\Http\Controllers\BankingController::class;
+            $imports = \App\Modules\Banking\Http\Controllers\StatementImportController::class;
+
+            Route::middleware('erp.permission:erp.banking.view')->group(function () use ($banking) {
+                Route::get('/', [$banking, 'index'])->name('index');
+                Route::get('accounts/{account}', [$banking, 'show'])->name('accounts.show');
+                Route::get('accounts/{account}/statement/{format}', \App\Modules\Banking\Http\Controllers\StatementExportController::class)
+                    ->whereIn('format', ['pdf', 'xlsx'])
+                    ->name('accounts.statement');
+            });
+
+            Route::middleware('erp.permission:erp.banking.manage')->group(function () use ($banking, $imports) {
+                Route::post('accounts', [$banking, 'storeAccount'])->name('accounts.store');
+                Route::put('accounts/{account}', [$banking, 'updateAccount'])->name('accounts.update');
+                Route::delete('accounts/{account}', [$banking, 'destroyAccount'])->name('accounts.destroy');
+                Route::post('accounts/{account}/transactions', [$banking, 'storeTransaction'])->name('transactions.store');
+                Route::delete('transactions/{transaction}', [$banking, 'destroyTransaction'])->name('transactions.destroy');
+                Route::post('transfers', [$banking, 'storeTransfer'])->name('transfers.store');
+                Route::delete('transfers/{transfer}', [$banking, 'destroyTransfer'])->name('transfers.destroy');
+
+                Route::get('imports', [$imports, 'index'])->name('imports.index');
+                Route::post('imports', [$imports, 'store'])->name('imports.store');
+                Route::get('imports/{import}', [$imports, 'show'])->name('imports.show');
+                Route::post('imports/{import}/commit', [$imports, 'commit'])->name('imports.commit');
+                Route::post('imports/{import}/undo', [$imports, 'undo'])->name('imports.undo');
+            });
+        });
+
         Route::get('inventory/products/export', [\App\Modules\Inventory\Http\Controllers\InventoryProductImportExportController::class, 'export'])
             ->middleware('erp.permission:erp.inventory.view')
             ->name('inventory.products.export');

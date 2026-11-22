@@ -58,6 +58,10 @@ class ErpRoleService
                 'erp.accounting.view' => 'View accounting ledger',
                 'erp.accounting.manage' => 'Manage accounts, periods and journal entries',
             ],
+            'Banking' => [
+                'erp.banking.view' => 'View bank accounts and statements',
+                'erp.banking.manage' => 'Import statements, record bank transactions and transfer between companies',
+            ],
             'Invoicing' => [
                 'erp.invoicing.view' => 'View invoices, credit notes and customers',
                 'erp.invoicing.manage' => 'Create and manage invoices, credit notes, recurring invoices and customers',
@@ -138,6 +142,8 @@ class ErpRoleService
                 'erp.sales.manage',
                 'erp.accounting.view',
                 'erp.accounting.manage',
+                'erp.banking.view',
+                'erp.banking.manage',
                 'erp.invoicing.view',
                 'erp.invoicing.manage',
                 'erp.approvals.view',
@@ -211,6 +217,10 @@ class ErpRoleService
             $permissions = [...$permissions, ...$hrm];
         } elseif (in_array('erp.hrm.view', $permissions, true)) {
             $permissions = [...$permissions, ...array_filter($hrm, fn (string $key) => str_ends_with($key, '.view'))];
+        }
+
+        if (in_array('erp.banking.manage', $permissions, true)) {
+            $permissions[] = 'erp.banking.view';
         }
 
         return array_values(array_unique($permissions));
