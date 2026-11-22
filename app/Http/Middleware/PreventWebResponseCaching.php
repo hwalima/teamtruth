@@ -17,16 +17,8 @@ class PreventWebResponseCaching
         $response->headers->set('Expires', '0');
         $response->headers->set('X-LiteSpeed-Cache-Control', 'no-cache');
 
-        // Ensure session cookie headers are explicitly set for all responses
-        // This prevents LiteSpeed from stripping Set-Cookie
-        if ($request->hasSession()) {
-            $session = $request->session();
-            if ($session->isStarted() && !$session->getId() === null) {
-                // Force cookie to be sent with every response on auth routes
-                $response->headers->set('Set-Cookie', $response->headers->get('Set-Cookie', '') .
-                    '; HttpOnly; Secure; SameSite=Lax');
-            }
-        }
+        // Do not touch Set-Cookie here. Rewriting it with headers->set() collapses
+        // every cookie header (session + XSRF-TOKEN) into one, which breaks CSRF/session.
 
         return $response;
     }
