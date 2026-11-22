@@ -34,6 +34,10 @@ class Quotation extends Model
         'created_by',
         'submitted_at',
         'approved_at',
+        'notes',
+        'terms',
+        'sent_at',
+        'sent_to',
     ];
 
     protected function casts(): array
@@ -46,6 +50,7 @@ class Quotation extends Model
             'valid_until' => 'date',
             'submitted_at' => 'datetime',
             'approved_at' => 'datetime',
+            'sent_at' => 'datetime',
         ];
     }
 
@@ -67,6 +72,11 @@ class Quotation extends Model
     public function lines(): HasMany
     {
         return $this->hasMany(QuotationLine::class)->orderBy('sort_order');
+    }
+
+    public function creator(): BelongsTo
+    {
+        return $this->belongsTo(\App\Models\User::class, 'created_by');
     }
 
     public function salesOrders(): HasMany

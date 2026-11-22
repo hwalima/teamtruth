@@ -134,6 +134,8 @@ class SalesService
                 'status' => QuotationStatus::Draft->value,
                 'currency_code' => strtoupper($data['currency_code']),
                 'valid_until' => $data['valid_until'] ?? null,
+                'notes' => $data['notes'] ?? null,
+                'terms' => $data['terms'] ?? null,
                 'created_by' => $actor->id,
             ]);
             foreach ($data['lines'] as $index => $line) {
@@ -162,9 +164,16 @@ class SalesService
         if ($quotation->status !== QuotationStatus::Draft->value) {
             throw ValidationException::withMessages(['quotation' => 'Only draft quotations can be submitted.']);
         }
-        return DB::transaction(function () use ($quotation, $actor): Quotation {
+        return DB::transaction(function () use ($company, $quotation, $actor): Quotation {
             $quotation->update(['status' => 'pending_approval', 'submitted_at' => now()]);
-            app(ApprovalWorkflowService::class)->submit($quotation, $actor, (string) $quotation->total, $quotation->currency_code);
+            try {
+                app(ApprovalWorkflowService::class)->submit($quotation, $actor, (string) $quotation->total, $quotation->currency_code);
+            } catch (\LogicException $exception) {
+                // No approval workflow for quotations, or no approver: say so instead of a server error.
+                throw ValidationException::withMessages(['approval' => __($exception->getMessage())]);
+            }
+            app(AuditLogService::class)->record($company, 'sales.quotation.submitted', $quotation, actor: $actor);
+
             return $quotation->fresh();
         });
     }
@@ -328,7 +337,11 @@ class SalesService
         }
         return DB::transaction(function () use ($salesOrder, $actor): SalesOrder {
             $salesOrder->update(['status' => 'pending_approval', 'submitted_at' => now()]);
-            app(ApprovalWorkflowService::class)->submit($salesOrder, $actor, (string) $salesOrder->total, $salesOrder->currency_code);
+            try {
+                app(ApprovalWorkflowService::class)->submit($salesOrder, $actor, (string) $salesOrder->total, $salesOrder->currency_code);
+            } catch (\LogicException $exception) {
+                throw ValidationException::withMessages(['approval' => __($exception->getMessage())]);
+            }
             return $salesOrder->fresh();
         });
     }

@@ -7,7 +7,6 @@ use App\Modules\Core\Services\CompanyContext;
 use App\Modules\Invoicing\Models\Customer;
 use App\Modules\Sales\Http\Requests\StoreLeadRequest;
 use App\Modules\Sales\Http\Requests\StoreOpportunityRequest;
-use App\Modules\Sales\Http\Requests\StoreQuotationRequest;
 use App\Modules\Sales\Http\Requests\StoreSalesTeamRequest;
 use App\Modules\Sales\Models\Lead;
 use App\Modules\Sales\Models\Opportunity;
@@ -77,13 +76,6 @@ class SalesController extends Controller
         return back()->with('success', __('Opportunity created.'));
     }
 
-    public function storeQuotation(StoreQuotationRequest $request)
-    {
-        $this->salesService->createQuotation($request->validated(), $request->user());
-
-        return back()->with('success', __('Quotation created.'));
-    }
-
     public function submitQuotation(Request $request, Quotation $quotation)
     {
         $this->authorizeErpPermission('erp.sales.manage');
@@ -95,9 +87,9 @@ class SalesController extends Controller
     public function convertQuotation(Request $request, Quotation $quotation)
     {
         $this->authorizeErpPermission('erp.sales.manage');
-        $this->salesService->convertQuotationToSalesOrder($quotation);
+        $order = $this->salesService->convertQuotationToSalesOrder($quotation);
 
-        return back()->with('success', __('Sales order created.'));
+        return back()->with('success', __('Sales order :number created.', ['number' => $order->document_number]));
     }
 
     public function submitSalesOrder(Request $request, SalesOrder $salesOrder)
