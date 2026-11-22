@@ -9,6 +9,7 @@ use App\Modules\DataImport\Models\DataImport;
 use App\Modules\DataImport\Models\DataImportRow;
 use App\Modules\DataImport\Services\Odoo\ContactImporter;
 use App\Modules\DataImport\Services\Odoo\EmployeeImporter;
+use App\Modules\DataImport\Services\Odoo\InvoiceImporter;
 use App\Modules\DataImport\Services\Odoo\OdooImporter;
 use App\Modules\DataImport\Services\Odoo\OdooSheet;
 use App\Modules\DataImport\Services\Odoo\ProductImporter;
@@ -28,7 +29,7 @@ use Illuminate\Validation\ValidationException;
 class DataImportService
 {
     /** @var list<class-string<OdooImporter>> */
-    public const IMPORTERS = [ProductImporter::class, ContactImporter::class, EmployeeImporter::class];
+    public const IMPORTERS = [ProductImporter::class, ContactImporter::class, EmployeeImporter::class, InvoiceImporter::class];
 
     /** Longest cell kept in the stored rows; longer cells (pictures) stay in the uploaded file. */
     private const MAX_CELL = 60000;

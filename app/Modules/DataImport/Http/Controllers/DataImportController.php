@@ -3,6 +3,7 @@
 namespace App\Modules\DataImport\Http\Controllers;
 
 use App\Http\Controllers\Controller;
+use App\Modules\Accounting\Models\AccountingAccount;
 use App\Modules\Core\Services\CompanyContext;
 use App\Modules\DataImport\Models\DataImport;
 use App\Modules\DataImport\Services\DataImportService;
@@ -38,6 +39,12 @@ class DataImportController extends Controller
                     'id' => $location->id,
                     'label' => trim(($location->warehouse?->name ?? '').' / '.$location->name, ' /'),
                 ]),
+            'accounts' => AccountingAccount::query()
+                ->where('is_active', true)
+                ->where('is_group', false)
+                ->orderBy('code')
+                ->get(['id', 'code', 'name', 'account_type'])
+                ->map(fn (AccountingAccount $account) => ['id' => $account->id, 'label' => $account->code.' · '.$account->name, 'type' => $account->account_type]),
             'imports' => DataImport::query()
                 ->with(['creator:id,name', 'importer:id,name'])
                 ->latest('id')
@@ -59,6 +66,7 @@ class DataImportController extends Controller
             'reference_as_sku' => ['nullable', 'boolean'],
             'create_as' => ['nullable', Rule::in(['auto', 'vendor', 'customer', 'both'])],
             'name_order' => ['nullable', Rule::in(['last_first', 'first_last'])],
+            'deduction_account_id' => ['nullable', 'integer', Rule::exists('accounting_accounts', 'id')->where('company_id', $company->id)->where('is_group', 0)],
         ]);
 
         $options = array_filter([
@@ -68,6 +76,7 @@ class DataImportController extends Controller
             'reference_as_sku' => $request->boolean('reference_as_sku'),
             'create_as' => $validated['create_as'] ?? 'auto',
             'name_order' => $validated['name_order'] ?? 'last_first',
+            'deduction_account_id' => $validated['deduction_account_id'] ?? null,
         ], fn ($value) => $value !== null);
 
         $import = $this->imports->upload($company, $request->user(), $validated['file'], $validated['model'] ?? null, $options);

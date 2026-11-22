@@ -22,6 +22,7 @@ type Props = {
     company: { id: number; code: string; name: string };
     models: Options;
     locations: { id: number; label: string }[];
+    accounts: { id: number; label: string; type: string }[];
     imports: ImportItem[];
 };
 
@@ -31,7 +32,7 @@ export function actionSummary(actions: Record<string, number>): string {
         .join(', ');
 }
 
-export default function DataImportIndex({ company, models, locations, imports }: Props) {
+export default function DataImportIndex({ company, models, locations, accounts, imports }: Props) {
     const form = useForm<{
         file: File | null;
         model: string;
@@ -41,6 +42,7 @@ export default function DataImportIndex({ company, models, locations, imports }:
         reference_as_sku: boolean;
         create_as: string;
         name_order: string;
+        deduction_account_id: string;
     }>({
         file: null,
         model: '',
@@ -50,6 +52,7 @@ export default function DataImportIndex({ company, models, locations, imports }:
         reference_as_sku: false,
         create_as: 'auto',
         name_order: 'last_first',
+        deduction_account_id: '',
     });
 
     const [dragging, setDragging] = useState(false);
@@ -163,6 +166,25 @@ export default function DataImportIndex({ company, models, locations, imports }:
                         </Field>
                     )}
 
+                    {model === 'account.move' && (
+                        <>
+                            <Field label="Deductions taken off by the customer go to" error={form.errors.deduction_account_id}>
+                                <Select
+                                    value={form.data.deduction_account_id}
+                                    onChange={(value) => form.setData('deduction_account_id', value)}
+                                    options={accounts.map((a) => ({ value: a.id, label: a.label }))}
+                                    placeholder="An account named royalty, levy or withholding"
+                                />
+                            </Field>
+                            <p className="text-muted-foreground text-xs md:col-span-2">
+                                Each invoice keeps its Odoo number, dates and status. Confirmed invoices are posted to the ledger, what was paid
+                                (total less amount due) is recorded as a payment dated on the due date, and invoices fiscalised in Odoo are never sent
+                                to the fiscal device again. A negative tax in Odoo is a deduction the customer took off, and goes to the account
+                                above. Importing an updated file later records only the new payments.
+                            </p>
+                        </>
+                    )}
+
                     {model === 'hr.employee' && (
                         <>
                             <Field label="Names in the file are written" error={form.errors.name_order}>
@@ -256,6 +278,7 @@ function guessModel(fileName: string): string {
     if (name.includes('(product.template)') || name.includes('(product.product)')) return 'product.template';
     if (name.includes('(res.partner)')) return 'res.partner';
     if (name.includes('(hr.employee)')) return 'hr.employee';
+    if (name.includes('(account.move)')) return 'account.move';
     return '';
 }
 

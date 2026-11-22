@@ -68,6 +68,18 @@ class PostInvoiceToLedger
             }
         }
 
+        // A negative line (a deduction the customer takes off, e.g. a levy
+        // withheld) leaves its account with a negative credit: post it as a
+        // debit instead, and drop accounts that net to nothing.
+        foreach ($revenueByAccount as $id => $line) {
+            $credit = $line['credit'];
+            if (bccomp($credit, '0.0000', 4) === 0) {
+                unset($revenueByAccount[$id]);
+            } elseif (bccomp($credit, '0.0000', 4) < 0) {
+                $revenueByAccount[$id] = [...$line, 'description' => 'Deducted by customer on '.$invoice->document_number, 'debit' => bcmul($credit, '-1', 4), 'credit' => '0.0000'];
+            }
+        }
+
         $lines = array_merge($lines, array_values($revenueByAccount), array_values($taxByAccount));
 
         $entry = $this->postingService->postSourceEntry($event->actor, $invoice, [

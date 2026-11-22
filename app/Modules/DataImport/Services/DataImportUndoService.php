@@ -3,10 +3,13 @@
 namespace App\Modules\DataImport\Services;
 
 use App\Models\User;
+use App\Modules\Accounting\Models\JournalEntry;
+use App\Modules\Accounting\Services\AccountingPostingService;
 use App\Modules\DataImport\Models\DataImport;
 use App\Modules\DataImport\Models\DataImportRow;
 use App\Modules\DataImport\Models\ExternalId;
 use App\Modules\DataImport\Services\Odoo\EmployeeImporter;
+use App\Modules\DataImport\Services\Odoo\InvoiceImporter;
 use App\Modules\Hrm\Enums\EmployeeStatus;
 use App\Modules\Hrm\Models\Department;
 use App\Modules\Hrm\Models\Employee;
@@ -18,6 +21,8 @@ use App\Modules\Inventory\Models\InventoryWarehouse;
 use App\Modules\Inventory\Models\StockLocation;
 use App\Modules\Inventory\Models\StockMove;
 use App\Modules\Invoicing\Models\Customer;
+use App\Modules\Invoicing\Models\Invoice;
+use App\Modules\Invoicing\Models\InvoicePayment;
 use App\Modules\Purchase\Models\PurchaseVendor;
 use App\Modules\Purchase\Models\PurchaseVendorPriceList;
 use Illuminate\Database\Eloquent\Model;
@@ -51,7 +56,7 @@ class DataImportUndoService
         $this->imports->authorize($company, $user, $this->imports->importer($import->model), $import->options ?? []);
         $summary = $import->summary ?? [];
 
-        $removed = DB::transaction(function () use ($import, $summary): array {
+        $removed = DB::transaction(function () use ($import, $summary, $user): array {
             $removed = [];
             $created = $this->createdRecords($import);
 
@@ -79,6 +84,10 @@ class DataImportUndoService
 
             if ($import->model === EmployeeImporter::MODEL) {
                 $removed = [...$removed, ...$this->undoEmployees($summary)];
+            }
+
+            if ($import->model === InvoiceImporter::MODEL) {
+                $removed = [...$removed, ...$this->undoInvoices($summary, $user)];
             }
 
             ExternalId::query()->where('data_import_id', $import->id)->delete();
@@ -210,6 +219,73 @@ class DataImportUndoService
         }
 
         return ['employees' => count($ids), 'positions' => $positions, 'departments' => $departments];
+    }
+
+    /**
+     * Invoices the import added, and payments it recorded on invoices imported
+     * before. Posted journal entries cannot be deleted, so each is reversed on
+     * its own date and the pair stays in the ledger as the audit trail.
+     * Invoices with payments or credit notes made here since stop the undo.
+     *
+     * @return array<string, int>
+     */
+    private function undoInvoices(array $summary, User $user): array
+    {
+        $posting = app(AccountingPostingService::class);
+        $reversed = 0;
+        $reverse = function (Model $source) use ($posting, $user, &$reversed): void {
+            $entries = JournalEntry::query()
+                ->where('source_type', $source->getMorphClass())
+                ->where('source_id', $source->getKey())
+                ->where('status', 'posted')
+                ->whereNull('reversal_of_id')
+                ->whereDoesntHave('reversal')
+                ->get();
+            foreach ($entries as $entry) {
+                $posting->reverseEntry($entry, $user, $entry->entry_date->toDateString());
+                $reversed++;
+            }
+        };
+
+        $payments = 0;
+        foreach (InvoicePayment::query()->with('invoice')->whereIn('id', $summary['created_ids']['payments'] ?? [])->get() as $payment) {
+            $reverse($payment);
+            $invoice = $payment->invoice;
+            $payment->delete();
+            $payments++;
+            if ($invoice) {
+                $paid = max(0, round((float) $invoice->paid_amount - (float) $payment->base_amount, 4));
+                $invoice->update([
+                    'paid_amount' => $paid,
+                    'balance_due' => max(0, round((float) $invoice->total_amount - $paid, 4)),
+                    'status' => $paid > 0 ? 'partial_paid' : 'sent',
+                    'paid_at' => null,
+                ]);
+            }
+        }
+
+        $invoices = Invoice::withTrashed()->with('payments')->whereIn('id', $summary['created_ids']['invoices'] ?? [])->get();
+        foreach ($invoices as $invoice) {
+            $later = $invoice->payments->first(fn (InvoicePayment $p) => $p->reference !== 'Odoo '.$invoice->document_number);
+            if ($later || $invoice->creditNotes()->exists()) {
+                throw ValidationException::withMessages([
+                    'import' => "Invoice {$invoice->document_number} has ".($later ? 'a payment' : 'a credit note').' recorded since the import, so it cannot be undone.',
+                ]);
+            }
+        }
+        foreach ($invoices as $invoice) {
+            foreach ($invoice->payments as $payment) {
+                $reverse($payment);
+                $payment->delete();
+                $payments++;
+            }
+            $reverse($invoice);
+            $invoice->fiscalDocuments()->delete();
+            $invoice->lines()->delete();
+            $invoice->forceDelete();
+        }
+
+        return ['invoices' => $invoices->count(), 'payments' => $payments, 'ledger entries reversed' => $reversed];
     }
 
     /** Delete each record unless something still points at it. */
