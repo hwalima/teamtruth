@@ -1,5 +1,6 @@
 import { useForm } from '@inertiajs/react';
-import type { FormEvent } from 'react';
+import { FileUp } from 'lucide-react';
+import { useState, type FormEvent } from 'react';
 import { route } from 'ziggy-js';
 import { Card, Checkbox, Empty, Field, Page, Select, StatusBadge, formatDate, humanize, primaryButton, type Options } from '@/components/hrm/ui';
 
@@ -48,6 +49,7 @@ export default function DataImportIndex({ models, locations, imports }: Props) {
         create_as: 'auto',
     });
 
+    const [dragging, setDragging] = useState(false);
     const guessed = guessModel(form.data.file?.name ?? '');
     const model = form.data.model || guessed;
 
@@ -60,15 +62,47 @@ export default function DataImportIndex({ models, locations, imports }: Props) {
         <Page title="Data import" subtitle="Bring records across from Odoo. Every file is previewed first; nothing is saved until you confirm.">
             <Card title="Upload an Odoo export">
                 <form onSubmit={submit} className="grid gap-4 md:grid-cols-2">
-                    <Field label="File (xlsx or csv)" error={form.errors.file} className="md:col-span-2">
-                        <input
-                            type="file"
-                            accept=".xlsx,.xls,.csv,.ods"
-                            onChange={(e) => form.setData('file', e.target.files?.[0] ?? null)}
-                            className="block w-full text-sm"
-                            required
-                        />
-                    </Field>
+                    <div className="grid gap-1.5 text-sm md:col-span-2">
+                        <span className="text-foreground/85 font-medium">File (xlsx or csv)</span>
+                        <label
+                            onDragOver={(e) => {
+                                e.preventDefault();
+                                setDragging(true);
+                            }}
+                            onDragLeave={() => setDragging(false)}
+                            onDrop={(e) => {
+                                e.preventDefault();
+                                setDragging(false);
+                                const file = e.dataTransfer.files?.[0];
+                                if (file) form.setData('file', file);
+                            }}
+                            className={`flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed px-4 py-8 text-center transition-colors ${
+                                dragging ? 'border-primary bg-primary/10' : 'border-border hover:border-primary/60 hover:bg-primary/5'
+                            }`}
+                        >
+                            <FileUp className="text-primary size-8" />
+                            {form.data.file ? (
+                                <>
+                                    <span className="font-medium">{form.data.file.name}</span>
+                                    <span className="text-muted-foreground text-xs">
+                                        {(form.data.file.size / 1024).toFixed(0)} KB · click to choose a different file
+                                    </span>
+                                </>
+                            ) : (
+                                <>
+                                    <span className="font-medium">Click to choose the Odoo file, or drop it here</span>
+                                    <span className="text-muted-foreground text-xs">.xlsx, .xls or .csv, up to 50 MB</span>
+                                </>
+                            )}
+                            <input
+                                type="file"
+                                accept=".xlsx,.xls,.csv,.ods"
+                                onChange={(e) => form.setData('file', e.target.files?.[0] ?? null)}
+                                className="sr-only"
+                            />
+                        </label>
+                        {form.errors.file && <span className="text-destructive text-xs">{form.errors.file}</span>}
+                    </div>
 
                     <Field label="What the file holds" error={form.errors.model}>
                         <Select
