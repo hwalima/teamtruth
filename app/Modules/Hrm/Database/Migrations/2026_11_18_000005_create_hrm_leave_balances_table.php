@@ -24,7 +24,7 @@ return new class extends Migration
             $table->foreignId('updated_by')->nullable()->constrained('users')->nullOnDelete();
             $table->timestamps();
 
-            $table->unique(['company_id', 'employee_id', 'leave_type_id', 'period_start']);
+            $table->unique(['company_id', 'employee_id', 'leave_type_id', 'period_start'], 'hrm_leave_balances_period_unique');
             $table->index(['company_id', 'employee_id']);
             $table->index(['company_id', 'period_start', 'period_end']);
         });

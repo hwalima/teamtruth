@@ -20,8 +20,10 @@ return new class extends Migration
             $table->string('currency_code', 3)->default('USD');
             $table->enum('pay_frequency', ['weekly', 'biweekly', 'monthly'])->default('monthly');
             $table->decimal('working_hours_per_week', 5, 2)->default(40);
-            $table->foreignId('shift_pattern_id')->nullable()->constrained('hrm_shift_patterns')->nullOnDelete();
-            $table->foreignId('template_id')->nullable()->constrained('hrm_contract_templates')->nullOnDelete();
+            // No hrm_shift_patterns table exists yet, so this column has no key.
+            $table->foreignId('shift_pattern_id')->nullable();
+            // Key added in 2026_11_18_000019 (hrm_contract_templates is created after this table).
+            $table->foreignId('template_id')->nullable();
             $table->enum('status', ['draft', 'active', 'expired', 'terminated', 'renewed'])->default('draft');
             $table->timestamp('signed_by_employee_at')->nullable();
             $table->timestamp('signed_by_employer_at')->nullable();

@@ -39,10 +39,11 @@ return new class extends Migration
             $table->date('termination_date')->nullable();
             $table->text('termination_reason')->nullable();
             $table->foreignId('line_manager_id')->nullable()->constrained('hrm_employees')->nullOnDelete();
-            $table->foreignId('department_id')->nullable()->constrained('hrm_departments')->nullOnDelete();
-            $table->foreignId('position_id')->nullable()->constrained('hrm_positions')->nullOnDelete();
-            $table->foreignId('grade_id')->nullable()->constrained('hrm_grades')->nullOnDelete();
-            $table->foreignId('cost_center_id')->nullable()->constrained('hrm_cost_centers')->nullOnDelete();
+            // Keys to tables created later are added in 2026_11_18_000019.
+            $table->foreignId('department_id')->nullable();
+            $table->foreignId('position_id')->nullable();
+            $table->foreignId('grade_id')->nullable();
+            $table->foreignId('cost_center_id')->nullable();
             $table->foreignId('created_by')->nullable()->constrained('users')->nullOnDelete();
             $table->foreignId('updated_by')->nullable()->constrained('users')->nullOnDelete();
             $table->softDeletes();

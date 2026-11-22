@@ -15,7 +15,8 @@ return new class extends Migration
             $table->string('name');
             $table->string('code', 16);
             $table->text('description')->nullable();
-            $table->foreignId('grade_id')->nullable()->constrained('hrm_grades')->nullOnDelete();
+            // Key added in 2026_11_18_000019 (hrm_grades is created after this table).
+            $table->foreignId('grade_id')->nullable();
             $table->foreignId('reports_to_position_id')->nullable()->constrained('hrm_positions')->nullOnDelete();
             $table->unsignedInteger('headcount_planned')->default(1);
             $table->unsignedInteger('headcount_current')->default(0);

@@ -15,7 +15,8 @@ return new class extends Migration
             $table->string('name');
             $table->string('code', 16);
             $table->text('description')->nullable();
-            $table->foreignId('cost_center_id')->nullable()->constrained('hrm_cost_centers')->nullOnDelete();
+            // Key added in 2026_11_18_000019 (hrm_cost_centers is created after this table).
+            $table->foreignId('cost_center_id')->nullable();
             $table->foreignId('head_id')->nullable()->constrained('hrm_employees')->nullOnDelete();
             $table->boolean('is_active')->default(true);
             $table->foreignId('created_by')->nullable()->constrained('users')->nullOnDelete();
