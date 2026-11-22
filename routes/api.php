@@ -14,6 +14,7 @@ use App\Http\Controllers\ExpenseWorkflowController;
 use App\Http\Controllers\ExportImportController;
 use App\Http\Controllers\GoogleCalendarController;
 use App\Http\Controllers\GoogleMeetingController;
+use App\Http\Controllers\InAppNotificationController;
 use App\Http\Controllers\InvoiceController;
 use App\Http\Controllers\InvoicePaymentController;
 use App\Http\Controllers\MediaController;
