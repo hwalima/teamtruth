@@ -1,1 +1,0 @@
-import{j as m}from"./ui-KsqjVDMd.js";import{E as o}from"./employee-form-B8LPKRbM.js";import{P as t}from"./ui-C7uQlIiX.js";import"./vendor-B1hewrmX.js";import"./app-DrxRSIAw.js";import"./utils-DBYZG17H.js";function s(e){return m.jsx(t,{title:"New employee",subtitle:e.company.name,children:m.jsx(o,{...e,employee:null})})}export{s as default};

@@ -1,3 +1,4 @@
+import { QuotationActions } from '@/components/erp/quotation-actions';
 import { QUOTATION_STATUS_LABELS, money, type QuotationStatus } from '@/components/erp/sales';
 import { Card, Detail, StatusBadge, formatDate, humanize, inputClass, primaryButton, secondaryButton } from '@/components/hrm/ui';
 import { Link, router, useForm, usePage } from '@inertiajs/react';
@@ -39,7 +40,7 @@ type Quotation = {
     lines: Line[];
     sales_orders: { id: number; document_number: string; status: string; total: string; currency_code: string }[];
 };
-type Props = { quotation: Quotation; canManage: boolean; canSend: boolean };
+type Props = { quotation: Quotation; canManage: boolean; canSend: boolean; canEdit: boolean; canCancel: boolean; canDelete: boolean };
 
 const quantity = (value: string) => Number(value).toLocaleString(undefined, { maximumFractionDigits: 4 });
 const percent = (value: string) => (Number(value) > 0 ? `${Number(value).toLocaleString(undefined, { maximumFractionDigits: 2 })}%` : '—');
@@ -92,7 +93,7 @@ function SendForm({ quotation }: { quotation: Quotation }) {
     );
 }
 
-export default function QuotationShow({ quotation, canManage, canSend }: Props) {
+export default function QuotationShow({ quotation, canManage, canSend, canEdit, canCancel, canDelete }: Props) {
     const errors = usePage().props.errors as Record<string, string | undefined>;
     const [busy, setBusy] = useState(false);
     const hasDiscount = quotation.lines.some((line) => Number(line.discount) > 0);
@@ -132,6 +133,12 @@ export default function QuotationShow({ quotation, canManage, canSend }: Props) 
                         )}
                     </div>
                     <div className="flex flex-wrap gap-2">
+                        <QuotationActions
+                            quotation={{ ...quotation, can_edit: canEdit, can_cancel: canCancel, can_delete: canDelete }}
+                            canManage={canManage}
+                            showPdf={false}
+                            showLabels
+                        />
                         <a href={route('erp.sales.quotations.pdf', quotation.id)} target="_blank" rel="noreferrer" className={`${secondaryButton} gap-2`}>
                             <FileDown className="size-4" /> View PDF
                         </a>

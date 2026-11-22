@@ -214,3 +214,112 @@ test('sales managers can add leads from the sales page, members cannot', functio
 
     expect(Lead::query()->pluck('name')->all())->toBe(['Acme Prospect']);
 });
+
+test('a draft quotation can be edited, and its lines and totals are replaced', function () {
+    $this->post(route('erp.sales.quotations.store'), quotationPayload());
+    $quotation = Quotation::query()->sole();
+
+    $this->get(route('erp.sales.quotations.edit', $quotation))->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->component('Erp/Sales/Quotations/Create')
+            ->where('quotation.id', $quotation->id)
+            ->has('quotation.lines', 2));
+
+    $this->put(route('erp.sales.quotations.update', $quotation), quotationPayload([
+        'notes' => 'Revised offer.',
+        'lines' => [['product_id' => null, 'description' => 'Survey', 'quantity' => '2', 'unit_price' => '150', 'discount' => '0', 'tax_rate' => '10']],
+    ]))->assertRedirect(route('erp.sales.quotations.show', $quotation));
+
+    $quotation->refresh()->load('lines');
+    expect($quotation->lines)->toHaveCount(1)
+        ->and($quotation->lines->first()->description)->toBe('Survey')
+        ->and($quotation->total)->toBe('330.0000')
+        ->and($quotation->notes)->toBe('Revised offer.')
+        ->and($quotation->document_number)->toContain('SALES_QUOTATION')
+        ->and(AuditEvent::query()->where('event', 'sales.quotation.updated')->count())->toBe(1);
+});
+
+test('only drafts can be edited', function () {
+    $quotation = approvedQuotation();
+
+    $this->get(route('erp.sales.quotations.edit', $quotation))
+        ->assertRedirect(route('erp.sales.quotations.show', $quotation))
+        ->assertSessionHasErrors('quotation');
+    $this->put(route('erp.sales.quotations.update', $quotation), quotationPayload())
+        ->assertSessionHasErrors('quotation');
+
+    expect($quotation->fresh()->total)->toBe('160.0000');
+});
+
+test('a draft quotation can be deleted, one with an order is kept', function () {
+    $this->post(route('erp.sales.quotations.store'), quotationPayload());
+    $draft = Quotation::query()->sole();
+
+    $this->delete(route('erp.sales.quotations.destroy', $draft))
+        ->assertRedirect(route('erp.sales.quotations.index'))
+        ->assertSessionHas('success');
+    expect(Quotation::query()->count())->toBe(0)
+        ->and(\App\Modules\Sales\Models\QuotationLine::query()->count())->toBe(0)
+        ->and(AuditEvent::query()->where('event', 'sales.quotation.deleted')->count())->toBe(1);
+
+    $ordered = approvedQuotation();
+    $this->post(route('erp.sales.quotations.orders.store', $ordered));
+    $this->delete(route('erp.sales.quotations.destroy', $ordered))->assertSessionHasErrors('quotation');
+    expect($ordered->fresh())->not->toBeNull();
+});
+
+test('cancelling a quotation waiting for approval withdraws the approval', function () {
+    $quotation = approvedQuotation();
+    $quotation->forceFill(['status' => 'pending_approval'])->saveQuietly();
+    $workflow = \App\Modules\Core\Models\ApprovalWorkflow::create(['name' => 'Quotation approvals', 'approvable_type' => Quotation::class, 'is_active' => true]);
+    $request = \App\Modules\Core\Models\ApprovalRequest::create([
+        'company_id' => $this->company->id, 'approvable_type' => $quotation->getMorphClass(), 'approvable_id' => $quotation->id,
+        'workflow_id' => $workflow->id, 'status' => 'pending', 'current_step' => 1, 'amount' => '160', 'currency_code' => 'USD',
+        'requested_by' => $this->user->id, 'submitted_at' => now(),
+    ]);
+
+    $this->get(route('erp.sales.quotations.index'))->assertInertia(fn ($page) => $page
+        ->where('quotations.data.0.can_cancel', true)
+        ->where('quotations.data.0.can_delete', false)
+        ->where('quotations.data.0.can_edit', false));
+
+    $this->post(route('erp.sales.quotations.cancel', $quotation))->assertSessionHasNoErrors()->assertSessionHas('success');
+
+    expect($quotation->fresh()->status)->toBe('cancelled')
+        ->and($request->fresh()->status)->toBe(\App\Modules\Core\Enums\ApprovalStatus::Cancelled)
+        ->and(AuditEvent::query()->where('event', 'sales.quotation.cancelled')->count())->toBe(1);
+
+    // It has approval history, so it is kept rather than deleted, and it cannot be cancelled twice.
+    $this->delete(route('erp.sales.quotations.destroy', $quotation))->assertSessionHasErrors('quotation');
+    $this->post(route('erp.sales.quotations.cancel', $quotation))->assertSessionHasErrors('quotation');
+});
+
+test('duplicating a quotation makes a new draft with the same lines', function () {
+    $quotation = approvedQuotation();
+
+    $response = $this->post(route('erp.sales.quotations.duplicate', $quotation));
+
+    $copy = Quotation::query()->whereKeyNot($quotation->id)->with('lines')->sole();
+    $response->assertRedirect(route('erp.sales.quotations.show', $copy));
+    expect($copy->status)->toBe('draft')
+        ->and($copy->document_number)->not->toBe($quotation->document_number)
+        ->and($copy->customer_id)->toBe($quotation->customer_id)
+        ->and($copy->lines)->toHaveCount(1)
+        ->and($copy->total)->toBe('160.0000');
+});
+
+test('members cannot edit, cancel, duplicate or delete quotations', function () {
+    $this->post(route('erp.sales.quotations.store'), quotationPayload());
+    $quotation = Quotation::query()->sole();
+    $member = User::factory()->create();
+    $this->company->users()->attach($member->id, ['role' => 'member', 'is_active' => true]);
+    $this->actingAs($member);
+
+    $this->get(route('erp.sales.quotations.edit', $quotation))->assertForbidden();
+    $this->put(route('erp.sales.quotations.update', $quotation), quotationPayload())->assertForbidden();
+    $this->post(route('erp.sales.quotations.cancel', $quotation))->assertForbidden();
+    $this->post(route('erp.sales.quotations.duplicate', $quotation))->assertForbidden();
+    $this->delete(route('erp.sales.quotations.destroy', $quotation))->assertForbidden();
+
+    expect(Quotation::query()->count())->toBe(1)->and($quotation->fresh()->status)->toBe('draft');
+});

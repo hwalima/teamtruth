@@ -21,6 +21,8 @@ export function ActionButton({
     href,
     onClick,
     showLabel = false,
+    newTab = false,
+    disabled = false,
 }: {
     icon: LucideIcon;
     label: string;
@@ -28,6 +30,8 @@ export function ActionButton({
     href?: string;
     onClick?: () => void;
     showLabel?: boolean;
+    newTab?: boolean;
+    disabled?: boolean;
 }) {
     const className = `inline-flex items-center justify-center gap-1.5 rounded-lg text-xs font-medium ring-1 ring-inset transition hover:-translate-y-px focus-visible:outline-none focus-visible:ring-2 ${
         showLabel ? 'h-9 px-3' : 'size-8'
@@ -40,11 +44,11 @@ export function ActionButton({
     );
 
     return href ? (
-        <a href={href} className={className} title={label}>
+        <a href={href} className={className} title={label} {...(newTab ? { target: '_blank', rel: 'noopener noreferrer' } : {})}>
             {content}
         </a>
     ) : (
-        <button type="button" onClick={onClick} className={className} title={label}>
+        <button type="button" onClick={onClick} className={`${className} disabled:pointer-events-none disabled:opacity-50`} title={label} disabled={disabled}>
             {content}
         </button>
     );

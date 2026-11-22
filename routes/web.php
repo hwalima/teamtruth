@@ -411,7 +411,12 @@ Route::middleware(['auth', 'verified'])->prefix('erp')->name('erp.')->group(func
             Route::get('quotations/create', [\App\Modules\Sales\Http\Controllers\QuotationController::class, 'create'])->middleware('erp.permission:erp.sales.manage')->name('quotations.create');
             Route::post('quotations', [\App\Modules\Sales\Http\Controllers\QuotationController::class, 'store'])->middleware('erp.permission:erp.sales.manage')->name('quotations.store');
             Route::get('quotations/{quotation}', [\App\Modules\Sales\Http\Controllers\QuotationController::class, 'show'])->name('quotations.show');
-            Route::get('quotations/{quotation}/pdf', [\App\Modules\Sales\Http\Controllers\QuotationController::class, 'pdf'])->name('quotations.pdf');
+            Route::get('quotations/{quotation}/edit', [\App\Modules\Sales\Http\Controllers\QuotationController::class, 'edit'])->middleware('erp.permission:erp.sales.manage')->name('quotations.edit');
+            Route::put('quotations/{quotation}', [\App\Modules\Sales\Http\Controllers\QuotationController::class, 'update'])->middleware('erp.permission:erp.sales.manage')->name('quotations.update');
+            Route::delete('quotations/{quotation}', [\App\Modules\Sales\Http\Controllers\QuotationController::class, 'destroy'])->middleware('erp.permission:erp.sales.manage')->name('quotations.destroy');
+            Route::post('quotations/{quotation}/cancel', [\App\Modules\Sales\Http\Controllers\QuotationController::class, 'cancel'])->middleware('erp.permission:erp.sales.manage')->name('quotations.cancel');
+            Route::post('quotations/{quotation}/duplicate', [\App\Modules\Sales\Http\Controllers\QuotationController::class, 'duplicate'])->middleware('erp.permission:erp.sales.manage')->name('quotations.duplicate');
+            Route::get('quotations/{quotation}/pdf',[\App\Modules\Sales\Http\Controllers\QuotationController::class, 'pdf'])->name('quotations.pdf');
             Route::post('quotations/{quotation}/send', [\App\Modules\Sales\Http\Controllers\QuotationController::class, 'send'])->middleware(['erp.permission:erp.sales.manage', 'throttle:20,1'])->name('quotations.send');
             Route::post('quotations/{quotation}/submit', [\App\Modules\Sales\Http\Controllers\SalesController::class, 'submitQuotation'])->middleware('erp.permission:erp.sales.manage')->name('quotations.submit');
             Route::post('quotations/{quotation}/orders', [\App\Modules\Sales\Http\Controllers\SalesController::class, 'convertQuotation'])->middleware('erp.permission:erp.sales.manage')->name('quotations.orders.store');

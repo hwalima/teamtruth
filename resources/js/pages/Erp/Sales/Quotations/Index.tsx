@@ -1,3 +1,4 @@
+import { QuotationActions } from '@/components/erp/quotation-actions';
 import { QUOTATION_STATUS_LABELS, money, type QuotationStatus as Status } from '@/components/erp/sales';
 import { Empty, Pagination, StatusBadge, formatDate, inputClass, primaryButton, type Paginated } from '@/components/hrm/ui';
 import { useLiveSearch } from '@/hooks/use-live-search';
@@ -17,6 +18,9 @@ type Quotation = {
     sent_at: string | null;
     lines_count: number;
     customer: { id: number; name: string; code: string } | null;
+    can_edit: boolean;
+    can_cancel: boolean;
+    can_delete: boolean;
 };
 type Props = {
     company: { id: number; code: string; name: string };
@@ -143,6 +147,9 @@ export default function QuotationsIndex({ company, quotations, filters, counts, 
                                         <span className="text-muted-foreground">{formatDate(quotation.created_at)}</span>
                                     </div>
                                 </Link>
+                                <div className="px-4 pb-3">
+                                    <QuotationActions quotation={quotation} canManage={canManage} />
+                                </div>
                             </li>
                         ))}
                     </ul>
@@ -155,6 +162,7 @@ export default function QuotationsIndex({ company, quotations, filters, counts, 
                                     <th className="px-4 py-3 font-medium">Status</th>
                                     <th className="px-4 py-3 font-medium">Valid until</th>
                                     <th className="px-4 py-3 text-right font-medium">Total</th>
+                                    <th className="px-4 py-3 text-right font-medium">Actions</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y">
@@ -192,6 +200,9 @@ export default function QuotationsIndex({ company, quotations, filters, counts, 
                                                 {expired && <div className="text-xs">Expired</div>}
                                             </td>
                                             <td className="px-4 py-3 text-right font-medium tabular-nums">{money(quotation.currency_code, quotation.total)}</td>
+                                            <td className="px-4 py-3">
+                                                <QuotationActions quotation={quotation} canManage={canManage} showView />
+                                            </td>
                                         </tr>
                                     );
                                 })}

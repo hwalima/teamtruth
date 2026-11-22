@@ -517,7 +517,7 @@ For each subsidiary, collect before go-live:
 
 ## 14. Progress Tracker
 
-_Last reviewed: 22 November 2026. 209 automated tests pass._
+_Last reviewed: 22 November 2026. 215 automated tests pass._
 
 Legend: `[x]` done and in use · `[~]` partly built (see the note) · `[ ]` not started
 
@@ -549,6 +549,7 @@ Legend: `[x]` done and in use · `[~]` partly built (see the note) · `[ ]` not 
   - [x] Banking: bank accounts, statement import (with undo), statements, inter-company transfers, fund requests with approval, dashboard
   - [~] Sales: leads, opportunities, quotations with approval, sales orders, invoice from order
     - [x] Quotations: list with search and status tabs, multi-line quotation form with live totals, quotation page, branded PDF, email to the customer
+    - [x] Quotation actions: edit a draft, duplicate, cancel (withdraws a pending approval), delete (only quotations with no approval or order history), with buttons on the list and the quotation page
     - [ ] Sales order pages, delivery from stock, and invoice from what was delivered; leads and opportunities pages
   - [x] Balance sheet, aged receivables and aged payables (Financial Reports page, CSV and branded PDF)
   - [ ] Cash flow statement
@@ -580,6 +581,7 @@ These are ordered so each step builds on the one before it and finishes work tha
 2. ~~**Bank reconciliation.**~~ Done (22 Nov 2026): Banking → Reconcile suggests the recorded payment for each statement line, matches several payments to one line, explains bank charges and interest, and auto-matches the certain ones. Next step for it: link each bank account to its ledger account so the books balance can be compared with the statement balance.
 3. **Sales screen rebuild.** Bring Sales up to the standard of Invoicing and Purchase: list pages with search, multi-line quotations, a quotation PDF, send to customer, and order → delivery → invoice.
    - ~~Part 1: quotations.~~ Done (22 Nov 2026): Sales → Quotations lists every quotation with search and status tabs; New quotation takes any number of lines (product, description, quantity, price, discount, tax) with live totals, notes and terms; each quotation has its own page with Submit for approval, Create sales order, View PDF and Email to customer.
+   - ~~Quotation actions.~~ Done (22 Nov 2026): Edit (drafts only), Duplicate (a new draft with the same lines), Cancel (also withdraws an approval that is still waiting) and Delete (only quotations with no approval or order history; the rest are cancelled and kept). Buttons on every list row and on the quotation page.
    - Part 2, still to do: sales order list and page, delivery from stock (partial deliveries), invoice from what was delivered, and leads and opportunities pages.
 4. ~~**Purchase order PDF and email to the vendor.**~~ Done (22 Nov 2026): each approved order has View PDF and Email to vendor on the Purchase page. The email goes to the vendor's address (it can be changed before sending), carries the PDF, and replies go to the buyer who sent it.
 5. **Stock valuation.** Average cost on receipts, with journals for stock, goods received not invoiced and cost of sales. Needed before POS and before the balance sheet shows stock correctly.
@@ -633,6 +635,7 @@ Found while reviewing the code on 22 November 2026, most valuable first.
 
 ## 18. Change log
 
+- **22 Nov 2026:** Quotations get full actions: edit a draft, duplicate, cancel (withdraws a pending approval) and delete, from the list and the quotation page. Each is recorded in the audit log.
 - **22 Nov 2026:** Sales quotations rebuilt: list with search and status tabs, multi-line quotation form, quotation page, branded quotation PDF emailed to the customer. Saving leads, opportunities and quotations now checks the ERP sales role (it was refused before), and a missing approval workflow shows a clear message.
 - **22 Nov 2026:** Purchase order PDF on company branding, emailed to the vendor from the Purchase page; Purchase page layout reworked for phones.
 - **22 Nov 2026:** Bank reconciliation: statement lines matched to customer receipts and vendor payments, with suggestions, split matches, explanations, auto-match and undo.

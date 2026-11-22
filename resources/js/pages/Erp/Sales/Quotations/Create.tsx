@@ -15,6 +15,18 @@ type Props = {
     products: Product[];
     currencies: { code: string; name: string }[];
     defaults: { opportunity_id: number | null; valid_until: string };
+    /** Set when editing a draft; the form then saves over it. */
+    quotation: {
+        id: number;
+        document_number: string;
+        customer_id: number;
+        opportunity_id: number | null;
+        currency_code: string;
+        valid_until: string | null;
+        notes: string | null;
+        terms: string | null;
+        lines: { product_id: number | null; description: string; quantity: string; unit_price: string; discount: string; tax_rate: string; notes: string | null }[];
+    } | null;
 };
 
 type Line = { product_id: string; description: string; quantity: string; unit_price: string; discount: string; tax_rate: string; notes: string };
@@ -46,18 +58,37 @@ function LineField({ label, error, className = '', children }: { label: string; 
     );
 }
 
-export default function QuotationCreate({ company, customers, opportunities, products, currencies, defaults }: Props) {
+export default function QuotationCreate({ company, customers, opportunities, products, currencies, defaults, quotation }: Props) {
     const preset = opportunities.find((opportunity) => opportunity.id === defaults.opportunity_id);
     const presetCustomer = customers.find((customer) => customer.id === preset?.customer_id);
-    const form = useForm({
-        customer_id: presetCustomer ? String(presetCustomer.id) : '',
-        opportunity_id: preset ? String(preset.id) : '',
-        currency_code: presetCustomer?.currency_code || company.default_currency,
-        valid_until: defaults.valid_until,
-        notes: '',
-        terms: '',
-        lines: [blankLine()],
-    });
+    const form = useForm(
+        quotation
+            ? {
+                  customer_id: String(quotation.customer_id),
+                  opportunity_id: quotation.opportunity_id ? String(quotation.opportunity_id) : '',
+                  currency_code: quotation.currency_code,
+                  valid_until: quotation.valid_until ?? '',
+                  notes: quotation.notes ?? '',
+                  terms: quotation.terms ?? '',
+                  lines: quotation.lines.length
+                      ? quotation.lines.map((line) => ({
+                            ...line,
+                            product_id: line.product_id ? String(line.product_id) : '',
+                            notes: line.notes ?? '',
+                        }))
+                      : [blankLine()],
+              }
+            : {
+                  customer_id: presetCustomer ? String(presetCustomer.id) : '',
+                  opportunity_id: preset ? String(preset.id) : '',
+                  currency_code: presetCustomer?.currency_code || company.default_currency,
+                  valid_until: defaults.valid_until,
+                  notes: '',
+                  terms: '',
+                  lines: [blankLine()],
+              },
+    );
+    const backHref = quotation ? route('erp.sales.quotations.show', quotation.id) : route('erp.sales.quotations.index');
     const errors = form.errors as Record<string, string | undefined>;
 
     const customerOpportunities = opportunities.filter(
@@ -112,7 +143,11 @@ export default function QuotationCreate({ company, customers, opportunities, pro
             valid_until: data.valid_until || null,
             lines: data.lines.map((line, index) => ({ ...line, product_id: line.product_id || null, notes: line.notes || null, sort_order: index + 1 })),
         }));
-        form.post(route('erp.sales.quotations.store'));
+        if (quotation) {
+            form.put(route('erp.sales.quotations.update', quotation.id));
+        } else {
+            form.post(route('erp.sales.quotations.store'));
+        }
     };
 
     const lineGrid =
@@ -129,9 +164,22 @@ export default function QuotationCreate({ company, customers, opportunities, pro
                     <Link href={route('erp.sales.quotations.index')} className="hover:underline">
                         Quotations
                     </Link>
+                    {quotation && (
+                        <>
+                            {' '}
+                            ·{' '}
+                            <Link href={backHref} className="hover:underline">
+                                {quotation.document_number}
+                            </Link>
+                        </>
+                    )}
                 </p>
-                <h1 className="text-2xl font-semibold">New quotation</h1>
-                <p className="text-muted-foreground mt-1 text-sm">It is saved as a draft. Submit it for approval before you send it to the customer.</p>
+                <h1 className="text-2xl font-semibold">{quotation ? `Edit ${quotation.document_number}` : 'New quotation'}</h1>
+                <p className="text-muted-foreground mt-1 text-sm">
+                    {quotation
+                        ? 'Change anything while it is a draft. Once submitted it is locked; duplicate it to make a new version.'
+                        : 'It is saved as a draft. Submit it for approval before you send it to the customer.'}
+                </p>
             </header>
 
             <form onSubmit={submit} className="space-y-6">
@@ -326,11 +374,11 @@ export default function QuotationCreate({ company, customers, opportunities, pro
                 </Card>
 
                 <div className="flex flex-wrap justify-end gap-2">
-                    <Link href={route('erp.sales.quotations.index')} className={secondaryButton}>
-                        Cancel
+                    <Link href={backHref} className={secondaryButton}>
+                        {quotation ? 'Discard changes' : 'Cancel'}
                     </Link>
                     <button type="submit" className={primaryButton} disabled={form.processing}>
-                        {form.processing ? 'Saving…' : 'Save draft quotation'}
+                        {form.processing ? 'Saving…' : quotation ? 'Save changes' : 'Save draft quotation'}
                     </button>
                 </div>
             </form>

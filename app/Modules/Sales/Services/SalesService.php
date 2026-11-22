@@ -7,6 +7,7 @@ use App\Modules\Core\Services\SequenceService;
 use App\Models\User;
 use App\Modules\Core\Services\ApprovalWorkflowService;
 use App\Modules\Core\Services\AuditLogService;
+use App\Modules\Core\Enums\ApprovalStatus;
 use App\Modules\Invoicing\Models\Customer;
 use App\Modules\Invoicing\Services\InvoicingService;
 use App\Modules\Sales\Models\SalesTeam;
@@ -138,17 +139,7 @@ class SalesService
                 'terms' => $data['terms'] ?? null,
                 'created_by' => $actor->id,
             ]);
-            foreach ($data['lines'] as $index => $line) {
-                $product = ! empty($line['product_id']) ? \App\Modules\Inventory\Models\InventoryProduct::query()->findOrFail($line['product_id']) : null;
-                $this->assertSameCompany($company->id, $product);
-                QuotationLine::query()->create([
-                    'company_id' => $company->id, 'quotation_id' => $quotation->id,
-                    'product_id' => $product?->id, 'description' => $line['description'],
-                    'quantity' => $line['quantity'], 'unit_price' => $line['unit_price'],
-                    'discount' => $line['discount'] ?? 0, 'tax_rate' => $line['tax_rate'] ?? 0,
-                    'notes' => $line['notes'] ?? null, 'sort_order' => $line['sort_order'] ?? $index + 1,
-                ]);
-            }
+            $this->writeQuotationLines($company->id, $quotation, $data['lines']);
             $this->recalculateQuotation($quotation);
             app(AuditLogService::class)->record($company, 'sales.quotation.created', $quotation, actor: $actor);
             return $quotation->fresh(['lines', 'customer']);
@@ -196,6 +187,128 @@ class SalesService
             }
             return $team->load('members');
         });
+    }
+
+    /** Change a draft quotation: its header and the whole set of lines. */
+    public function updateQuotation(Quotation $quotation, array $data, User $actor): Quotation
+    {
+        $company = $this->requireOwnQuotation($quotation);
+
+        return DB::transaction(function () use ($company, $quotation, $data, $actor): Quotation {
+            $quotation = Quotation::query()->lockForUpdate()->findOrFail($quotation->id);
+            if ($quotation->status !== QuotationStatus::Draft->value) {
+                throw ValidationException::withMessages(['quotation' => 'Only draft quotations can be edited. Duplicate it to make a new version.']);
+            }
+            $customer = Customer::query()->findOrFail($data['customer_id']);
+            $opportunity = ! empty($data['opportunity_id']) ? Opportunity::query()->findOrFail($data['opportunity_id']) : null;
+            $this->assertSameCompany($company->id, $customer, $opportunity);
+            $before = $quotation->only(['customer_id', 'currency_code', 'valid_until', 'total']);
+
+            $quotation->update([
+                'customer_id' => $customer->id,
+                'opportunity_id' => $opportunity?->id,
+                'currency_code' => strtoupper($data['currency_code']),
+                'valid_until' => $data['valid_until'] ?? null,
+                'notes' => $data['notes'] ?? null,
+                'terms' => $data['terms'] ?? null,
+            ]);
+            $quotation->lines()->delete();
+            $this->writeQuotationLines($company->id, $quotation, $data['lines']);
+            $quotation = $this->recalculateQuotation($quotation->fresh());
+            app(AuditLogService::class)->record($company, 'sales.quotation.updated', $quotation, changes: [
+                'before' => $before,
+                'after' => $quotation->only(['customer_id', 'currency_code', 'valid_until', 'total']),
+            ], actor: $actor);
+
+            return $quotation->fresh(['lines', 'customer']);
+        });
+    }
+
+    /** Stop a quotation: drafts, ones waiting for approval (the approval is withdrawn) and approved ones. */
+    public function cancelQuotation(Quotation $quotation, User $actor): Quotation
+    {
+        $company = $this->requireOwnQuotation($quotation);
+
+        return DB::transaction(function () use ($company, $quotation, $actor): Quotation {
+            $quotation = Quotation::query()->lockForUpdate()->findOrFail($quotation->id);
+            if (! in_array($quotation->status, [QuotationStatus::Draft->value, 'pending_approval', QuotationStatus::Approved->value], true)) {
+                throw ValidationException::withMessages(['quotation' => 'This quotation can no longer be cancelled.']);
+            }
+            // Withdraw an open approval first; the record cannot change while one is pending.
+            $quotation->approvalRequests()->where('status', ApprovalStatus::Pending->value)
+                ->update(['status' => ApprovalStatus::Cancelled->value, 'completed_at' => now()]);
+            $before = $quotation->status;
+            $quotation->update(['status' => QuotationStatus::Cancelled->value]);
+            app(AuditLogService::class)->record($company, 'sales.quotation.cancelled', $quotation, changes: [
+                'status' => ['old' => $before, 'new' => QuotationStatus::Cancelled->value],
+            ], actor: $actor);
+
+            return $quotation->fresh();
+        });
+    }
+
+    /** Delete a quotation that never went anywhere: a draft or cancelled one with no sales order and no approval history. */
+    public function deleteQuotation(Quotation $quotation, User $actor): void
+    {
+        $company = $this->requireOwnQuotation($quotation);
+
+        DB::transaction(function () use ($company, $quotation, $actor): void {
+            $quotation = Quotation::query()->lockForUpdate()->findOrFail($quotation->id);
+            if (! in_array($quotation->status, [QuotationStatus::Draft->value, QuotationStatus::Cancelled->value], true)
+                || $quotation->salesOrders()->exists()
+                || $quotation->approvalRequests()->exists()) {
+                throw ValidationException::withMessages(['quotation' => 'This quotation has approval or order history, so it is kept. Cancel it instead.']);
+            }
+            app(AuditLogService::class)->record($company, 'sales.quotation.deleted', $quotation, changes: [
+                'before' => $quotation->only(['document_number', 'customer_id', 'status', 'total']),
+            ], actor: $actor);
+            $quotation->lines()->delete();
+            $quotation->delete();
+        });
+    }
+
+    /** A new draft with the same customer, lines, notes and terms. */
+    public function duplicateQuotation(Quotation $quotation, User $actor): Quotation
+    {
+        $this->requireOwnQuotation($quotation);
+        $quotation->loadMissing('lines');
+
+        return $this->createQuotation([
+            'customer_id' => $quotation->customer_id,
+            'opportunity_id' => $quotation->opportunity_id,
+            'currency_code' => $quotation->currency_code,
+            'valid_until' => now()->addDays(30)->toDateString(),
+            'notes' => $quotation->notes,
+            'terms' => $quotation->terms,
+            'lines' => $quotation->lines->map(fn (QuotationLine $line): array => $line->only([
+                'product_id', 'description', 'quantity', 'unit_price', 'discount', 'tax_rate', 'notes', 'sort_order',
+            ]))->all(),
+        ], $actor);
+    }
+
+    private function writeQuotationLines(int $companyId, Quotation $quotation, array $lines): void
+    {
+        foreach (array_values($lines) as $index => $line) {
+            $product = ! empty($line['product_id']) ? \App\Modules\Inventory\Models\InventoryProduct::query()->findOrFail($line['product_id']) : null;
+            $this->assertSameCompany($companyId, $product);
+            QuotationLine::query()->create([
+                'company_id' => $companyId, 'quotation_id' => $quotation->id,
+                'product_id' => $product?->id, 'description' => $line['description'],
+                'quantity' => $line['quantity'], 'unit_price' => $line['unit_price'],
+                'discount' => $line['discount'] ?? 0, 'tax_rate' => $line['tax_rate'] ?? 0,
+                'notes' => $line['notes'] ?? null, 'sort_order' => $line['sort_order'] ?? $index + 1,
+            ]);
+        }
+    }
+
+    private function requireOwnQuotation(Quotation $quotation): \App\Modules\Core\Models\Company
+    {
+        $company = $this->companyContext->requireActiveCompany();
+        if ((int) $quotation->company_id !== (int) $company->id) {
+            throw new AuthorizationException('Quotation does not belong to the active company.');
+        }
+
+        return $company;
     }
 
     private function assertSameCompany(int $companyId, ...$models): void

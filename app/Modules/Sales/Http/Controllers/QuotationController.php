@@ -51,7 +51,7 @@ class QuotationController extends Controller
                 ->where('document_number', 'like', "%{$search}%")
                 ->orWhereHas('customer', fn ($customer) => $customer->where('name', 'like', "%{$search}%")->orWhere('code', 'like', "%{$search}%"))))
             ->with('customer:id,name,code')
-            ->withCount('lines')
+            ->withCount(['lines', 'salesOrders', 'approvalRequests'])
             ->latest('id')
             ->paginate(20)
             ->withQueryString()
@@ -66,6 +66,9 @@ class QuotationController extends Controller
                 'sent_at' => $quotation->sent_at?->toIso8601String(),
                 'lines_count' => $quotation->lines_count,
                 'customer' => $quotation->customer?->only(['id', 'name', 'code']),
+                'can_edit' => $quotation->status === 'draft',
+                'can_cancel' => in_array($quotation->status, ['draft', 'pending_approval', 'approved'], true),
+                'can_delete' => self::deletable($quotation),
             ]);
 
         return Inertia::render('Erp/Sales/Quotations/Index', [
@@ -79,10 +82,100 @@ class QuotationController extends Controller
 
     public function create(Request $request): Response
     {
-        $company = app(CompanyContext::class)->requireActiveCompany();
         $this->authorizeErpPermission('erp.sales.manage');
 
         return Inertia::render('Erp/Sales/Quotations/Create', [
+            ...$this->formProps(),
+            'defaults' => [
+                'opportunity_id' => $request->integer('opportunity') ?: null,
+                'valid_until' => now()->addDays(30)->toDateString(),
+            ],
+            'quotation' => null,
+        ]);
+    }
+
+    public function edit(Quotation $quotation): Response|RedirectResponse
+    {
+        $this->authorizeErpPermission('erp.sales.manage');
+        if ($quotation->status !== 'draft') {
+            return redirect()->route('erp.sales.quotations.show', $quotation)
+                ->withErrors(['quotation' => 'Only draft quotations can be edited. Duplicate it to make a new version.']);
+        }
+        $quotation->load('lines');
+
+        return Inertia::render('Erp/Sales/Quotations/Create', [
+            ...$this->formProps(),
+            'defaults' => ['opportunity_id' => null, 'valid_until' => now()->addDays(30)->toDateString()],
+            'quotation' => [
+                'id' => $quotation->id,
+                'document_number' => $quotation->document_number,
+                'customer_id' => $quotation->customer_id,
+                'opportunity_id' => $quotation->opportunity_id,
+                'currency_code' => $quotation->currency_code,
+                'valid_until' => $quotation->valid_until?->toDateString(),
+                'notes' => $quotation->notes,
+                'terms' => $quotation->terms,
+                'lines' => $quotation->lines->sortBy('sort_order')->values()->map(fn ($line) => [
+                    'product_id' => $line->product_id,
+                    'description' => $line->description,
+                    'quantity' => (string) (float) $line->quantity,
+                    'unit_price' => (string) (float) $line->unit_price,
+                    'discount' => (string) (float) $line->discount,
+                    'tax_rate' => (string) (float) $line->tax_rate,
+                    'notes' => $line->notes,
+                ]),
+            ],
+        ]);
+    }
+
+    public function update(StoreQuotationRequest $request, Quotation $quotation): RedirectResponse
+    {
+        $quotation = $this->salesService->updateQuotation($quotation, $request->validated(), $request->user());
+
+        return redirect()->route('erp.sales.quotations.show', $quotation)
+            ->with('success', 'Quotation '.$quotation->document_number.' updated.');
+    }
+
+    public function cancel(Request $request, Quotation $quotation): RedirectResponse
+    {
+        $this->authorizeErpPermission('erp.sales.manage');
+        $quotation = $this->salesService->cancelQuotation($quotation, $request->user());
+
+        return back()->with('success', 'Quotation '.$quotation->document_number.' cancelled.');
+    }
+
+    public function duplicate(Request $request, Quotation $quotation): RedirectResponse
+    {
+        $this->authorizeErpPermission('erp.sales.manage');
+        $copy = $this->salesService->duplicateQuotation($quotation, $request->user());
+
+        return redirect()->route('erp.sales.quotations.show', $copy)
+            ->with('success', 'Quotation '.$copy->document_number.' created as a copy of '.$quotation->document_number.'.');
+    }
+
+    public function destroy(Request $request, Quotation $quotation): RedirectResponse
+    {
+        $this->authorizeErpPermission('erp.sales.manage');
+        $number = $quotation->document_number;
+        $this->salesService->deleteQuotation($quotation, $request->user());
+
+        return redirect()->route('erp.sales.quotations.index')->with('success', 'Quotation '.$number.' deleted.');
+    }
+
+    /** Whether a quotation can still be removed outright (otherwise it is cancelled and kept). */
+    public static function deletable(Quotation $quotation): bool
+    {
+        return in_array($quotation->status, ['draft', 'cancelled'], true)
+            && (int) ($quotation->sales_orders_count ?? $quotation->salesOrders()->count()) === 0
+            && (int) ($quotation->approval_requests_count ?? $quotation->approvalRequests()->count()) === 0;
+    }
+
+    /** @return array<string, mixed> */
+    private function formProps(): array
+    {
+        $company = app(CompanyContext::class)->requireActiveCompany();
+
+        return [
             'company' => $company->only(['id', 'code', 'name', 'default_currency']),
             'customers' => Customer::query()->where('company_id', $company->id)->where('is_active', true)
                 ->orderBy('name')->get(['id', 'code', 'name', 'currency_code']),
@@ -92,11 +185,7 @@ class QuotationController extends Controller
                 ->with('unit:id,abbreviation')->orderBy('name')
                 ->get(['id', 'sku', 'name', 'description', 'sale_price', 'unit_id']),
             'currencies' => Currency::query()->orderBy('code')->get(['code', 'name']),
-            'defaults' => [
-                'opportunity_id' => $request->integer('opportunity') ?: null,
-                'valid_until' => now()->addDays(30)->toDateString(),
-            ],
-        ]);
+        ];
     }
 
     public function store(StoreQuotationRequest $request): RedirectResponse
@@ -134,6 +223,9 @@ class QuotationController extends Controller
             ],
             'canManage' => $this->allowsErpPermission('erp.sales.manage'),
             'canSend' => in_array($quotation->status, self::SENDABLE, true),
+            'canEdit' => $quotation->status === 'draft',
+            'canCancel' => in_array($quotation->status, ['draft', 'pending_approval', 'approved'], true),
+            'canDelete' => self::deletable($quotation),
         ]);
     }
 
