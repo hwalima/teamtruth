@@ -17,6 +17,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -108,6 +109,19 @@ class EmployeeController extends HrmController
         $this->employeeService->terminateEmployee($request->user(), $employee, $validated);
 
         return back()->with('success', 'Employee terminated.');
+    }
+
+    public function destroy(Request $request, Employee $employee): RedirectResponse
+    {
+        $this->authorize('delete', $employee);
+
+        try {
+            $this->employeeService->deleteEmployee($request->user(), $employee);
+        } catch (ValidationException $e) {
+            return back()->with('error', collect($e->errors())->flatten()->first());
+        }
+
+        return redirect()->route('erp.hrm.employees.index')->with('success', $employee->full_name.' was deleted.');
     }
 
     public function rehire(Request $request, Employee $employee): RedirectResponse

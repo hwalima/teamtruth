@@ -6,6 +6,7 @@ use App\Models\User;
 use App\Modules\Core\Models\Company;
 use App\Modules\Core\Services\CompanyContext;
 use App\Modules\Hrm\Enums\EmployeeStatus;
+use App\Modules\Hrm\Models\Department;
 use App\Modules\Hrm\Models\Employee;
 use App\Modules\Hrm\Models\EmployeeDocument;
 use App\Modules\Hrm\Models\Position;
@@ -126,6 +127,30 @@ class EmployeeService
             }
 
             return $employee->fresh();
+        });
+    }
+
+    /**
+     * Removes an employee added by mistake. One with HR history (contracts,
+     * leave, cases) is kept: terminate them instead, so the history stays.
+     */
+    public function deleteEmployee(User $actor, Employee $employee): void
+    {
+        $history = $employee->historyLabels();
+        if ($history !== []) {
+            throw ValidationException::withMessages([
+                'employee' => $employee->full_name.' has '.implode(', ', $history).' on record, so they cannot be deleted. Terminate them instead to keep that history.',
+            ]);
+        }
+
+        DB::transaction(function () use ($actor, $employee): void {
+            Employee::query()->where('line_manager_id', $employee->id)->update(['line_manager_id' => null]);
+            Department::query()->where('head_id', $employee->id)->update(['head_id' => null]);
+            if ($employee->position_id && $employee->status === EmployeeStatus::Active) {
+                Position::whereKey($employee->position_id)->where('headcount_current', '>', 0)->decrement('headcount_current');
+            }
+            $employee->forceFill(['updated_by' => $actor->id])->save();
+            $employee->delete();
         });
     }
 

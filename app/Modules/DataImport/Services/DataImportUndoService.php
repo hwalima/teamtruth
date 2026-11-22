@@ -6,6 +6,11 @@ use App\Models\User;
 use App\Modules\DataImport\Models\DataImport;
 use App\Modules\DataImport\Models\DataImportRow;
 use App\Modules\DataImport\Models\ExternalId;
+use App\Modules\DataImport\Services\Odoo\EmployeeImporter;
+use App\Modules\Hrm\Enums\EmployeeStatus;
+use App\Modules\Hrm\Models\Department;
+use App\Modules\Hrm\Models\Employee;
+use App\Modules\Hrm\Models\Position;
 use App\Modules\Inventory\Models\InventoryCategory;
 use App\Modules\Inventory\Models\InventoryProduct;
 use App\Modules\Inventory\Models\InventoryUnit;
@@ -70,6 +75,10 @@ class DataImportUndoService
                     ]);
                 }
                 DB::afterCommit(fn () => Storage::disk('public')->delete($images));
+            }
+
+            if ($import->model === EmployeeImporter::MODEL) {
+                $removed = [...$removed, ...$this->undoEmployees($summary)];
             }
 
             ExternalId::query()->where('data_import_id', $import->id)->delete();
@@ -149,6 +158,58 @@ class DataImportUndoService
             ->where('name', $location)
             ->whereHas('warehouse', fn ($query) => $query->where('name', $warehouse))
             ->value('id');
+    }
+
+    /**
+     * Employees the import added, then the positions and departments it
+     * created while no one else uses them. Employees with HR history since
+     * (contracts, leave, cases) stop the undo: that history would be lost.
+     *
+     * @return array<string, int>
+     */
+    private function undoEmployees(array $summary): array
+    {
+        $employees = Employee::withTrashed()->whereIn('id', $summary['created_ids']['employees'] ?? [])->get();
+        foreach ($employees as $employee) {
+            if ($employee->historyLabels() !== []) {
+                throw ValidationException::withMessages([
+                    'import' => "{$employee->full_name} has ".implode(', ', $employee->historyLabels()).' since the import, so it cannot be undone. Terminate the employees you no longer need instead.',
+                ]);
+            }
+        }
+
+        $ids = $employees->modelKeys();
+        Employee::withTrashed()->whereIn('line_manager_id', $ids)->update(['line_manager_id' => null]);
+        Department::query()->whereIn('head_id', $ids)->update(['head_id' => null]);
+        foreach ($employees as $employee) {
+            if ($employee->position_id && ! $employee->trashed() && $employee->status === EmployeeStatus::Active) {
+                Position::query()->whereKey($employee->position_id)->where('headcount_current', '>', 0)->decrement('headcount_current');
+            }
+            $employee->forceDelete();
+        }
+
+        $positions = 0;
+        foreach (array_reverse($summary['created_ids']['positions'] ?? []) as $id) {
+            $position = Position::query()->find($id);
+            if ($position && ! Employee::withTrashed()->where('position_id', $id)->exists() && ! Position::query()->where('reports_to_position_id', $id)->exists()) {
+                $position->delete();
+                $positions++;
+            }
+        }
+
+        $departments = 0;
+        foreach (array_reverse($summary['created_ids']['departments'] ?? []) as $id) {
+            $department = Department::query()->find($id);
+            $used = Employee::withTrashed()->where('department_id', $id)->exists()
+                || Position::query()->where('department_id', $id)->exists()
+                || Department::query()->where('parent_id', $id)->exists();
+            if ($department && ! $used) {
+                $department->delete();
+                $departments++;
+            }
+        }
+
+        return ['employees' => count($ids), 'positions' => $positions, 'departments' => $departments];
     }
 
     /** Delete each record unless something still points at it. */

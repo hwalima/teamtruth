@@ -1,6 +1,4 @@
-import { router, useForm } from '@inertiajs/react';
-import { useState, type FormEvent } from 'react';
-import { route } from 'ziggy-js';
+import { useConfirmDelete } from '@/components/erp/record-actions';
 import type { EmployeeRecord } from '@/components/hrm/employee-form';
 import {
     Card,
@@ -20,6 +18,9 @@ import {
     secondaryButton,
     type Options,
 } from '@/components/hrm/ui';
+import { router, useForm } from '@inertiajs/react';
+import { useState, type FormEvent } from 'react';
+import { route } from 'ziggy-js';
 
 type Named = { id: number; name: string; code?: string } | null;
 type LeaveType = { id: number; name: string; code: string; color: string | null } | null;
@@ -33,9 +34,34 @@ type Employee = EmployeeRecord & {
     cost_center: Named;
     line_manager: { id: number; employee_number: string; first_name: string; middle_name: string | null; last_name: string } | null;
     user: { id: number; name: string; email: string } | null;
-    documents: { id: number; document_type: string; title: string; document_number: string | null; issued_date: string | null; expiry_date: string | null; file_size: number | null }[];
-    contracts: { id: number; contract_type: string; status: string; start_date: string; end_date: string | null; basic_salary?: string; currency_code: string; pay_frequency: string }[];
-    leave_balances: { id: number; leave_type: LeaveType; period_start: string; period_end: string; available: number; taken: string; total_entitlement: number }[];
+    documents: {
+        id: number;
+        document_type: string;
+        title: string;
+        document_number: string | null;
+        issued_date: string | null;
+        expiry_date: string | null;
+        file_size: number | null;
+    }[];
+    contracts: {
+        id: number;
+        contract_type: string;
+        status: string;
+        start_date: string;
+        end_date: string | null;
+        basic_salary?: string;
+        currency_code: string;
+        pay_frequency: string;
+    }[];
+    leave_balances: {
+        id: number;
+        leave_type: LeaveType;
+        period_start: string;
+        period_end: string;
+        available: number;
+        taken: string;
+        total_entitlement: number;
+    }[];
     leave_requests: { id: number; leave_type: LeaveType; start_date: string; end_date: string; total_days: string; status: string }[];
     disciplinary_cases: { id: number; case_number: string; incident_date: string; status: string }[];
     self_service_requests: { id: number; request_type: string; status: string; created_at: string }[];
@@ -57,11 +83,19 @@ const tabs = ['profile', 'contracts', 'leave', 'documents', 'history'] as const;
 export default function EmployeeShow({ employee, ...props }: Props) {
     const [tab, setTab] = useState<(typeof tabs)[number]>('profile');
     const [showTerminate, setShowTerminate] = useState(false);
+    const { askDelete, deleteDialog } = useConfirmDelete();
     const terminated = employee.status === 'terminated';
 
     const terminateForm = useForm({ termination_date: new Date().toISOString().slice(0, 10), termination_reason: '' });
     const rehireForm = useForm({ rehire_date: new Date().toISOString().slice(0, 10) });
-    const documentForm = useForm<{ document_type: string; title: string; document_number: string; issued_date: string; expiry_date: string; file: File | null }>({
+    const documentForm = useForm<{
+        document_type: string;
+        title: string;
+        document_number: string;
+        issued_date: string;
+        expiry_date: string;
+        file: File | null;
+    }>({
         document_type: 'other',
         title: '',
         document_number: '',
@@ -105,6 +139,22 @@ export default function EmployeeShow({ employee, ...props }: Props) {
                             Edit
                         </a>
                     )}
+                    {props.canUpdate && (
+                        <button
+                            type="button"
+                            className={secondaryButton}
+                            onClick={() =>
+                                askDelete({
+                                    url: route('erp.hrm.employees.destroy', employee.id),
+                                    title: 'Delete ' + personName(employee) + '?',
+                                    description:
+                                        'Use this for a record added by mistake. An employee with contracts, leave, cases or documents is kept: terminate them instead so their history stays.',
+                                })
+                            }
+                        >
+                            Delete
+                        </button>
+                    )}
                     {props.canTerminate && !terminated && (
                         <button type="button" onClick={() => setShowTerminate((v) => !v)} className={dangerButton}>
                             Terminate
@@ -113,14 +163,23 @@ export default function EmployeeShow({ employee, ...props }: Props) {
                 </>
             }
         >
+            {deleteDialog}
             {showTerminate && (
                 <Card title="Terminate employee">
                     <form onSubmit={terminate} className="grid gap-3 sm:grid-cols-3">
                         <Field label="Termination date" error={terminateForm.errors.termination_date}>
-                            <TextInput type="date" value={terminateForm.data.termination_date} onChange={(v) => terminateForm.setData('termination_date', v)} />
+                            <TextInput
+                                type="date"
+                                value={terminateForm.data.termination_date}
+                                onChange={(v) => terminateForm.setData('termination_date', v)}
+                            />
                         </Field>
                         <Field label="Reason" error={terminateForm.errors.termination_reason} className="sm:col-span-2">
-                            <TextArea value={terminateForm.data.termination_reason} onChange={(v) => terminateForm.setData('termination_reason', v)} rows={2} />
+                            <TextArea
+                                value={terminateForm.data.termination_reason}
+                                onChange={(v) => terminateForm.setData('termination_reason', v)}
+                                rows={2}
+                            />
                         </Field>
                         <div className="sm:col-span-3">
                             <button type="submit" disabled={terminateForm.processing} className={dangerButton}>
@@ -237,12 +296,15 @@ export default function EmployeeShow({ employee, ...props }: Props) {
                             {employee.contracts.map((contract) => (
                                 <li key={contract.id} className="flex flex-wrap items-center justify-between gap-2 py-3 text-sm">
                                     <a href={route('erp.hrm.contracts.show', contract.id)} className="font-medium hover:underline">
-                                        {humanize(contract.contract_type)} · {formatDate(contract.start_date)} – {contract.end_date ? formatDate(contract.end_date) : 'open-ended'}
+                                        {humanize(contract.contract_type)} · {formatDate(contract.start_date)} –{' '}
+                                        {contract.end_date ? formatDate(contract.end_date) : 'open-ended'}
                                     </a>
                                     <span className="flex items-center gap-3">
                                         {props.canViewSalary && contract.basic_salary !== undefined && (
                                             <span>
-                                                {contract.currency_code} {Number(contract.basic_salary).toLocaleString(undefined, { minimumFractionDigits: 2 })} / {humanize(contract.pay_frequency)}
+                                                {contract.currency_code}{' '}
+                                                {Number(contract.basic_salary).toLocaleString(undefined, { minimumFractionDigits: 2 })} /{' '}
+                                                {humanize(contract.pay_frequency)}
                                             </span>
                                         )}
                                         <StatusBadge value={contract.status} />
@@ -285,7 +347,8 @@ export default function EmployeeShow({ employee, ...props }: Props) {
                                 {employee.leave_requests.map((request) => (
                                     <li key={request.id} className="flex flex-wrap justify-between gap-2 py-2 text-sm">
                                         <a href={route('erp.hrm.leave.requests.show', request.id)} className="hover:underline">
-                                            {request.leave_type?.name ?? 'Leave'} · {formatDate(request.start_date)} – {formatDate(request.end_date)} ({Number(request.total_days)} d)
+                                            {request.leave_type?.name ?? 'Leave'} · {formatDate(request.start_date)} – {formatDate(request.end_date)}{' '}
+                                            ({Number(request.total_days)} d)
                                         </a>
                                         <StatusBadge value={request.status} />
                                     </li>
@@ -313,7 +376,11 @@ export default function EmployeeShow({ employee, ...props }: Props) {
                                             </span>
                                         </span>
                                         {props.canManageDocuments && (
-                                            <button type="button" onClick={() => deleteDocument(document.id)} className="text-destructive text-sm underline">
+                                            <button
+                                                type="button"
+                                                onClick={() => deleteDocument(document.id)}
+                                                className="text-destructive text-sm underline"
+                                            >
                                                 Delete
                                             </button>
                                         )}
@@ -326,22 +393,41 @@ export default function EmployeeShow({ employee, ...props }: Props) {
                         <Card title="Upload document">
                             <form onSubmit={uploadDocument} className="grid gap-3 sm:grid-cols-2">
                                 <Field label="Type" error={documentForm.errors.document_type}>
-                                    <Select value={documentForm.data.document_type} onChange={(v) => documentForm.setData('document_type', v)} options={props.documentTypeOptions} />
+                                    <Select
+                                        value={documentForm.data.document_type}
+                                        onChange={(v) => documentForm.setData('document_type', v)}
+                                        options={props.documentTypeOptions}
+                                    />
                                 </Field>
                                 <Field label="Title" error={documentForm.errors.title}>
                                     <TextInput value={documentForm.data.title} onChange={(v) => documentForm.setData('title', v)} />
                                 </Field>
                                 <Field label="Document number" error={documentForm.errors.document_number}>
-                                    <TextInput value={documentForm.data.document_number} onChange={(v) => documentForm.setData('document_number', v)} />
+                                    <TextInput
+                                        value={documentForm.data.document_number}
+                                        onChange={(v) => documentForm.setData('document_number', v)}
+                                    />
                                 </Field>
                                 <Field label="File (max 10 MB)" error={documentForm.errors.file}>
-                                    <input type="file" onChange={(e) => documentForm.setData('file', e.target.files?.[0] ?? null)} className="text-sm" />
+                                    <input
+                                        type="file"
+                                        onChange={(e) => documentForm.setData('file', e.target.files?.[0] ?? null)}
+                                        className="text-sm"
+                                    />
                                 </Field>
                                 <Field label="Issued" error={documentForm.errors.issued_date}>
-                                    <TextInput type="date" value={documentForm.data.issued_date} onChange={(v) => documentForm.setData('issued_date', v)} />
+                                    <TextInput
+                                        type="date"
+                                        value={documentForm.data.issued_date}
+                                        onChange={(v) => documentForm.setData('issued_date', v)}
+                                    />
                                 </Field>
                                 <Field label="Expires" error={documentForm.errors.expiry_date}>
-                                    <TextInput type="date" value={documentForm.data.expiry_date} onChange={(v) => documentForm.setData('expiry_date', v)} />
+                                    <TextInput
+                                        type="date"
+                                        value={documentForm.data.expiry_date}
+                                        onChange={(v) => documentForm.setData('expiry_date', v)}
+                                    />
                                 </Field>
                                 <div className="sm:col-span-2">
                                     <button type="submit" disabled={documentForm.processing} className={primaryButton}>

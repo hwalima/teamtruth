@@ -1,7 +1,24 @@
+import { RecordActions, useConfirmDelete } from '@/components/erp/record-actions';
+import {
+    Card,
+    Empty,
+    Field,
+    Page,
+    Pagination,
+    Select,
+    StatusBadge,
+    TextInput,
+    formatDate,
+    idOptions,
+    personName,
+    primaryButton,
+    secondaryButton,
+    type Options,
+    type Paginated,
+} from '@/components/hrm/ui';
 import { router, useForm } from '@inertiajs/react';
 import type { FormEvent } from 'react';
 import { route } from 'ziggy-js';
-import { Card, Empty, Field, Page, Pagination, Select, StatusBadge, TextInput, formatDate, idOptions, personName, primaryButton, secondaryButton, type Options, type Paginated } from '@/components/hrm/ui';
 
 type Employee = {
     id: number;
@@ -29,6 +46,7 @@ type Props = {
 };
 
 export default function EmployeesIndex(props: Props) {
+    const { askDelete, deleteDialog } = useConfirmDelete();
     const filters = useForm({
         search: props.filters.search ?? '',
         status: props.filters.status ?? '',
@@ -57,16 +75,35 @@ export default function EmployeesIndex(props: Props) {
             <Card>
                 <form onSubmit={apply} className="grid gap-3 sm:grid-cols-5">
                     <Field label="Search" className="sm:col-span-2">
-                        <TextInput value={filters.data.search} onChange={(v) => filters.setData('search', v)} placeholder="Name, number, email, ID..." />
+                        <TextInput
+                            value={filters.data.search}
+                            onChange={(v) => filters.setData('search', v)}
+                            placeholder="Name, number, email, ID..."
+                        />
                     </Field>
                     <Field label="Status">
-                        <Select value={filters.data.status} onChange={(v) => filters.setData('status', v)} options={props.statusOptions} placeholder="All" />
+                        <Select
+                            value={filters.data.status}
+                            onChange={(v) => filters.setData('status', v)}
+                            options={props.statusOptions}
+                            placeholder="All"
+                        />
                     </Field>
                     <Field label="Department">
-                        <Select value={filters.data.department_id} onChange={(v) => filters.setData('department_id', v)} options={idOptions(props.departments, (d) => d.name)} placeholder="All" />
+                        <Select
+                            value={filters.data.department_id}
+                            onChange={(v) => filters.setData('department_id', v)}
+                            options={idOptions(props.departments, (d) => d.name)}
+                            placeholder="All"
+                        />
                     </Field>
                     <Field label="Position">
-                        <Select value={filters.data.position_id} onChange={(v) => filters.setData('position_id', v)} options={idOptions(props.positions, (p) => p.name)} placeholder="All" />
+                        <Select
+                            value={filters.data.position_id}
+                            onChange={(v) => filters.setData('position_id', v)}
+                            options={idOptions(props.positions, (p) => p.name)}
+                            placeholder="All"
+                        />
                     </Field>
                     <div className="flex gap-2 sm:col-span-5">
                         <button type="submit" className={primaryButton}>
@@ -92,11 +129,12 @@ export default function EmployeesIndex(props: Props) {
                                 <th className="px-4 py-3 font-medium">Line manager</th>
                                 <th className="px-4 py-3 font-medium">Hired</th>
                                 <th className="px-4 py-3 font-medium">Status</th>
+                                <th className="px-4 py-3" />
                             </tr>
                         </thead>
                         <tbody>
                             {props.employees.data.map((employee) => (
-                                <tr key={employee.id} className="border-t">
+                                <tr key={employee.id} className="hover:bg-muted/30 border-t">
                                     <td className="px-4 py-3">
                                         <a href={route('erp.hrm.employees.show', employee.id)} className="font-medium hover:underline">
                                             {personName(employee)}
@@ -113,6 +151,23 @@ export default function EmployeesIndex(props: Props) {
                                     <td className="px-4 py-3">
                                         <StatusBadge value={employee.status} label={props.statusOptions[employee.status]} />
                                     </td>
+                                    <td className="px-4 py-3">
+                                        <RecordActions
+                                            viewHref={route('erp.hrm.employees.show', employee.id)}
+                                            editHref={props.canManage ? route('erp.hrm.employees.edit', employee.id) : undefined}
+                                            onDelete={
+                                                props.canManage
+                                                    ? () =>
+                                                          askDelete({
+                                                              url: route('erp.hrm.employees.destroy', employee.id),
+                                                              title: 'Delete ' + personName(employee) + '?',
+                                                              description:
+                                                                  'Use this for a record added by mistake. An employee with contracts, leave, cases or documents is kept: terminate them instead so their history stays.',
+                                                          })
+                                                    : undefined
+                                            }
+                                        />
+                                    </td>
                                 </tr>
                             ))}
                         </tbody>
@@ -120,6 +175,7 @@ export default function EmployeesIndex(props: Props) {
                 </div>
             )}
             <Pagination page={props.employees} />
+            {deleteDialog}
         </Page>
     );
 }

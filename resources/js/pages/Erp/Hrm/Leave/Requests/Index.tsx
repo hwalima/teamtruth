@@ -1,7 +1,24 @@
+import { RecordActions } from '@/components/erp/record-actions';
+import {
+    Card,
+    Empty,
+    Field,
+    Page,
+    Pagination,
+    Select,
+    StatusBadge,
+    TextInput,
+    formatDate,
+    idOptions,
+    personName,
+    primaryButton,
+    secondaryButton,
+    type Options,
+    type Paginated,
+} from '@/components/hrm/ui';
 import { router, useForm } from '@inertiajs/react';
 import type { FormEvent } from 'react';
 import { route } from 'ziggy-js';
-import { Card, Empty, Field, Page, Pagination, Select, StatusBadge, TextInput, formatDate, idOptions, personName, primaryButton, secondaryButton, type Options, type Paginated } from '@/components/hrm/ui';
 
 type LeaveRequest = {
     id: number;
@@ -36,7 +53,9 @@ export default function LeaveRequestsIndex(props: Props) {
 
     const apply = (event: FormEvent) => {
         event.preventDefault();
-        router.get(route('erp.hrm.leave.requests.index'), Object.fromEntries(Object.entries(filters.data).filter(([, v]) => v !== '')), { preserveState: true });
+        router.get(route('erp.hrm.leave.requests.index'), Object.fromEntries(Object.entries(filters.data).filter(([, v]) => v !== '')), {
+            preserveState: true,
+        });
     };
 
     return (
@@ -58,7 +77,8 @@ export default function LeaveRequestsIndex(props: Props) {
         >
             {!props.hasEmployeeRecord && !props.canApprove && (
                 <p className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-                    Your user account is not linked to an employee record yet, so you cannot request leave. Ask HR to link it on your employee profile.
+                    Your user account is not linked to an employee record yet, so you cannot request leave. Ask HR to link it on your employee
+                    profile.
                 </p>
             )}
 
@@ -70,10 +90,20 @@ export default function LeaveRequestsIndex(props: Props) {
                         </Field>
                     )}
                     <Field label="Status">
-                        <Select value={filters.data.status} onChange={(v) => filters.setData('status', v)} options={props.statusOptions} placeholder="All" />
+                        <Select
+                            value={filters.data.status}
+                            onChange={(v) => filters.setData('status', v)}
+                            options={props.statusOptions}
+                            placeholder="All"
+                        />
                     </Field>
                     <Field label="Leave type">
-                        <Select value={filters.data.leave_type_id} onChange={(v) => filters.setData('leave_type_id', v)} options={idOptions(props.leaveTypes, (t) => t.name)} placeholder="All" />
+                        <Select
+                            value={filters.data.leave_type_id}
+                            onChange={(v) => filters.setData('leave_type_id', v)}
+                            options={idOptions(props.leaveTypes, (t) => t.name)}
+                            placeholder="All"
+                        />
                     </Field>
                     <Field label="From">
                         <TextInput type="date" value={filters.data.date_from} onChange={(v) => filters.setData('date_from', v)} />
@@ -109,11 +139,14 @@ export default function LeaveRequestsIndex(props: Props) {
                         </thead>
                         <tbody>
                             {props.requests.data.map((request) => (
-                                <tr key={request.id} className="border-t">
+                                <tr key={request.id} className="hover:bg-muted/30 border-t">
                                     <td className="px-4 py-3">{personName(request.employee)}</td>
                                     <td className="px-4 py-3">
                                         <span className="flex items-center gap-2">
-                                            <span className="inline-block size-2.5 rounded-full" style={{ backgroundColor: request.leave_type?.color ?? '#94a3b8' }} />
+                                            <span
+                                                className="inline-block size-2.5 rounded-full"
+                                                style={{ backgroundColor: request.leave_type?.color ?? '#94a3b8' }}
+                                            />
                                             {request.leave_type?.name ?? '—'}
                                         </span>
                                     </td>
@@ -125,9 +158,7 @@ export default function LeaveRequestsIndex(props: Props) {
                                         <StatusBadge value={request.status} label={props.statusOptions[request.status]} />
                                     </td>
                                     <td className="px-4 py-3 text-right">
-                                        <a href={route('erp.hrm.leave.requests.show', request.id)} className="text-primary underline">
-                                            View
-                                        </a>
+                                        <RecordActions viewHref={route('erp.hrm.leave.requests.show', request.id)} />
                                     </td>
                                 </tr>
                             ))}

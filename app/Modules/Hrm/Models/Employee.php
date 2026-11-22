@@ -5,7 +5,6 @@ namespace App\Modules\Hrm\Models;
 use App\Models\User;
 use App\Modules\Core\Models\Company;
 use App\Modules\Core\Models\Concerns\BelongsToCompany;
-use App\Modules\Core\Models\Scopes\CompanyScope;
 use App\Modules\Hrm\Enums\ContractStatus;
 use App\Modules\Hrm\Enums\EmployeeStatus;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -156,6 +155,31 @@ class Employee extends Model
     public function getFullNameAttribute(): string
     {
         return implode(' ', array_filter([$this->first_name, $this->middle_name, $this->last_name], fn ($part) => filled($part)));
+    }
+
+    /**
+     * HR history that deleting the employee would wipe out (those tables
+     * cascade). An employee with any of it is terminated instead.
+     *
+     * @return list<string>
+     */
+    public function historyLabels(): array
+    {
+        $labels = [];
+        foreach ([
+            'contracts' => 'contracts',
+            'leaveRequests' => 'leave requests',
+            'disciplinaryCases' => 'disciplinary cases',
+            'selfServiceRequests' => 'self-service requests',
+            'documents' => 'documents',
+            'transfers' => 'transfers',
+        ] as $relation => $label) {
+            if ($this->{$relation}()->exists()) {
+                $labels[] = $label;
+            }
+        }
+
+        return $labels;
     }
 
     public function canBeTerminated(): bool

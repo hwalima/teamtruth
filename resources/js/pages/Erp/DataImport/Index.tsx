@@ -1,8 +1,8 @@
+import { Card, Checkbox, Empty, Field, Page, Select, StatusBadge, formatDate, humanize, primaryButton, type Options } from '@/components/hrm/ui';
 import { useForm } from '@inertiajs/react';
 import { FileUp } from 'lucide-react';
 import { useState, type FormEvent } from 'react';
 import { route } from 'ziggy-js';
-import { Card, Checkbox, Empty, Field, Page, Select, StatusBadge, formatDate, humanize, primaryButton, type Options } from '@/components/hrm/ui';
 
 export type ImportItem = {
     id: number;
@@ -40,6 +40,7 @@ export default function DataImportIndex({ company, models, locations, imports }:
         update_existing: boolean;
         reference_as_sku: boolean;
         create_as: string;
+        name_order: string;
     }>({
         file: null,
         model: '',
@@ -48,6 +49,7 @@ export default function DataImportIndex({ company, models, locations, imports }:
         update_existing: true,
         reference_as_sku: false,
         create_as: 'auto',
+        name_order: 'last_first',
     });
 
     const [dragging, setDragging] = useState(false);
@@ -127,9 +129,21 @@ export default function DataImportIndex({ company, models, locations, imports }:
                                 />
                             </Field>
                             <div className="space-y-2 md:col-span-2">
-                                <Checkbox label="Bring across the quantity on hand as opening stock" checked={form.data.import_stock} onChange={(v) => form.setData('import_stock', v)} />
-                                <Checkbox label="Update products imported before (matched by Odoo ID, name or barcode)" checked={form.data.update_existing} onChange={(v) => form.setData('update_existing', v)} />
-                                <Checkbox label="Use Odoo's Internal Reference as the SKU when it is unique" checked={form.data.reference_as_sku} onChange={(v) => form.setData('reference_as_sku', v)} />
+                                <Checkbox
+                                    label="Bring across the quantity on hand as opening stock"
+                                    checked={form.data.import_stock}
+                                    onChange={(v) => form.setData('import_stock', v)}
+                                />
+                                <Checkbox
+                                    label="Update products imported before (matched by Odoo ID, name or barcode)"
+                                    checked={form.data.update_existing}
+                                    onChange={(v) => form.setData('update_existing', v)}
+                                />
+                                <Checkbox
+                                    label="Use Odoo's Internal Reference as the SKU when it is unique"
+                                    checked={form.data.reference_as_sku}
+                                    onChange={(v) => form.setData('reference_as_sku', v)}
+                                />
                             </div>
                         </>
                     )}
@@ -139,9 +153,37 @@ export default function DataImportIndex({ company, models, locations, imports }:
                             <Select
                                 value={form.data.create_as}
                                 onChange={(value) => form.setData('create_as', value)}
-                                options={{ auto: 'As in Odoo (vendor / customer rank)', vendor: 'Vendors', customer: 'Customers', both: 'Both vendors and customers' }}
+                                options={{
+                                    auto: 'As in Odoo (vendor / customer rank)',
+                                    vendor: 'Vendors',
+                                    customer: 'Customers',
+                                    both: 'Both vendors and customers',
+                                }}
                             />
                         </Field>
+                    )}
+
+                    {model === 'hr.employee' && (
+                        <>
+                            <Field label="Names in the file are written" error={form.errors.name_order}>
+                                <Select
+                                    value={form.data.name_order}
+                                    onChange={(value) => form.setData('name_order', value)}
+                                    options={{ last_first: 'Surname first (Doe Jane)', first_last: 'First name first (Jane Doe)' }}
+                                />
+                            </Field>
+                            <div className="space-y-2 md:col-span-2">
+                                <Checkbox
+                                    label="Update employees imported before (matched by Odoo ID or name)"
+                                    checked={form.data.update_existing}
+                                    onChange={(v) => form.setData('update_existing', v)}
+                                />
+                                <p className="text-muted-foreground text-xs">
+                                    Job titles become positions and missing departments are created. Check the preview: it shows how each name was
+                                    split.
+                                </p>
+                            </div>
+                        </>
                     )}
 
                     <div className="md:col-span-2">
@@ -154,10 +196,13 @@ export default function DataImportIndex({ company, models, locations, imports }:
                 <div className="text-muted-foreground mt-6 space-y-1 border-t pt-4 text-sm">
                     <p className="text-foreground font-medium">Exporting from Odoo</p>
                     <p>
-                        In Odoo, select the records, then Action → Export. Tick <strong>“I want to update data (import-compatible export)”</strong> so the file carries
-                        Odoo's IDs: importing an updated file later then changes the same records instead of adding new ones.
+                        In Odoo, select the records, then Action → Export. Tick <strong>“I want to update data (import-compatible export)”</strong> so
+                        the file carries Odoo's IDs: importing an updated file later then changes the same records instead of adding new ones.
                     </p>
-                    <p>Import contacts (vendors and customers) and products in any order: vendors named on products are matched to the contacts by name.</p>
+                    <p>
+                        Employees come from Employees → Action → Export. Import contacts (vendors and customers) and products in any order: vendors
+                        named on products are matched to the contacts by name.
+                    </p>
                     <p>Every column is kept, including ones this system has no field for; you will find them on the record under its Odoo details.</p>
                 </div>
             </Card>
@@ -210,6 +255,7 @@ function guessModel(fileName: string): string {
     const name = fileName.toLowerCase();
     if (name.includes('(product.template)') || name.includes('(product.product)')) return 'product.template';
     if (name.includes('(res.partner)')) return 'res.partner';
+    if (name.includes('(hr.employee)')) return 'hr.employee';
     return '';
 }
 
@@ -217,9 +263,12 @@ export function CompanyBanner({ company, done = false }: { company: { code: stri
     return (
         <div className="border-primary/30 bg-primary/5 flex flex-wrap items-center justify-between gap-2 rounded-xl border px-4 py-3 text-sm">
             <span>
-                {done ? 'Imported into' : 'Importing into'} <strong className="text-base">{company.name}</strong> <span className="text-muted-foreground">({company.code})</span>
+                {done ? 'Imported into' : 'Importing into'} <strong className="text-base">{company.name}</strong>{' '}
+                <span className="text-muted-foreground">({company.code})</span>
             </span>
-            {!done && <span className="text-muted-foreground text-xs">Wrong company? Switch company first, from the company switcher in the sidebar.</span>}
+            {!done && (
+                <span className="text-muted-foreground text-xs">Wrong company? Switch company first, from the company switcher in the sidebar.</span>
+            )}
         </div>
     );
 }

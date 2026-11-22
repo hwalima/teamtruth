@@ -1,7 +1,23 @@
+import { RecordActions } from '@/components/erp/record-actions';
+import {
+    Card,
+    Empty,
+    Field,
+    Page,
+    Pagination,
+    Select,
+    StatusBadge,
+    TextInput,
+    formatDate,
+    personName,
+    primaryButton,
+    secondaryButton,
+    type Options,
+    type Paginated,
+} from '@/components/hrm/ui';
 import { router, useForm } from '@inertiajs/react';
 import type { FormEvent } from 'react';
 import { route } from 'ziggy-js';
-import { Card, Empty, Field, Page, Pagination, Select, StatusBadge, TextInput, formatDate, personName, primaryButton, secondaryButton, type Options, type Paginated } from '@/components/hrm/ui';
 
 type Person = { id: number; employee_number: string; first_name: string; middle_name: string | null; last_name: string };
 type SelfServiceRequest = {
@@ -33,18 +49,30 @@ const quickRequests: [string, string][] = [
 ];
 
 export default function SelfServiceIndex(props: Props) {
-    const filters = useForm({ search: props.filters.search ?? '', status: props.filters.status ?? '', request_type: props.filters.request_type ?? '' });
+    const filters = useForm({
+        search: props.filters.search ?? '',
+        status: props.filters.status ?? '',
+        request_type: props.filters.request_type ?? '',
+    });
     const mine = Boolean(props.filters.mine);
 
     const apply = (event: FormEvent) => {
         event.preventDefault();
-        router.get(route('erp.hrm.self-service.index'), Object.fromEntries(Object.entries({ ...filters.data, mine: mine ? '1' : '' }).filter(([, v]) => v !== '')), { preserveState: true });
+        router.get(
+            route('erp.hrm.self-service.index'),
+            Object.fromEntries(Object.entries({ ...filters.data, mine: mine ? '1' : '' }).filter(([, v]) => v !== '')),
+            { preserveState: true },
+        );
     };
 
     return (
         <Page
             title={props.canManage && !mine ? 'Self-service requests' : 'My HR'}
-            subtitle={props.canManage && !mine ? `Requests from employees of ${props.company.name}` : 'Your requests to HR, contracts to sign and other records'}
+            subtitle={
+                props.canManage && !mine
+                    ? `Requests from employees of ${props.company.name}`
+                    : 'Your requests to HR, contracts to sign and other records'
+            }
             actions={
                 <>
                     {props.canManage && props.hasEmployeeRecord && (
@@ -61,13 +89,20 @@ export default function SelfServiceIndex(props: Props) {
             }
         >
             {!props.hasEmployeeRecord && !props.canManage && (
-                <Empty>Your user account is not linked to an employee record yet. Ask HR to link it on your employee profile, then you can send requests here.</Empty>
+                <Empty>
+                    Your user account is not linked to an employee record yet. Ask HR to link it on your employee profile, then you can send requests
+                    here.
+                </Empty>
             )}
 
             {props.myRecords && (!props.canManage || mine) && (
                 <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                     {quickRequests.map(([type, label]) => (
-                        <a key={type} href={route('erp.hrm.self-service.create', { type })} className="hover:bg-muted/40 rounded-xl border p-4 text-sm font-medium">
+                        <a
+                            key={type}
+                            href={route('erp.hrm.self-service.create', { type })}
+                            className="hover:bg-muted/40 rounded-xl border p-4 text-sm font-medium"
+                        >
                             {label} →
                         </a>
                     ))}
@@ -90,7 +125,10 @@ export default function SelfServiceIndex(props: Props) {
             )}
 
             {props.myRecords && props.myRecords.openCases > 0 && (
-                <a href={route('erp.hrm.disciplinary.index')} className="block rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                <a
+                    href={route('erp.hrm.disciplinary.index')}
+                    className="block rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900"
+                >
                     You have {props.myRecords.openCases} open disciplinary case(s). View →
                 </a>
             )}
@@ -113,10 +151,20 @@ export default function SelfServiceIndex(props: Props) {
                             <TextInput value={filters.data.search} onChange={(v) => filters.setData('search', v)} placeholder="Name or number" />
                         </Field>
                         <Field label="Status">
-                            <Select value={filters.data.status} onChange={(v) => filters.setData('status', v)} options={props.statusOptions} placeholder="All" />
+                            <Select
+                                value={filters.data.status}
+                                onChange={(v) => filters.setData('status', v)}
+                                options={props.statusOptions}
+                                placeholder="All"
+                            />
                         </Field>
                         <Field label="Type">
-                            <Select value={filters.data.request_type} onChange={(v) => filters.setData('request_type', v)} options={props.typeOptions} placeholder="All" />
+                            <Select
+                                value={filters.data.request_type}
+                                onChange={(v) => filters.setData('request_type', v)}
+                                options={props.typeOptions}
+                                placeholder="All"
+                            />
                         </Field>
                         <div className="flex items-end gap-2">
                             <button type="submit" className={primaryButton}>
@@ -147,7 +195,7 @@ export default function SelfServiceIndex(props: Props) {
                         </thead>
                         <tbody>
                             {props.requests.data.map((r) => (
-                                <tr key={r.id} className="border-t">
+                                <tr key={r.id} className="hover:bg-muted/30 border-t">
                                     {props.canManage && !mine && <td className="px-4 py-3">{personName(r.employee)}</td>}
                                     <td className="px-4 py-3">
                                         <div className="font-medium">{props.typeOptions[r.request_type]}</div>
@@ -159,9 +207,7 @@ export default function SelfServiceIndex(props: Props) {
                                     </td>
                                     <td className="px-4 py-3">{r.processed_by?.name ?? '—'}</td>
                                     <td className="px-4 py-3 text-right">
-                                        <a href={route('erp.hrm.self-service.show', r.id)} className="text-primary underline">
-                                            Open
-                                        </a>
+                                        <RecordActions viewHref={route('erp.hrm.self-service.show', r.id)} />
                                     </td>
                                 </tr>
                             ))}

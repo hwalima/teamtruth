@@ -555,6 +555,9 @@ Route::middleware(['auth', 'verified'])->prefix('erp')->name('erp.')->group(func
         Route::put('employees/{employee}', [\App\Modules\Hrm\Http\Controllers\EmployeeController::class, 'update'])
             ->middleware('erp.permission:erp.hrm.employee.manage')
             ->name('employees.update');
+        Route::delete('employees/{employee}', [\App\Modules\Hrm\Http\Controllers\EmployeeController::class, 'destroy'])
+            ->middleware('erp.permission:erp.hrm.employee.manage')
+            ->name('employees.destroy');
         Route::post('employees/{employee}/terminate', [\App\Modules\Hrm\Http\Controllers\EmployeeController::class, 'terminate'])
             ->middleware('erp.permission:erp.hrm.employee.manage')
             ->name('employees.terminate');

@@ -1,7 +1,23 @@
+import { RecordActions } from '@/components/erp/record-actions';
+import {
+    Card,
+    Empty,
+    Field,
+    Page,
+    Pagination,
+    Select,
+    StatusBadge,
+    TextInput,
+    formatDate,
+    personName,
+    primaryButton,
+    secondaryButton,
+    type Options,
+    type Paginated,
+} from '@/components/hrm/ui';
 import { router, useForm } from '@inertiajs/react';
 import type { FormEvent } from 'react';
 import { route } from 'ziggy-js';
-import { Card, Empty, Field, Page, Pagination, Select, StatusBadge, TextInput, formatDate, personName, primaryButton, secondaryButton, type Options, type Paginated } from '@/components/hrm/ui';
 
 type Contract = {
     id: number;
@@ -34,11 +50,17 @@ function signatures(contract: Contract): string {
 }
 
 export default function ContractsIndex(props: Props) {
-    const filters = useForm({ search: props.filters.search ?? '', status: props.filters.status ?? '', contract_type: props.filters.contract_type ?? '' });
+    const filters = useForm({
+        search: props.filters.search ?? '',
+        status: props.filters.status ?? '',
+        contract_type: props.filters.contract_type ?? '',
+    });
 
     const apply = (event: FormEvent) => {
         event.preventDefault();
-        router.get(route('erp.hrm.contracts.index'), Object.fromEntries(Object.entries(filters.data).filter(([, v]) => v !== '')), { preserveState: true });
+        router.get(route('erp.hrm.contracts.index'), Object.fromEntries(Object.entries(filters.data).filter(([, v]) => v !== '')), {
+            preserveState: true,
+        });
     };
 
     return (
@@ -74,10 +96,20 @@ export default function ContractsIndex(props: Props) {
                         <TextInput value={filters.data.search} onChange={(v) => filters.setData('search', v)} placeholder="Name or number" />
                     </Field>
                     <Field label="Status">
-                        <Select value={filters.data.status} onChange={(v) => filters.setData('status', v)} options={props.statusOptions} placeholder="All" />
+                        <Select
+                            value={filters.data.status}
+                            onChange={(v) => filters.setData('status', v)}
+                            options={props.statusOptions}
+                            placeholder="All"
+                        />
                     </Field>
                     <Field label="Type">
-                        <Select value={filters.data.contract_type} onChange={(v) => filters.setData('contract_type', v)} options={props.typeOptions} placeholder="All" />
+                        <Select
+                            value={filters.data.contract_type}
+                            onChange={(v) => filters.setData('contract_type', v)}
+                            options={props.typeOptions}
+                            placeholder="All"
+                        />
                     </Field>
                     <div className="flex items-end gap-2">
                         <button type="submit" className={primaryButton}>
@@ -100,14 +132,16 @@ export default function ContractsIndex(props: Props) {
                                 <th className="px-4 py-3 font-medium">Employee</th>
                                 <th className="px-4 py-3 font-medium">Type</th>
                                 <th className="px-4 py-3 font-medium">Period</th>
-                                {props.contracts.data.some((c) => c.basic_salary !== undefined) && <th className="px-4 py-3 text-right font-medium">Salary</th>}
+                                {props.contracts.data.some((c) => c.basic_salary !== undefined) && (
+                                    <th className="px-4 py-3 text-right font-medium">Salary</th>
+                                )}
                                 <th className="px-4 py-3 font-medium">Status</th>
                                 <th className="px-4 py-3" />
                             </tr>
                         </thead>
                         <tbody>
                             {props.contracts.data.map((contract) => (
-                                <tr key={contract.id} className="border-t">
+                                <tr key={contract.id} className="hover:bg-muted/30 border-t">
                                     <td className="px-4 py-3">
                                         <div className="font-medium">{personName(contract.employee)}</div>
                                         <div className="text-muted-foreground text-xs">{contract.employee?.employee_number}</div>
@@ -118,7 +152,8 @@ export default function ContractsIndex(props: Props) {
                                     </td>
                                     {contract.basic_salary !== undefined && (
                                         <td className="px-4 py-3 text-right">
-                                            {contract.currency_code} {Number(contract.basic_salary).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                            {contract.currency_code}{' '}
+                                            {Number(contract.basic_salary).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                                         </td>
                                     )}
                                     <td className="px-4 py-3">
@@ -126,9 +161,7 @@ export default function ContractsIndex(props: Props) {
                                         <div className="text-muted-foreground mt-1 text-xs">{signatures(contract)}</div>
                                     </td>
                                     <td className="px-4 py-3 text-right">
-                                        <a href={route('erp.hrm.contracts.show', contract.id)} className="text-primary underline">
-                                            Open
-                                        </a>
+                                        <RecordActions viewHref={route('erp.hrm.contracts.show', contract.id)} />
                                     </td>
                                 </tr>
                             ))}

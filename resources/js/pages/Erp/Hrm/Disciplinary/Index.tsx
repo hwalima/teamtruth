@@ -1,7 +1,23 @@
+import { RecordActions } from '@/components/erp/record-actions';
+import {
+    Card,
+    Empty,
+    Field,
+    Page,
+    Pagination,
+    Select,
+    StatusBadge,
+    TextInput,
+    formatDate,
+    personName,
+    primaryButton,
+    secondaryButton,
+    type Options,
+    type Paginated,
+} from '@/components/hrm/ui';
 import { router, useForm } from '@inertiajs/react';
 import type { FormEvent } from 'react';
 import { route } from 'ziggy-js';
-import { Card, Empty, Field, Page, Pagination, Select, StatusBadge, TextInput, formatDate, personName, primaryButton, secondaryButton, type Options, type Paginated } from '@/components/hrm/ui';
 
 type DisciplinaryCase = {
     id: number;
@@ -28,7 +44,9 @@ export default function DisciplinaryIndex(props: Props) {
 
     const apply = (event: FormEvent) => {
         event.preventDefault();
-        router.get(route('erp.hrm.disciplinary.index'), Object.fromEntries(Object.entries(filters.data).filter(([, v]) => v !== '')), { preserveState: true });
+        router.get(route('erp.hrm.disciplinary.index'), Object.fromEntries(Object.entries(filters.data).filter(([, v]) => v !== '')), {
+            preserveState: true,
+        });
     };
 
     return (
@@ -47,13 +65,27 @@ export default function DisciplinaryIndex(props: Props) {
                 <Card>
                     <form onSubmit={apply} className="grid gap-3 sm:grid-cols-4">
                         <Field label="Search">
-                            <TextInput value={filters.data.search} onChange={(v) => filters.setData('search', v)} placeholder="Case number or employee" />
+                            <TextInput
+                                value={filters.data.search}
+                                onChange={(v) => filters.setData('search', v)}
+                                placeholder="Case number or employee"
+                            />
                         </Field>
                         <Field label="Status">
-                            <Select value={filters.data.status} onChange={(v) => filters.setData('status', v)} options={props.statusOptions} placeholder="All" />
+                            <Select
+                                value={filters.data.status}
+                                onChange={(v) => filters.setData('status', v)}
+                                options={props.statusOptions}
+                                placeholder="All"
+                            />
                         </Field>
                         <Field label="Outcome">
-                            <Select value={filters.data.outcome} onChange={(v) => filters.setData('outcome', v)} options={props.outcomeOptions} placeholder="All" />
+                            <Select
+                                value={filters.data.outcome}
+                                onChange={(v) => filters.setData('outcome', v)}
+                                options={props.outcomeOptions}
+                                placeholder="All"
+                            />
                         </Field>
                         <div className="flex items-end gap-2">
                             <button type="submit" className={primaryButton}>
@@ -84,7 +116,7 @@ export default function DisciplinaryIndex(props: Props) {
                         </thead>
                         <tbody>
                             {props.cases.data.map((c) => (
-                                <tr key={c.id} className="border-t">
+                                <tr key={c.id} className="hover:bg-muted/30 border-t">
                                     <td className="px-4 py-3 font-mono text-xs">{c.case_number}</td>
                                     <td className="px-4 py-3">{personName(c.employee)}</td>
                                     <td className="px-4 py-3">{formatDate(c.incident_date)}</td>
@@ -93,12 +125,12 @@ export default function DisciplinaryIndex(props: Props) {
                                     </td>
                                     <td className="px-4 py-3">
                                         {c.outcome ? props.outcomeOptions[c.outcome] : '—'}
-                                        {c.expiry_date && <div className="text-muted-foreground text-xs">on record until {formatDate(c.expiry_date)}</div>}
+                                        {c.expiry_date && (
+                                            <div className="text-muted-foreground text-xs">on record until {formatDate(c.expiry_date)}</div>
+                                        )}
                                     </td>
                                     <td className="px-4 py-3 text-right">
-                                        <a href={route('erp.hrm.disciplinary.show', c.id)} className="text-primary underline">
-                                            Open
-                                        </a>
+                                        <RecordActions viewHref={route('erp.hrm.disciplinary.show', c.id)} />
                                     </td>
                                 </tr>
                             ))}

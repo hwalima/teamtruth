@@ -58,6 +58,7 @@ class DataImportController extends Controller
             'update_existing' => ['nullable', 'boolean'],
             'reference_as_sku' => ['nullable', 'boolean'],
             'create_as' => ['nullable', Rule::in(['auto', 'vendor', 'customer', 'both'])],
+            'name_order' => ['nullable', Rule::in(['last_first', 'first_last'])],
         ]);
 
         $options = array_filter([
@@ -66,6 +67,7 @@ class DataImportController extends Controller
             'update_existing' => $request->boolean('update_existing', true),
             'reference_as_sku' => $request->boolean('reference_as_sku'),
             'create_as' => $validated['create_as'] ?? 'auto',
+            'name_order' => $validated['name_order'] ?? 'last_first',
         ], fn ($value) => $value !== null);
 
         $import = $this->imports->upload($company, $request->user(), $validated['file'], $validated['model'] ?? null, $options);
