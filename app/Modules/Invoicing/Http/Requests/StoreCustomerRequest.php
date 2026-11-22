@@ -2,6 +2,8 @@
 
 namespace App\Modules\Invoicing\Http\Requests;
 
+use App\Modules\Core\Services\CompanyContext;
+use App\Modules\Core\Services\ErpRoleService;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -9,13 +11,20 @@ class StoreCustomerRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user()->can('erp.invoicing.manage');
+        return app(ErpRoleService::class)->allows(
+            app(CompanyContext::class)->requireActiveCompany(),
+            $this->user(),
+            'erp.invoicing.manage',
+        );
     }
 
     public function rules(): array
     {
         return [
-            'code' => ['required', 'string', 'max:50', Rule::unique('inv_customers')->where('company_id', $this->user()->currentCompany?->id)],
+            'code' => ['required', 'string', 'max:50', Rule::unique('inv_customers')
+                ->where('company_id', app(CompanyContext::class)->requireActiveCompany()->id)
+                ->whereNull('deleted_at')
+                ->ignore($this->route('customer'))],
             'name' => ['required', 'string', 'max:255'],
             'tax_no' => ['nullable', 'string', 'max:50'],
             'email' => ['nullable', 'email', 'max:255'],

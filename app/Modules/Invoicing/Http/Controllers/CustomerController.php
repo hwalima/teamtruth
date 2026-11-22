@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Modules\Core\Services\CompanyContext;
 use App\Modules\Invoicing\Http\Requests\StoreCustomerRequest;
 use App\Modules\Invoicing\Models\Customer;
+use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
 

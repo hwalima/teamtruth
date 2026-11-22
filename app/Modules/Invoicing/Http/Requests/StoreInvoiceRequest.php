@@ -2,6 +2,8 @@
 
 namespace App\Modules\Invoicing\Http\Requests;
 
+use App\Modules\Core\Services\CompanyContext;
+use App\Modules\Core\Services\ErpRoleService;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -9,7 +11,11 @@ class StoreInvoiceRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user()->can('erp.invoicing.manage');
+        return app(ErpRoleService::class)->allows(
+            app(CompanyContext::class)->requireActiveCompany(),
+            $this->user(),
+            'erp.invoicing.manage',
+        );
     }
 
     public function rules(): array
