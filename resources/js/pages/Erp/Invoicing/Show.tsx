@@ -85,7 +85,7 @@ type Invoice = {
     created_at: string;
     updated_at: string;
 };
-type Company = { id: number; code: string; name: string; default_currency: string; branding: { logo_url: string | null; letterhead_url: string | null } | null; signatories: Array<{ name: string; title: string; signature_url: string | null }> | null };
+type Company = { id: number; code: string; name: string; default_currency: string; branding: { logo_url: string | null } | null; signatories: Array<{ name: string; title: string; signature_url: string | null }> | null };
 type Props = {
     company: Company;
     invoice: Invoice;

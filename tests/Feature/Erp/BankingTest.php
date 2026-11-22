@@ -10,6 +10,7 @@ use App\Modules\Core\Models\Company;
 use App\Modules\Core\Services\CompanyContext;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\View;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
@@ -53,6 +54,8 @@ function statementSheet(Worksheet $sheet, string $title, string $holderLine, str
 function statementWorkbook(): UploadedFile
 {
     $book = new Spreadsheet;
+    // A fixed timestamp keeps the file byte-identical between calls, so duplicate detection is testable.
+    $book->getProperties()->setCreated(1790000000)->setModified(1790000000);
     // 46296 = 1 Oct 2026.
     statementSheet($book->getActiveSheet(), 'Alpha ', 'Sample Holdings Account', 'Account No: 200201', [46296, 100, null], [
         [46296, 'Cash Dep', 'Takings', null, 250.5],
@@ -184,6 +187,29 @@ test('statements download as PDF and Excel for a period', function () {
         ->not->toContain('Takings')
         ->and(collect($rows)->firstWhere(2, 'Balance brought forward')[6])->toBe(350.5)
         ->and(collect($rows)->firstWhere(2, 'Totals / closing balance')[6])->toBe(-29.75);
+});
+
+test('a statement carries the account holder company branding, not the active company', function () {
+    importStatements();
+    $alpha = BankAccount::query()->where('account_number', '200201')->sole();
+    $holdings = $alpha->company;
+    expect($holdings->id)->not->toBe($this->company->id);
+    $holdings->branding()->create(['primary_color' => '#0a7d4f', 'accent_color' => '#f5a623']);
+
+    $rendered = null;
+    View::composer('pdf.documents.bank-statement', function ($view) use (&$rendered): void {
+        $rendered = $view->getData()['company']->id;
+    });
+    $this->get(route('erp.banking.accounts.statement', ['account' => $alpha, 'format' => 'pdf']))->assertOk();
+    expect($rendered)->toBe($holdings->id)
+        ->and(app(CompanyContext::class)->activeCompany()->id)->toBe($this->company->id);
+
+    $xlsx = $this->get(route('erp.banking.accounts.statement', ['account' => $alpha, 'format' => 'xlsx']));
+    $path = tempnam(sys_get_temp_dir(), 'st').'.xlsx';
+    file_put_contents($path, $xlsx->streamedContent());
+    $sheet = IOFactory::load($path)->getActiveSheet();
+    $headerRow = collect($sheet->toArray(null, true, false))->search(fn ($row) => $row[0] === 'Date') + 1;
+    expect($sheet->getStyle("A{$headerRow}")->getFill()->getStartColor()->getRGB())->toBe('0A7D4F');
 });
 
 test('money moves between companies by transfer, and hand-entered lines can be removed', function () {

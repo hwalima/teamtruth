@@ -35,8 +35,8 @@ test('a user can create a company and becomes its owner', function () {
     $this->actingAs($user)
         ->post(route('erp.companies.store'), [
             'code' => 'tvf',
-            'name' => 'Talen Vision Foods',
-            'legal_name' => 'Talen Vision Foods (Private) Limited',
+            'name' => 'Sample Foods',
+            'legal_name' => 'Sample Foods (Private) Limited',
         ])
         ->assertRedirect(route('erp.companies.index'));
 
@@ -69,7 +69,7 @@ test('a user cannot enter a company they do not belong to', function () {
     $owner = User::factory()->create();
     $company = Company::create([
         'code' => 'TVF',
-        'name' => 'Talen Vision Foods',
+        'name' => 'Sample Foods',
     ]);
     $company->users()->attach($owner->id, [
         'role' => 'owner',
@@ -86,7 +86,7 @@ test('inactive company memberships cannot access the ERP', function () {
     $user = User::factory()->create();
     $company = Company::create([
         'code' => 'TVF',
-        'name' => 'Talen Vision Foods',
+        'name' => 'Sample Foods',
     ]);
     $company->users()->attach($user->id, [
         'role' => 'owner',
@@ -103,7 +103,7 @@ test('a company switch requires an active membership', function () {
     $member = User::factory()->create();
     $company = Company::create([
         'code' => 'TVF',
-        'name' => 'Talen Vision Foods',
+        'name' => 'Sample Foods',
     ]);
     $company->users()->attach($member->id, [
         'role' => 'owner',
@@ -131,7 +131,7 @@ test('a company switch requires an active membership', function () {
 test('company branding and signatories are associated with their company', function () {
     $company = Company::create([
         'code' => 'TVF',
-        'name' => 'Talen Vision Foods',
+        'name' => 'Sample Foods',
     ]);
 
     $company->branding()->create([
@@ -153,7 +153,7 @@ test('company owners can update company document branding', function () {
     $user = User::factory()->create();
     $company = Company::create([
         'code' => 'TVF',
-        'name' => 'Talen Vision Foods',
+        'name' => 'Sample Foods',
     ]);
     $company->users()->attach($user->id, [
         'role' => 'owner',
@@ -164,8 +164,8 @@ test('company owners can update company document branding', function () {
     $this->actingAs($user)
         ->withSession(['active_erp_company_id' => $company->id])
         ->patch(route('erp.settings.branding.update'), [
-            'name' => 'Talen Vision Foods',
-            'legal_name' => 'Talen Vision Foods (Private) Limited',
+            'name' => 'Sample Foods',
+            'legal_name' => 'Sample Foods (Private) Limited',
             'default_currency' => 'USD',
             'primary_color' => '#123456',
             'secondary_color' => '#234567',
@@ -176,7 +176,7 @@ test('company owners can update company document branding', function () {
 
     $this->assertSame('#123456', $company->fresh()->branding->primary_color);
     $this->assertSame('#345678', $company->fresh()->branding->accent_color);
-    $this->assertSame('Talen Vision Foods (Private) Limited', $company->fresh()->legal_name);
+    $this->assertSame('Sample Foods (Private) Limited', $company->fresh()->legal_name);
     $this->assertDatabaseHas('audit_events', [
         'company_id' => $company->id,
         'actor_id' => $user->id,
@@ -186,12 +186,8 @@ test('company owners can update company document branding', function () {
 
 test('company owners can save branding and logo with a multipart method-spoofed request', function () {
     Storage::fake('public');
-    $pdf = new Fpdi('P', 'pt');
-    $pdf->AddPage();
-    $pdf->SetFillColor(252, 185, 19);
-    $pdf->Rect(0, 0, 24, 842, 'F');
     $user = User::factory()->create();
-    $company = Company::create(['code' => 'IPA', 'name' => 'Ivinar Park Academy']);
+    $company = Company::create(['code' => 'SAC', 'name' => 'Sample Academy']);
     $company->users()->attach($user->id, ['role' => 'owner', 'is_active' => true]);
     Currency::create(['name' => 'US Dollar', 'code' => 'USD', 'symbol' => '$']);
 
@@ -199,14 +195,13 @@ test('company owners can save branding and logo with a multipart method-spoofed 
         ->withSession(['active_erp_company_id' => $company->id])
         ->post(route('erp.settings.branding.update'), [
             '_method' => 'PATCH',
-            'name' => 'Ivinar Park Academy',
+            'name' => 'Sample Academy',
             'default_currency' => 'USD',
             'primary_color' => '#0a0a0a',
             'secondary_color' => '#0a0a0a',
             'accent_color' => '#fcb913',
-            'letterhead_footer_text' => 'Ivinar Park Academy',
-            'logo' => UploadedFile::fake()->image('ipa-logo.png'),
-            'letterhead' => UploadedFile::fake()->createWithContent('ipa-letterhead.pdf', $pdf->Output('S')),
+            'letterhead_footer_text' => 'Sample Academy footer',
+            'logo' => UploadedFile::fake()->image('sample-logo.png'),
         ])
         ->assertRedirect();
 
@@ -214,15 +209,14 @@ test('company owners can save branding and logo with a multipart method-spoofed 
     expect($branding->primary_color)->toBe('#0a0a0a')
         ->and($branding->secondary_color)->toBe('#0a0a0a')
         ->and($branding->accent_color)->toBe('#fcb913')
-        ->and($branding->letterhead_path)->toContain("erp/companies/{$company->id}/branding/");
+        ->and($branding->logo_path)->toContain("erp/companies/{$company->id}/branding/");
     Storage::disk('public')->assertExists($branding->logo_path);
-    Storage::disk('public')->assertExists($branding->letterhead_path);
 });
 
 test('company owners can manage document signatories', function () {
     Storage::fake('public');
     $user = User::factory()->create();
-    $company = Company::create(['code' => 'TVF', 'name' => 'Talen Vision Foods']);
+    $company = Company::create(['code' => 'TVF', 'name' => 'Sample Foods']);
     $company->users()->attach($user->id, ['role' => 'owner', 'is_active' => true]);
     $signature = UploadedFile::fake()->image('signature.png');
 
@@ -266,7 +260,7 @@ test('company owners can manage document signatories', function () {
 test('company owners can configure approval workflows for active members', function () {
     $owner = User::factory()->create();
     $approver = User::factory()->create();
-    $company = Company::create(['code' => 'TVF', 'name' => 'Talen Vision Foods']);
+    $company = Company::create(['code' => 'TVF', 'name' => 'Sample Foods']);
     $company->users()->attach($owner->id, ['role' => 'owner', 'is_active' => true]);
     $company->users()->attach($approver->id, ['role' => 'finance', 'is_active' => true]);
     Currency::create(['name' => 'US Dollar', 'code' => 'USD', 'symbol' => '$']);
@@ -362,7 +356,7 @@ test('exchange rates are company-specific and resolve using the effective date',
 
 test('company owners can record exchange rates through the ERP', function () {
     $user = User::factory()->create();
-    $company = Company::create(['code' => 'TVF', 'name' => 'Talen Vision Foods']);
+    $company = Company::create(['code' => 'TVF', 'name' => 'Sample Foods']);
     $company->users()->attach($user->id, ['role' => 'owner', 'is_active' => true]);
     Currency::create(['name' => 'US Dollar', 'code' => 'USD', 'symbol' => '$']);
     Currency::create(['name' => 'Zimbabwe Gold', 'code' => 'ZWG', 'symbol' => 'ZiG']);
@@ -416,7 +410,7 @@ test('approval requests progress through steps and retain immutable signature sn
         $table->timestamps();
     });
 
-    $company = Company::create(['code' => 'TVF', 'name' => 'Talen Vision Foods']);
+    $company = Company::create(['code' => 'TVF', 'name' => 'Sample Foods']);
     $requester = User::factory()->create();
     $financeApprover = User::factory()->create();
     $directorApprover = User::factory()->create();
@@ -490,26 +484,19 @@ test('approval requests progress through steps and retain immutable signature sn
 
 test('the branded PDF sample uses the active company branding', function () {
     Storage::fake('public');
-    $letterhead = new Fpdi('P', 'pt');
-    $letterhead->AddPage();
-    $letterhead->SetFillColor(252, 185, 19);
-    $letterhead->Rect(0, 0, 24, 842, 'F');
 
     $user = User::factory()->create();
     $company = Company::create([
-        'code' => 'TVF',
-        'name' => 'Talen Vision Foods',
-        'legal_name' => 'Talen Vision Foods (Private) Limited',
+        'code' => 'SMF',
+        'name' => 'Sample Foods',
+        'legal_name' => 'Sample Foods (Private) Limited',
     ]);
-    $letterheadPath = "erp/companies/{$company->id}/branding/letterhead.pdf";
-    Storage::disk('public')->put($letterheadPath, $letterhead->Output('S'));
     $company->users()->attach($user->id, ['role' => 'owner', 'is_active' => true]);
     $company->branding()->create([
         'primary_color' => '#123456',
         'secondary_color' => '#234567',
         'accent_color' => '#345678',
         'letterhead_footer_text' => 'Company-specific footer',
-        'letterhead_path' => $letterheadPath,
     ]);
 
     $response = $this->actingAs($user)

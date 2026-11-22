@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <title>{{ $reportTitle ?: $company->name }}</title>
     <style>
-        @page { size: A4 {{ $landscape ? 'landscape' : 'portrait' }}; margin: {{ $hasLetterhead ? '145px 40px 58px 40px' : '26px 30px 52px 30px' }}; }
+        @page { size: A4 {{ $landscape ? 'landscape' : 'portrait' }}; margin: 26px 30px 52px 30px; }
         * { box-sizing: border-box; }
         body { margin: 0; color: #1f2937; font-family: DejaVu Sans, Arial, sans-serif; font-size: 8.5px; line-height: 1.35; }
 
@@ -21,10 +21,6 @@
         .report-title { font-size: 19px; font-weight: bold; margin-top: 2px; }
         .report-meta { font-size: 8px; margin-top: 4px; }
         .accent-rule { height: 4px; background: {{ $accentColor }}; border-radius: 2px; margin: 6px 0 14px; }
-
-        .letterhead-title { border-left: 5px solid {{ $accentColor }}; padding: 2px 0 2px 10px; margin-bottom: 14px; }
-        .letterhead-title .report-title { color: {{ $primaryColor }}; }
-        .letterhead-title .report-meta { color: {{ $secondaryColor }}; }
 
         .stats { width: 100%; border-collapse: separate; border-spacing: 8px 0; margin: 0 0 14px; }
         .stat { background: {{ $primaryTint }}; border-left: 4px solid {{ $accentColor }}; border-radius: 6px; padding: 9px 12px; }
@@ -59,13 +55,7 @@
         </table>
     </div>
 
-    @if ($hasLetterhead)
-        <div class="letterhead-title">
-            <div class="report-title">{{ $reportTitle }}</div>
-            <div class="report-meta">{{ $reportSubtitle ? $reportSubtitle.' · ' : '' }}Generated {{ $generatedAt }}</div>
-        </div>
-    @else
-        <table class="band">
+    <table class="band">
             <tr>
                 <td class="logo-cell">
                     <div class="logo-box">
@@ -97,7 +87,6 @@
             </tr>
         </table>
         <div class="accent-rule"></div>
-    @endif
 
     @if (count($stats) > 0)
         <table class="stats">

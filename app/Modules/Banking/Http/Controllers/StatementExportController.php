@@ -25,6 +25,9 @@ class StatementExportController extends Controller
 {
     private const MONEY = '#,##0.00;-#,##0.00';
 
+    /** Header fill for the workbook: the account holder's primary colour. */
+    private string $headerColor = '1E293B';
+
     public function __invoke(
         Request $request,
         BankAccount $account,
@@ -47,12 +50,22 @@ class StatementExportController extends Controller
 
     private function pdf(BankAccount $account, array $statement, DocumentRenderer $renderer, string $filename): Response
     {
-        $company = app(CompanyContext::class)->requireActiveCompany();
-        $pdf = $renderer->renderForCompany($company, 'pdf.documents.bank-statement', [
-            'account' => $account,
-            'statement' => $statement,
-            'period' => $this->period($statement),
-        ]);
+        // The statement carries the account holder's own branding, not the
+        // company the user happens to be working in. Access to the account was
+        // checked already, so the holder becomes the render company briefly.
+        $context = app(CompanyContext::class);
+        $previous = $context->activeCompany();
+        $holder = $account->company;
+        try {
+            $context->setActiveCompany($holder);
+            $pdf = $renderer->renderForCompany($holder, 'pdf.documents.bank-statement', [
+                'account' => $account,
+                'statement' => $statement,
+                'period' => $this->period($statement),
+            ]);
+        } finally {
+            $context->setActiveCompany($previous);
+        }
 
         return response($pdf, 200, [
             'Content-Type' => 'application/pdf',
@@ -62,6 +75,9 @@ class StatementExportController extends Controller
 
     private function xlsx(BankAccount $account, array $statement, string $filename): StreamedResponse
     {
+        $account->company->loadMissing('branding');
+        $color = $account->company->branding?->primary_color;
+        $this->headerColor = $color && preg_match('/^#[0-9a-fA-F]{6}$/', $color) ? strtoupper(substr($color, 1)) : '1E293B';
         $book = new Spreadsheet;
         $book->getProperties()->setCreator($account->bank->name)->setTitle('Bank statement '.$account->account_number);
         $sheet = $book->getActiveSheet()->setTitle('Statement');
@@ -153,7 +169,7 @@ class StatementExportController extends Controller
     {
         $style = $sheet->getStyle($range);
         $style->getFont()->setBold(true)->getColor()->setRGB('FFFFFF');
-        $style->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('1E293B');
+        $style->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB($this->headerColor);
     }
 
     private function period(array $statement): string

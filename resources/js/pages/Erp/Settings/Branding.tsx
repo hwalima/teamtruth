@@ -17,8 +17,6 @@ type Props = {
     };
     branding: {
         logo_url: string | null;
-        letterhead_url: string | null;
-        letterhead_name: string | null;
         primary_color: string | null;
         secondary_color: string | null;
         accent_color: string | null;
@@ -35,8 +33,6 @@ export default function Branding({ company, branding, currencies }: Props) {
         accent_color: branding.accent_color ?? '#2563eb',
         letterhead_footer_text: branding.letterhead_footer_text ?? '',
         logo: null as File | null,
-        letterhead: null as File | null,
-        remove_letterhead: false,
         _method: 'PATCH',
     });
     const errors = form.errors as Record<string, string>;
@@ -50,7 +46,9 @@ export default function Branding({ company, branding, currencies }: Props) {
         <main className="mx-auto max-w-3xl space-y-8 p-6">
             <section>
                 <h1 className="text-2xl font-semibold">Company details and branding</h1>
-                <p className="text-muted-foreground mt-2 text-sm">These details and colors appear on documents produced for this company.</p>
+                <p className="text-muted-foreground mt-2 text-sm">
+                    These details, the logo and colors form the header of every PDF produced for this company.
+                </p>
             </section>
 
             <form onSubmit={submit} className="space-y-6">
@@ -158,45 +156,6 @@ export default function Branding({ company, branding, currencies }: Props) {
                         />
                         {errors.logo && <span className="text-destructive">{errors.logo}</span>}
                     </label>
-                    <div className="grid gap-2 text-sm sm:col-span-2">
-                        <span className="font-medium">PDF letterhead (for this company's documents)</span>
-                        {branding.letterhead_url && !form.data.remove_letterhead && (
-                            <div className="flex flex-wrap items-center gap-3">
-                                <a
-                                    href={branding.letterhead_url}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    className="text-primary underline"
-                                >
-                                    View saved letterhead{branding.letterhead_name ? `: ${branding.letterhead_name}` : ''}
-                                </a>
-                                <label className="flex items-center gap-2">
-                                    <input
-                                        type="checkbox"
-                                        checked={form.data.remove_letterhead}
-                                        onChange={(event) => form.setData('remove_letterhead', event.target.checked)}
-                                    />
-                                    Remove saved letterhead
-                                </label>
-                            </div>
-                        )}
-                        <input
-                            type="file"
-                            accept="application/pdf,.pdf"
-                            onChange={(event) => {
-                                form.setData('letterhead', event.target.files?.[0] ?? null);
-                                form.setData('remove_letterhead', false);
-                            }}
-                            className="bg-background rounded-md border px-3 py-2"
-                        />
-                        {form.data.letterhead && (
-                            <span className="text-muted-foreground">Selected: {form.data.letterhead.name}</span>
-                        )}
-                        <span className="text-muted-foreground text-xs">
-                            Upload a one-page PDF. It is applied only to documents for the currently selected company. Up to 10 MB.
-                        </span>
-                        {errors.letterhead && <span className="text-destructive">{errors.letterhead}</span>}
-                    </div>
                     <ColorField
                         label="Primary color"
                         value={form.data.primary_color}
@@ -216,7 +175,7 @@ export default function Branding({ company, branding, currencies }: Props) {
                         error={errors.accent_color}
                     />
                     <label className="grid gap-1 text-sm sm:col-span-2">
-                        Letterhead footer
+                        Document footer (printed at the bottom of every PDF)
                         <textarea
                             value={form.data.letterhead_footer_text}
                             onChange={(event) => form.setData('letterhead_footer_text', event.target.value)}

@@ -8,12 +8,8 @@ use App\Modules\Core\Models\Company;
 use Barryvdh\DomPDF\Facade\Pdf as PdfFacade;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\View;
 use InvalidArgumentException;
-use RuntimeException;
-use setasign\Fpdi\Fpdi;
-use setasign\Fpdi\PdfParser\StreamReader;
 
 class DocumentRenderer
 {
@@ -81,38 +77,7 @@ class DocumentRenderer
             'approvalSignatories' => $approvalSignatories,
         ]);
 
-        $pdfContents = PdfFacade::loadView($template, $viewData)->setPaper('a4')->output();
-        $letterheadPath = $company->branding?->letterhead_path;
-        if (! $letterheadPath) {
-            return $pdfContents;
-        }
-
-        $disk = Storage::disk('public');
-        if (! $disk->exists($letterheadPath)) {
-            throw new RuntimeException("The company letterhead file [{$letterheadPath}] does not exist.");
-        }
-
-        return $this->applyLetterhead($pdfContents, $disk->get($letterheadPath));
-    }
-
-    private function applyLetterhead(string $documentPdf, string $letterheadPdf): string
-    {
-        $pdf = new Fpdi('P', 'pt');
-        $pdf->SetAutoPageBreak(false);
-
-        $pdf->setSourceFile(StreamReader::createByString($letterheadPdf));
-        $letterheadTemplate = $pdf->importPage(1);
-
-        $pageCount = $pdf->setSourceFile(StreamReader::createByString($documentPdf));
-
-        for ($pageNumber = 1; $pageNumber <= $pageCount; $pageNumber++) {
-            $documentTemplate = $pdf->importPage($pageNumber);
-            $pageSize = $pdf->getTemplateSize($documentTemplate);
-            $pdf->AddPage($pageSize['orientation'], [$pageSize['width'], $pageSize['height']]);
-            $pdf->useTemplate($letterheadTemplate, 0, 0, $pageSize['width'], $pageSize['height']);
-            $pdf->useTemplate($documentTemplate, 0, 0, $pageSize['width'], $pageSize['height']);
-        }
-
-        return $pdf->Output('S');
+        // The header comes from the company's own settings: logo, colours and details.
+        return PdfFacade::loadView($template, $viewData)->setPaper('a4')->output();
     }
 }

@@ -10,18 +10,17 @@ use App\Modules\Core\Services\CompanyContext;
 use App\Modules\Core\Services\ErpRoleService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
-use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
-use setasign\Fpdi\Fpdi;
-use setasign\Fpdi\FpdiException;
-use setasign\Fpdi\PdfParser\StreamReader;
 use Throwable;
 
+/**
+ * Company details, logo and colours. Every PDF header is built from these;
+ * there is no uploaded letterhead.
+ */
 class CompanyBrandingController extends Controller
 {
     public function edit(Request $request): Response
@@ -47,12 +46,6 @@ class CompanyBrandingController extends Controller
             'branding' => [
                 'logo_url' => $company->branding?->logo_path
                     ? Storage::disk('public')->url($company->branding->logo_path)
-                    : null,
-                'letterhead_url' => $company->branding?->letterhead_path
-                    ? Storage::disk('public')->url($company->branding->letterhead_path)
-                    : null,
-                'letterhead_name' => $company->branding?->letterhead_path
-                    ? basename($company->branding->letterhead_path)
                     : null,
                 'primary_color' => $company->branding?->primary_color,
                 'secondary_color' => $company->branding?->secondary_color,
@@ -83,12 +76,7 @@ class CompanyBrandingController extends Controller
             'accent_color' => ['nullable', 'regex:/^#[0-9A-Fa-f]{6}$/'],
             'letterhead_footer_text' => ['nullable', 'string', 'max:2000'],
             'logo' => ['nullable', 'image', 'mimes:jpg,jpeg,png,gif', 'max:2048'],
-            'letterhead' => ['nullable', 'file', 'mimes:pdf', 'max:10240'],
-            'remove_letterhead' => ['nullable', 'boolean'],
         ]);
-        if ($request->hasFile('letterhead')) {
-            $this->validateLetterhead($request->file('letterhead'));
-        }
 
         $companyFields = array_intersect_key($validated, array_flip([
             'name',
@@ -109,30 +97,21 @@ class CompanyBrandingController extends Controller
             'letterhead_footer_text',
         ]));
         $newLogoPath = null;
-        $newLetterheadPath = null;
         if ($request->hasFile('logo')) {
             $newLogoPath = $request->file('logo')->store("erp/companies/{$company->id}/branding", 'public');
             if (! $newLogoPath) {
                 throw new \RuntimeException('The company logo could not be stored.');
             }
         }
-        if ($request->hasFile('letterhead')) {
-            $newLetterheadPath = $request->file('letterhead')->store("erp/companies/{$company->id}/branding", 'public');
-            if (! $newLetterheadPath) {
-                throw new \RuntimeException('The company letterhead could not be stored.');
-            }
-        }
 
         $company->loadMissing('branding');
-        $oldLetterheadPath = $company->branding?->letterhead_path;
-        $removeLetterhead = (bool) ($validated['remove_letterhead'] ?? false);
         $before = [
             'company' => $company->only(array_keys($companyFields)),
-            'branding' => $company->branding?->only([...array_keys($brandingFields), 'letterhead_path']) ?? [],
+            'branding' => $company->branding?->only(array_keys($brandingFields)) ?? [],
         ];
 
         try {
-            DB::transaction(function () use ($company, $companyFields, $brandingFields, $newLogoPath, $newLetterheadPath, $removeLetterhead, $before, $request): void {
+            DB::transaction(function () use ($company, $companyFields, $brandingFields, $newLogoPath, $before, $request): void {
                 $company->fill($companyFields);
                 $company->save();
 
@@ -140,11 +119,6 @@ class CompanyBrandingController extends Controller
                 $branding->fill($brandingFields);
                 if ($newLogoPath) {
                     $branding->logo_path = $newLogoPath;
-                }
-                if ($newLetterheadPath) {
-                    $branding->letterhead_path = $newLetterheadPath;
-                } elseif ($removeLetterhead) {
-                    $branding->letterhead_path = null;
                 }
                 $branding->save();
 
@@ -156,9 +130,8 @@ class CompanyBrandingController extends Controller
                         'before' => $before,
                         'after' => [
                             'company' => $company->only(array_keys($companyFields)),
-                            'branding' => $branding->only([...array_keys($brandingFields), 'letterhead_path']),
+                            'branding' => $branding->only(array_keys($brandingFields)),
                             'logo_updated' => $newLogoPath !== null,
-                            'letterhead_updated' => $newLetterheadPath !== null || $removeLetterhead,
                         ],
                     ],
                     actor: $request->user(),
@@ -168,15 +141,8 @@ class CompanyBrandingController extends Controller
             if ($newLogoPath) {
                 Storage::disk('public')->delete($newLogoPath);
             }
-            if ($newLetterheadPath) {
-                Storage::disk('public')->delete($newLetterheadPath);
-            }
 
             throw $exception;
-        }
-
-        if (($newLetterheadPath || $removeLetterhead) && $oldLetterheadPath) {
-            Storage::disk('public')->delete($oldLetterheadPath);
         }
 
         return back()->with('success', __('Company settings updated.'));
@@ -185,23 +151,5 @@ class CompanyBrandingController extends Controller
     private function authorizePermission(Request $request, Company $company, string $permission): void
     {
         app(ErpRoleService::class)->authorize($company, $request->user(), $permission);
-    }
-
-    private function validateLetterhead(UploadedFile $file): void
-    {
-        try {
-            $parser = new Fpdi;
-            $pageCount = $parser->setSourceFile(StreamReader::createByString($file->get()));
-        } catch (FpdiException) {
-            throw ValidationException::withMessages([
-                'letterhead' => __('The uploaded letterhead must be a readable PDF.'),
-            ]);
-        }
-
-        if ($pageCount !== 1) {
-            throw ValidationException::withMessages([
-                'letterhead' => __('The uploaded letterhead must contain exactly one page.'),
-            ]);
-        }
     }
 }
