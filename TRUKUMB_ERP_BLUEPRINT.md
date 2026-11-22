@@ -517,7 +517,7 @@ For each subsidiary, collect before go-live:
 
 ## 14. Progress Tracker
 
-_Last reviewed: 22 November 2026. 195 automated tests pass._
+_Last reviewed: 22 November 2026. 199 automated tests pass._
 
 Legend: `[x]` done and in use · `[~]` partly built (see the note) · `[ ]` not started
 
@@ -540,7 +540,7 @@ Legend: `[x]` done and in use · `[~]` partly built (see the note) · `[ ]` not 
   - [x] Vendor directory: search as you type, add, edit, deactivate, delete if unused, vendor page, PDF list
   - [ ] Stock valuation and costing (average or FIFO), with journals for stock, GRNI and COGS
   - [ ] Reorder rules (min/max) and suggested RFQs; lot and expiry tracking
-  - [ ] Branded purchase order PDF, emailed to the vendor
+  - [x] Branded purchase order PDF, emailed to the vendor
 - [~] **Phase 4: Accounting + Invoicing + Sales**
   - [x] Chart of accounts, journals, fiscal years and periods with locking
   - [x] Journal posting (balanced, immutable, reversal), trial balance, general ledger, profit & loss, CSV and PDF exports
@@ -577,7 +577,7 @@ These are ordered so each step builds on the one before it and finishes work tha
 1. ~~**Close Phase 4 accounting reports.**~~ Balance sheet, aged receivables and aged payables are done (22 Nov 2026). Cash flow is still to do.
 2. ~~**Bank reconciliation.**~~ Done (22 Nov 2026): Banking → Reconcile suggests the recorded payment for each statement line, matches several payments to one line, explains bank charges and interest, and auto-matches the certain ones. Next step for it: link each bank account to its ledger account so the books balance can be compared with the statement balance.
 3. **Sales screen rebuild.** Bring Sales up to the standard of Invoicing and Purchase: list pages with search, multi-line quotations, a quotation PDF, send to customer, and order → delivery → invoice.
-4. **Purchase order PDF and email to the vendor.** The vendor directory and the branded layout are ready, so this is quick.
+4. ~~**Purchase order PDF and email to the vendor.**~~ Done (22 Nov 2026): each approved order has View PDF and Email to vendor on the Purchase page. The email goes to the vendor's address (it can be changed before sending), carries the PDF, and replies go to the buyer who sent it.
 5. **Stock valuation.** Average cost on receipts, with journals for stock, goods received not invoiced and cost of sales. Needed before POS and before the balance sheet shows stock correctly.
 6. **Finish HRM core.** Job descriptions screen, leave calendar, and expiry alerts for documents and contracts (a daily scheduled job).
 7. **Phase 6 preparation (needs you).** Confirm the biometric device brand and model, and get the payroll rules (PAYE, AIDS levy, NSSA, ZIMDEF, NEC) signed off by Finance. Build starts once these are in hand.
@@ -629,6 +629,7 @@ Found while reviewing the code on 22 November 2026, most valuable first.
 
 ## 18. Change log
 
+- **22 Nov 2026:** Purchase order PDF on company branding, emailed to the vendor from the Purchase page; Purchase page layout reworked for phones.
 - **22 Nov 2026:** Bank reconciliation: statement lines matched to customer receipts and vendor payments, with suggestions, split matches, explanations, auto-match and undo.
 - **22 Nov 2026:** Financial Reports page: balance sheet, aged receivables and aged payables, with CSV and branded PDF exports.
 - **22 Nov 2026:** Vendor directory (list, page, add, edit, deactivate, delete if unused, PDF list); Odoo contacts import handles list exports; search as you type across the app.

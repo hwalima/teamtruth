@@ -325,7 +325,13 @@ Route::middleware(['auth', 'verified'])->prefix('erp')->name('erp.')->group(func
         Route::post('purchase/quotations/{quotation}/orders', [\App\Modules\Purchase\Http\Controllers\PurchaseController::class, 'createOrder'])
             ->middleware('erp.permission:erp.purchase.manage')
             ->name('purchase.quotations.orders.store');
-        Route::post('purchase/orders/{order}/lines/{line}/receipts', [\App\Modules\Purchase\Http\Controllers\PurchaseController::class, 'receive'])
+        Route::get('purchase/orders/{order}/pdf', [\App\Modules\Purchase\Http\Controllers\PurchaseOrderDocumentController::class, 'pdf'])
+            ->middleware('erp.permission:erp.purchase.view')
+            ->name('purchase.orders.pdf');
+        Route::post('purchase/orders/{order}/send', [\App\Modules\Purchase\Http\Controllers\PurchaseOrderDocumentController::class, 'send'])
+            ->middleware(['erp.permission:erp.purchase.manage', 'throttle:20,1'])
+            ->name('purchase.orders.send');
+        Route::post('purchase/orders/{order}/lines/{line}/receipts',[\App\Modules\Purchase\Http\Controllers\PurchaseController::class, 'receive'])
             ->middleware('erp.permission:erp.purchase.manage')
             ->name('purchase.orders.receive');
         Route::get('purchase/orders/{order}/receipts/{receipt}/bill', [\App\Modules\Purchase\Http\Controllers\PurchaseController::class, 'createBill'])

@@ -30,6 +30,8 @@ class PurchaseOrder extends Model
         'created_by',
         'submitted_at',
         'approved_at',
+        'sent_at',
+        'sent_to',
     ];
 
     protected function casts(): array
@@ -39,6 +41,7 @@ class PurchaseOrder extends Model
             'expected_delivery_date' => 'date',
             'submitted_at' => 'datetime',
             'approved_at' => 'datetime',
+            'sent_at' => 'datetime',
         ];
     }
 

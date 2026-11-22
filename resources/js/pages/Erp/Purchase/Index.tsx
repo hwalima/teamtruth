@@ -73,7 +73,9 @@ type Order = {
     status: string;
     currency_code: string;
     total: string;
-    vendor: { code: string; name: string };
+    sent_at: string | null;
+    sent_to: string | null;
+    vendor: { code: string; name: string; email: string | null };
     source_requisition: SourceRequisition | null;
     lines: OrderLine[];
     receipts: Receipt[];
@@ -410,18 +412,27 @@ export default function PurchaseIndex(props: Props) {
                 <h2 className="text-xl font-semibold">Purchase orders and receipts</h2>
                 {props.orders.map((order) => (
                     <article key={order.id} className="bg-card/70 min-w-0 space-y-4 rounded-xl border p-4 sm:p-5">
-                        <header className="flex flex-wrap justify-between gap-2">
-                            <div>
+                        <header className="flex flex-wrap items-start justify-between gap-3">
+                            <div className="min-w-0">
                                 <h3 className="font-semibold">
                                     {order.document_number} — {order.vendor.name}
                                 </h3>
                                 <p className="text-muted-foreground text-sm">
-                                    Status: {order.status.replaceAll('_', ' ')} · Total: {order.currency_code} {order.total}
+                                    Status: {order.status.replaceAll('_', ' ')} · Total: {order.currency_code} {order.total} · {order.lines.length}{' '}
+                                    line{order.lines.length === 1 ? '' : 's'}
                                     {order.source_requisition && ` · From ${order.source_requisition.document_number}`}
                                 </p>
+                                {order.sent_at && (
+                                    <p className="text-muted-foreground text-sm">
+                                        Sent to {order.sent_to} on {new Date(order.sent_at).toLocaleDateString()}
+                                    </p>
+                                )}
                             </div>
-                            <span className="text-muted-foreground text-sm">{order.lines.length} line(s)</span>
+                            <a href={route('erp.purchase.orders.pdf', order.id)} target="_blank" rel="noreferrer" className={secondaryButton}>
+                                View PDF
+                            </a>
                         </header>
+                        {SENDABLE_ORDER_STATUSES.includes(order.status) && <SendOrderForm order={order} />}
                         <div className="grid gap-3 lg:grid-cols-2">
                             {order.lines.map((line) => (
                                 <div key={line.id} className="rounded-lg border p-3 text-sm">
@@ -1092,6 +1103,60 @@ function RfqCard({ rfq, vendors, orders }: { rfq: RFQ; vendors: Vendor[]; orders
                 </details>
             )}
         </article>
+    );
+}
+
+const SENDABLE_ORDER_STATUSES = ['approved', 'partially_received', 'received'];
+
+function SendOrderForm({ order }: { order: Order }) {
+    const [open, setOpen] = useState(false);
+    const form = useForm({ email: order.sent_to ?? order.vendor.email ?? '', message: '' });
+
+    if (!open) {
+        return (
+            <button type="button" onClick={() => setOpen(true)} className={primaryButton}>
+                {order.sent_at ? 'Send to vendor again' : 'Email to vendor'}
+            </button>
+        );
+    }
+
+    return (
+        <form
+            onSubmit={(event) => {
+                event.preventDefault();
+                form.post(route('erp.purchase.orders.send', order.id), {
+                    preserveScroll: true,
+                    onSuccess: () => {
+                        form.reset('message');
+                        setOpen(false);
+                    },
+                });
+            }}
+            className="bg-muted/30 grid gap-3 rounded-lg border p-3 sm:grid-cols-2"
+        >
+            <TextField label="Vendor email" type="email" value={form.data.email} onChange={(value) => form.setData('email', value)} error={form.errors.email} required />
+            <label className="grid min-w-0 gap-1.5 text-sm sm:col-span-2">
+                Message (optional)
+                <textarea
+                    rows={3}
+                    maxLength={2000}
+                    value={form.data.message}
+                    onChange={(event) => form.setData('message', event.target.value)}
+                    placeholder={`Please find attached our purchase order ${order.document_number}.`}
+                    className={inputClass}
+                />
+                {form.errors.message && <ErrorText>{form.errors.message}</ErrorText>}
+            </label>
+            <p className="text-muted-foreground text-sm sm:col-span-2">The PDF is attached, and replies come back to your email address.</p>
+            <div className="flex flex-wrap gap-2 sm:col-span-2">
+                <button type="submit" disabled={form.processing} className={primaryButton}>
+                    {form.processing ? 'Sending…' : 'Send purchase order'}
+                </button>
+                <button type="button" onClick={() => setOpen(false)} className={secondaryButton}>
+                    Cancel
+                </button>
+            </div>
+        </form>
     );
 }
 

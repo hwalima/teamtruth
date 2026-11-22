@@ -118,7 +118,7 @@ class PurchaseController extends Controller
                 ]),
             'orders' => PurchaseOrder::query()
                 ->with([
-                    'vendor:id,name,code',
+                    'vendor:id,name,code,email',
                     'sourceRequisition:id,document_number',
                     'lines.product:id,sku,name,unit_id,tracking',
                     'lines.product.unit:id,abbreviation',
