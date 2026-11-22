@@ -140,7 +140,7 @@ class InventoryStockService
             ->all();
     }
 
-    private function quantityOnHand(Company $company, int $productId, int $locationId, ?string $lotCode): string
+    public function quantityOnHand(Company $company, int $productId, int $locationId, ?string $lotCode): string
     {
         $query = DB::table('stock_move_lines')
             ->join('stock_moves', 'stock_moves.id', '=', 'stock_move_lines.stock_move_id')

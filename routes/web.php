@@ -168,6 +168,19 @@ Route::middleware(['auth', 'verified'])->prefix('erp')->name('erp.')->group(func
             ->middleware('erp.permission:erp.stock.manage')
             ->name('inventory.stock.movements.store');
 
+        Route::get('data-import', [\App\Modules\DataImport\Http\Controllers\DataImportController::class, 'index'])
+            ->name('data-import.index');
+        Route::post('data-import', [\App\Modules\DataImport\Http\Controllers\DataImportController::class, 'store'])
+            ->name('data-import.store');
+        Route::get('data-import/{import}', [\App\Modules\DataImport\Http\Controllers\DataImportController::class, 'show'])
+            ->name('data-import.show');
+        Route::post('data-import/{import}/preview', [\App\Modules\DataImport\Http\Controllers\DataImportController::class, 'preview'])
+            ->name('data-import.preview');
+        Route::post('data-import/{import}/commit', [\App\Modules\DataImport\Http\Controllers\DataImportController::class, 'commit'])
+            ->name('data-import.commit');
+        Route::get('data-import/{import}/download', [\App\Modules\DataImport\Http\Controllers\DataImportController::class, 'download'])
+            ->name('data-import.download');
+
         Route::get('inventory/products/export', [\App\Modules\Inventory\Http\Controllers\InventoryProductImportExportController::class, 'export'])
             ->middleware('erp.permission:erp.inventory.view')
             ->name('inventory.products.export');

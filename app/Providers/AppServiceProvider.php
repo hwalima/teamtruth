@@ -38,6 +38,10 @@ class AppServiceProvider extends ServiceProvider
         $this->loadMigrationsFrom(app_path('Modules/Invoicing/Database/Migrations'));
         $this->loadMigrationsFrom(app_path('Modules/Sales/Database/Migrations'));
         $this->loadMigrationsFrom(app_path('Modules/Hrm/Database/Migrations'));
+        $this->loadMigrationsFrom(app_path('Modules/DataImport/Database/Migrations'));
+        if ($this->app->runningInConsole()) {
+            $this->commands([\App\Modules\DataImport\Console\OdooImportCommand::class]);
+        }
 
         // Register the UserObserver
         User::observe(UserObserver::class);

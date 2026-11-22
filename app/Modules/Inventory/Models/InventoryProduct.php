@@ -22,11 +22,21 @@ class InventoryProduct extends Model
         'costing_method',
         'tracking',
         'is_active',
+        'internal_reference',
+        'sale_price',
+        'cost_price',
+        'image_path',
+        'metadata',
     ];
 
     protected function casts(): array
     {
-        return ['is_active' => 'boolean'];
+        return [
+            'is_active' => 'boolean',
+            'sale_price' => 'decimal:4',
+            'cost_price' => 'decimal:4',
+            'metadata' => 'array',
+        ];
     }
 
     public function category(): BelongsTo

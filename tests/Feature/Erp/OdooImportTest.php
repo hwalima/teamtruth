@@ -1,0 +1,180 @@
+<?php
+
+use App\Models\Currency;
+use App\Models\User;
+use App\Modules\Core\Models\Company;
+use App\Modules\Core\Services\CompanyContext;
+use App\Modules\DataImport\Models\DataImport;
+use App\Modules\DataImport\Models\ExternalId;
+use App\Modules\Inventory\Models\InventoryCategory;
+use App\Modules\Inventory\Models\InventoryProduct;
+use App\Modules\Inventory\Models\InventoryUnit;
+use App\Modules\Inventory\Models\StockLocation;
+use App\Modules\Inventory\Services\InventoryStockService;
+use App\Modules\Invoicing\Models\Customer;
+use App\Modules\Purchase\Models\PurchaseVendor;
+use App\Modules\Purchase\Models\PurchaseVendorPriceList;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
+
+beforeEach(function () {
+    Storage::fake('local');
+    Storage::fake('public');
+    $this->user = User::factory()->create();
+    $this->company = Company::create(['code' => 'ODO', 'name' => 'Odoo Client', 'default_currency' => 'USD']);
+    $this->company->users()->attach($this->user->id, ['role' => 'owner', 'is_active' => true]);
+    $this->actingAs($this->user)->withSession(['active_erp_company_id' => $this->company->id]);
+    $this->withoutExceptionHandling();
+    Currency::query()->firstOrCreate(['code' => 'USD'], ['name' => 'US Dollar', 'symbol' => '$']);
+});
+
+function odooFile(string $name, array $rows): UploadedFile
+{
+    $spreadsheet = new Spreadsheet;
+    $spreadsheet->getActiveSheet()->fromArray($rows, null, 'A1', true);
+    $path = tempnam(sys_get_temp_dir(), 'odoo').'.xlsx';
+    (new Xlsx($spreadsheet))->save($path);
+
+    return new UploadedFile($path, $name, null, null, true);
+}
+
+function odooProducts(): UploadedFile
+{
+    return odooFile('Product (product.template).xlsx', [
+        ['Name', 'Internal Reference', 'Product Category', 'Unit', 'Product Type', 'Sales Price', 'Cost', 'Quantity On Hand', 'Vendors/Vendor', 'Vendors/Price', 'Last Updated on'],
+        ['O Ring 164-3903', 'EP0008', 'All / Mining / Spares', 'Units', 'Goods', '5.50', '3', 10, 'Acme Supplies', 3, '2026-01-01'],
+        [null, null, null, null, null, null, null, null, 'Beta Traders', 2.5, null],
+        ['Diesel', null, 'All / Mining / Consumables', 'L', 'Goods', 1.2, null, 100, null, null, null],
+        ['Diesel', null, 'All / Mining / Consumables', 'Unit', 'Goods', 1.2, null, -3, null, null, null],
+        ['Bolt box', null, null, '124 Box', 'Goods', 0, null, 0, null, null, null],
+        ['Site consulting', null, null, 'Units', 'Service', 50, null, 0, null, null, null],
+    ]);
+}
+
+function onHand(InventoryProduct $product): float
+{
+    app(CompanyContext::class)->setActiveCompany($product->company);
+    $location = StockLocation::query()->where('usage', 'internal')->firstOrFail();
+
+    return (float) app(InventoryStockService::class)->quantityOnHand($product->company, $product->id, $location->id, null);
+}
+
+test('the import page loads', function () {
+    $response = $this->get(route('erp.data-import.index'))->assertOk();
+    expect(resource_path('js/pages/'.$response->viewData('page')['component'].'.tsx'))->toBeFile();
+});
+
+test('an Odoo product file is previewed without saving, then imported with everything it needs', function () {
+    $this->post(route('erp.data-import.store'), ['file' => odooProducts()])->assertRedirect();
+
+    $import = DataImport::query()->withoutGlobalScopes()->sole();
+    expect($import->model)->toBe('product.template')
+        ->and($import->status)->toBe(DataImport::PREVIEWED)
+        ->and($import->total_rows)->toBe(6)
+        ->and($import->summary['actions'])->toMatchArray(['created' => 5, 'merged' => 1])
+        ->and($import->summary['created']['vendors'])->toBe(['Acme Supplies', 'Beta Traders'])
+        ->and($import->columns['kept_only'])->toContain('Last Updated on');
+
+    // The preview changed nothing.
+    expect(InventoryProduct::query()->withoutGlobalScopes()->count())->toBe(0)
+        ->and(PurchaseVendor::query()->withoutGlobalScopes()->count())->toBe(0)
+        ->and(InventoryCategory::query()->withoutGlobalScopes()->count())->toBe(0)
+        ->and(ExternalId::query()->withoutGlobalScopes()->count())->toBe(0);
+
+    $page = $this->get(route('erp.data-import.show', $import))->assertOk();
+    expect(resource_path('js/pages/'.$page->viewData('page')['component'].'.tsx'))->toBeFile();
+    $this->get(route('erp.data-import.show', [$import, 'action' => 'created', 'search' => 'Diesel']))->assertOk();
+
+    $this->post(route('erp.data-import.commit', $import))->assertRedirect(route('erp.data-import.show', $import));
+    expect($import->refresh()->status)->toBe(DataImport::IMPORTED);
+
+    $products = InventoryProduct::query()->withoutGlobalScopes()->orderBy('id')->get();
+    expect($products)->toHaveCount(5);
+
+    $ring = $products[0];
+    expect($ring->name)->toBe('O Ring 164-3903')
+        ->and($ring->internal_reference)->toBe('EP0008')
+        ->and($ring->sku)->toStartWith('OD-')
+        ->and((float) $ring->sale_price)->toBe(5.5)
+        ->and((float) $ring->cost_price)->toBe(3.0)
+        ->and($ring->type)->toBe('storable')
+        ->and($ring->metadata['odoo']['Last Updated on'])->toBe('2026-01-01')
+        ->and($ring->metadata['odoo']['_extra_rows'][0]['Vendors/Vendor'])->toBe('Beta Traders');
+
+    // Categories keep Odoo's tree, without its root "All".
+    $spares = InventoryCategory::query()->withoutGlobalScopes()->findOrFail($ring->category_id);
+    expect($spares->name)->toBe('Spares')
+        ->and(InventoryCategory::query()->withoutGlobalScopes()->find($spares->parent_id)->name)->toBe('Mining')
+        ->and(InventoryCategory::query()->withoutGlobalScopes()->count())->toBe(3);
+
+    // "Units" and "Unit" are one unit; unknown units are created.
+    expect(InventoryUnit::query()->withoutGlobalScopes()->pluck('name')->sort()->values()->all())->toBe(['124 Box', 'L', 'Units'])
+        ->and($products[2]->unit_id)->toBe($ring->unit_id);
+
+    expect(PurchaseVendor::query()->withoutGlobalScopes()->pluck('name')->all())->toBe(['Acme Supplies', 'Beta Traders'])
+        ->and(PurchaseVendorPriceList::query()->withoutGlobalScopes()->where('product_id', $ring->id)->pluck('price')->map(fn ($p) => (float) $p)->sort()->values()->all())->toBe([2.5, 3.0]);
+
+    expect($products[4]->type)->toBe('service')
+        ->and(onHand($ring))->toBe(10.0)
+        ->and(onHand($products[1]))->toBe(100.0)
+        ->and(onHand($products[2]))->toBe(0.0);
+
+    $diesel = $import->rows()->where('row_number', 5)->first();
+    expect(implode(' ', $diesel->messages))->toContain('Same name as row 4')->toContain('Negative stock');
+});
+
+test('importing the same file again updates instead of duplicating', function () {
+    $this->post(route('erp.data-import.store'), ['file' => odooProducts()]);
+    $this->post(route('erp.data-import.commit', DataImport::query()->withoutGlobalScopes()->latest('id')->first()));
+
+    $this->post(route('erp.data-import.store'), ['file' => odooProducts()]);
+    $second = DataImport::query()->withoutGlobalScopes()->latest('id')->first();
+    expect($second->summary['actions'])->not->toHaveKey('created');
+    $this->post(route('erp.data-import.commit', $second));
+
+    expect(InventoryProduct::query()->withoutGlobalScopes()->count())->toBe(5)
+        ->and(PurchaseVendor::query()->withoutGlobalScopes()->count())->toBe(2)
+        ->and(PurchaseVendorPriceList::query()->withoutGlobalScopes()->count())->toBe(2)
+        ->and(onHand(InventoryProduct::query()->withoutGlobalScopes()->orderBy('id')->first()))->toBe(10.0);
+});
+
+test('an Odoo contacts file fills in the vendors the products created and adds customers', function () {
+    $this->post(route('erp.data-import.store'), ['file' => odooProducts()]);
+    $this->post(route('erp.data-import.commit', DataImport::query()->withoutGlobalScopes()->latest('id')->first()));
+
+    $this->post(route('erp.data-import.store'), ['file' => odooFile('Contact (res.partner).xlsx', [
+        ['id', 'name', 'parent_id', 'is_company', 'email', 'phone', 'street', 'city', 'country_id', 'vat', 'supplier_rank', 'customer_rank'],
+        ['__export__.res_partner_7', 'Acme Supplies', null, 'True', 'sales@acme.test', '+263 77 000', '1 Main Rd', 'Harare', 'Zimbabwe', 'BP123', 3, 0],
+        ['__export__.res_partner_8', 'Big Mine Ltd', null, 'True', 'not-an-email', null, null, 'Kwekwe', 'Zimbabwe', null, 0, 5],
+        ['__export__.res_partner_9', 'Jane Buyer', 'Big Mine Ltd', 'False', 'jane@bigmine.test', null, null, null, null, null, 0, 1],
+        ['__export__.res_partner_10', 'Dormant Partner', null, 'True', null, null, null, null, null, null, 0, 0],
+    ])])->assertRedirect();
+
+    $import = DataImport::query()->withoutGlobalScopes()->latest('id')->first();
+    expect($import->model)->toBe('res.partner')
+        ->and($import->summary['actions'])->toMatchArray(['updated' => 1, 'created' => 1, 'skipped' => 2]);
+    $this->post(route('erp.data-import.commit', $import));
+
+    $acme = PurchaseVendor::query()->withoutGlobalScopes()->where('name', 'Acme Supplies')->sole();
+    expect(PurchaseVendor::query()->withoutGlobalScopes()->count())->toBe(2)
+        ->and($acme->email)->toBe('sales@acme.test')
+        ->and($acme->tax_no)->toBe('BP123')
+        ->and($acme->address)->toBe("1 Main Rd\nHarare\nZimbabwe");
+
+    $customer = Customer::query()->withoutGlobalScopes()->sole();
+    expect($customer->name)->toBe('Big Mine Ltd')
+        ->and($customer->email)->toBeNull()
+        ->and($customer->code)->toBe('C-0001')
+        ->and($customer->currency_code)->toBe('USD');
+});
+
+test('a file that is not an Odoo export is refused and not kept', function () {
+    $this->withExceptionHandling();
+    $this->post(route('erp.data-import.store'), ['file' => odooFile('random.xlsx', [['Foo', 'Bar'], [1, 2]])])
+        ->assertSessionHasErrors('model');
+
+    expect(DataImport::query()->withoutGlobalScopes()->count())->toBe(0)
+        ->and(Storage::disk('local')->allFiles())->toBe([]);
+});
