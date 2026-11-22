@@ -291,30 +291,35 @@ Route::middleware(['auth', 'verified'])->prefix('erp')->name('erp.')->group(func
             Route::post('/', [\App\Modules\Invoicing\Http\Controllers\InvoicingController::class, 'store'])
                 ->middleware('erp.permission:erp.invoicing.manage')
                 ->name('store');
-            Route::get('{invoice}', [\App\Modules\Invoicing\Http\Controllers\InvoicingController::class, 'show'])
-                ->middleware('erp.permission:erp.invoicing.view')
-                ->name('show');
-            Route::get('{invoice}/edit', [\App\Modules\Invoicing\Http\Controllers\InvoicingController::class, 'edit'])
-                ->middleware('erp.permission:erp.invoicing.manage')
-                ->name('edit');
-            Route::put('{invoice}', [\App\Modules\Invoicing\Http\Controllers\InvoicingController::class, 'update'])
-                ->middleware('erp.permission:erp.invoicing.manage')
-                ->name('update');
-            Route::post('{invoice}/send', [\App\Modules\Invoicing\Http\Controllers\InvoicingController::class, 'send'])
-                ->middleware('erp.permission:erp.invoicing.manage')
-                ->name('send');
-            Route::post('{invoice}/post', [\App\Modules\Invoicing\Http\Controllers\InvoicingController::class, 'post'])
-                ->middleware('erp.permission:erp.invoicing.manage')
-                ->name('post');
-            Route::post('{invoice}/cancel', [\App\Modules\Invoicing\Http\Controllers\InvoicingController::class, 'cancel'])
-                ->middleware('erp.permission:erp.invoicing.manage')
-                ->name('cancel');
-            Route::post('{invoice}/payments', [\App\Modules\Invoicing\Http\Controllers\InvoicingController::class, 'recordPayment'])
-                ->middleware('erp.permission:erp.invoicing.manage')
-                ->name('payments.store');
-            Route::get('{invoice}/pdf', [\App\Modules\Invoicing\Http\Controllers\InvoicingController::class, 'downloadPdf'])
-                ->middleware('erp.permission:erp.invoicing.view')
-                ->name('pdf');
+
+            // {invoice} is numeric only, so it cannot swallow sibling pages
+            // such as credit-notes, recurring, customers, payment-terms, statements.
+            Route::where(['invoice' => '[0-9]+'])->group(function () {
+                Route::get('{invoice}', [\App\Modules\Invoicing\Http\Controllers\InvoicingController::class, 'show'])
+                    ->middleware('erp.permission:erp.invoicing.view')
+                    ->name('show');
+                Route::get('{invoice}/edit', [\App\Modules\Invoicing\Http\Controllers\InvoicingController::class, 'edit'])
+                    ->middleware('erp.permission:erp.invoicing.manage')
+                    ->name('edit');
+                Route::put('{invoice}', [\App\Modules\Invoicing\Http\Controllers\InvoicingController::class, 'update'])
+                    ->middleware('erp.permission:erp.invoicing.manage')
+                    ->name('update');
+                Route::post('{invoice}/send', [\App\Modules\Invoicing\Http\Controllers\InvoicingController::class, 'send'])
+                    ->middleware('erp.permission:erp.invoicing.manage')
+                    ->name('send');
+                Route::post('{invoice}/post', [\App\Modules\Invoicing\Http\Controllers\InvoicingController::class, 'post'])
+                    ->middleware('erp.permission:erp.invoicing.manage')
+                    ->name('post');
+                Route::post('{invoice}/cancel', [\App\Modules\Invoicing\Http\Controllers\InvoicingController::class, 'cancel'])
+                    ->middleware('erp.permission:erp.invoicing.manage')
+                    ->name('cancel');
+                Route::post('{invoice}/payments', [\App\Modules\Invoicing\Http\Controllers\InvoicingController::class, 'recordPayment'])
+                    ->middleware('erp.permission:erp.invoicing.manage')
+                    ->name('payments.store');
+                Route::get('{invoice}/pdf', [\App\Modules\Invoicing\Http\Controllers\InvoicingController::class, 'downloadPdf'])
+                    ->middleware('erp.permission:erp.invoicing.view')
+                    ->name('pdf');
+            });
 
             // Credit Notes
             Route::prefix('credit-notes')->name('credit-notes.')->group(function () {
@@ -1187,7 +1192,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('workspaces', [WorkspaceController::class, 'index'])->middleware('permission:workspace_view_any')->name('workspaces.index');
         Route::get('workspaces/create', [WorkspaceController::class, 'create'])->middleware('permission:workspace_create')->name('workspaces.create');
         Route::post('workspaces', [WorkspaceController::class, 'store'])->middleware('permission:workspace_create')->name('workspaces.store');
-        Route::get('workspaces/{workspace}', [WorkspaceController::class, 'show'])->middleware('permission:workspace_view')->name('workspaces.show');
+        Route::get('workspaces/{workspace}', [WorkspaceController::class, 'show'])->whereNumber('workspace')->middleware('permission:workspace_view')->name('workspaces.show');
         Route::get('workspaces/{workspace}/edit', [WorkspaceController::class, 'edit'])->middleware('permission:workspace_update')->name('workspaces.edit');
         Route::put('workspaces/{workspace}', [WorkspaceController::class, 'update'])->middleware('permission:workspace_update')->name('workspaces.update');
         Route::patch('workspaces/{workspace}', [WorkspaceController::class, 'update'])->middleware('permission:workspace_update');
@@ -1333,7 +1338,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('newsletters', [\App\Http\Controllers\NewsletterController::class, 'index'])->middleware('permission:newsletter_view_any')->name('newsletters.index');
         Route::post('newsletters', [\App\Http\Controllers\NewsletterController::class, 'store'])->middleware('permission:newsletter_create')->name('newsletters.store');
         Route::put('newsletters/{newsletter}', [\App\Http\Controllers\NewsletterController::class, 'update'])->middleware('permission:newsletter_update')->name('newsletters.update');
-        Route::delete('newsletters/{newsletter}', [\App\Http\Controllers\NewsletterController::class, 'destroy'])->middleware('permission:newsletter_delete')->name('newsletters.destroy');
+        Route::delete('newsletters/{newsletter}', [\App\Http\Controllers\NewsletterController::class, 'destroy'])->whereNumber('newsletter')->middleware('permission:newsletter_delete')->name('newsletters.destroy');
         Route::put('newsletters/{newsletter}/toggle-status', [\App\Http\Controllers\NewsletterController::class, 'toggleStatus'])->middleware('permission:newsletter_toggle_status')->name('newsletters.toggle-status');
         Route::delete('newsletters/bulk-delete', [\App\Http\Controllers\NewsletterController::class, 'bulkDelete'])->middleware('permission:newsletter_bulk_operations')->name('newsletters.bulk-delete');
         Route::get('newsletters/export', [\App\Http\Controllers\NewsletterController::class, 'export'])->middleware('permission:newsletter_export')->name('newsletters.export');
@@ -1342,7 +1347,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('contacts', [\App\Http\Controllers\ContactController::class, 'index'])->middleware('permission:contact_view_any')->name('contacts.index');
         Route::post('contacts', [\App\Http\Controllers\ContactController::class, 'store'])->middleware('permission:contact_create')->name('contacts.store');
         Route::put('contacts/{contact}', [\App\Http\Controllers\ContactController::class, 'update'])->middleware('permission:contact_update')->name('contacts.update');
-        Route::delete('contacts/{contact}', [\App\Http\Controllers\ContactController::class, 'destroy'])->middleware('permission:contact_delete')->name('contacts.destroy');
+        Route::delete('contacts/{contact}', [\App\Http\Controllers\ContactController::class, 'destroy'])->whereNumber('contact')->middleware('permission:contact_delete')->name('contacts.destroy');
         Route::delete('contacts/bulk-delete', [\App\Http\Controllers\ContactController::class, 'bulkDelete'])->middleware('permission:contact_bulk_operations')->name('contacts.bulk-delete');
         Route::get('contacts/export', [\App\Http\Controllers\ContactController::class, 'export'])->middleware('permission:contact_export')->name('contacts.export');
 
@@ -1515,7 +1520,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         // Bug statuses
         Route::get('bug-statuses', [\App\Http\Controllers\BugStatusController::class, 'index'])->middleware('permission:bug_manage_statuses')->name('bug-statuses.index');
         Route::post('bug-statuses', [\App\Http\Controllers\BugStatusController::class, 'store'])->middleware('permission:bug_manage_statuses')->name('bug-statuses.store');
-        Route::put('bug-statuses/{bugStatus}', [\App\Http\Controllers\BugStatusController::class, 'update'])->middleware('permission:bug_manage_statuses')->name('bug-statuses.update');
+        Route::put('bug-statuses/{bugStatus}', [\App\Http\Controllers\BugStatusController::class, 'update'])->whereNumber('bugStatus')->middleware('permission:bug_manage_statuses')->name('bug-statuses.update');
         Route::patch('bug-statuses/{bugStatus}', [\App\Http\Controllers\BugStatusController::class, 'update'])->middleware('permission:bug_manage_statuses');
         Route::delete('bug-statuses/{bugStatus}', [\App\Http\Controllers\BugStatusController::class, 'destroy'])->middleware('permission:bug_manage_statuses')->name('bug-statuses.destroy');
         Route::put('bug-statuses/reorder', [\App\Http\Controllers\BugStatusController::class, 'reorder'])->middleware('permission:bug_manage_statuses')->name('bug-statuses.reorder');
@@ -1557,7 +1562,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('timesheet-entries', [\App\Http\Controllers\TimesheetEntryController::class, 'store'])->middleware('permission:timesheet_create')->name('timesheet-entries.store');
         Route::put('timesheet-entries/{timesheetEntry}', [\App\Http\Controllers\TimesheetEntryController::class, 'update'])->middleware('permission:timesheet_update')->name('timesheet-entries.update');
         Route::patch('timesheet-entries/{timesheetEntry}', [\App\Http\Controllers\TimesheetEntryController::class, 'update'])->middleware('permission:timesheet_update');
-        Route::delete('timesheet-entries/{timesheetEntry}', [\App\Http\Controllers\TimesheetEntryController::class, 'destroy'])->middleware('permission:timesheet_delete')->name('timesheet-entries.destroy');
+        Route::delete('timesheet-entries/{timesheetEntry}', [\App\Http\Controllers\TimesheetEntryController::class, 'destroy'])->whereNumber('timesheetEntry')->middleware('permission:timesheet_delete')->name('timesheet-entries.destroy');
         Route::post('timesheet-entries/bulk-update', [\App\Http\Controllers\TimesheetEntryController::class, 'bulkUpdate'])->middleware('permission:timesheet_bulk_operations')->name('timesheet-entries.bulk-update');
         Route::delete('timesheet-entries/bulk-delete', [\App\Http\Controllers\TimesheetEntryController::class, 'bulkDelete'])->middleware('permission:timesheet_bulk_operations')->name('timesheet-entries.bulk-delete');
 
@@ -1591,7 +1596,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('budgets/create', [\App\Http\Controllers\ProjectBudgetController::class, 'create'])->middleware('permission:budget_create')->name('budgets.create');
         Route::post('budgets', [\App\Http\Controllers\ProjectBudgetController::class, 'store'])->middleware('permission:budget_create')->name('budgets.store');
         Route::get('budgets/{budget}/edit', [\App\Http\Controllers\ProjectBudgetController::class, 'edit'])->middleware('permission:budget_update')->name('budgets.edit');
-        Route::get('budgets/{budget}', [\App\Http\Controllers\ProjectBudgetController::class, 'show'])->middleware('permission:budget_view')->name('budgets.show');
+        Route::get('budgets/{budget}', [\App\Http\Controllers\ProjectBudgetController::class, 'show'])->whereNumber('budget')->middleware('permission:budget_view')->name('budgets.show');
         Route::put('budgets/{budget}', [\App\Http\Controllers\ProjectBudgetController::class, 'update'])->middleware('permission:budget_update')->name('budgets.update');
         Route::patch('budgets/{budget}', [\App\Http\Controllers\ProjectBudgetController::class, 'update'])->middleware('permission:budget_update');
         Route::delete('budgets/{budget}', [\App\Http\Controllers\ProjectBudgetController::class, 'destroy'])->middleware('permission:budget_delete')->name('budgets.destroy');
@@ -1613,7 +1618,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('expenses', [\App\Http\Controllers\ProjectExpenseController::class, 'index'])->middleware('permission:expense_view_any')->name('expenses.index');
         Route::get('expenses/create', [\App\Http\Controllers\ProjectExpenseController::class, 'create'])->middleware('permission:expense_create')->name('expenses.create');
         Route::post('expenses', [\App\Http\Controllers\ProjectExpenseController::class, 'store'])->middleware('permission:expense_create')->name('expenses.store');
-        Route::get('expenses/{expense}', [\App\Http\Controllers\ProjectExpenseController::class, 'show'])->middleware('permission:expense_view')->name('expenses.show');
+        Route::get('expenses/{expense}', [\App\Http\Controllers\ProjectExpenseController::class, 'show'])->whereNumber('expense')->middleware('permission:expense_view')->name('expenses.show');
         Route::get('expenses/{expense}/edit', [\App\Http\Controllers\ProjectExpenseController::class, 'edit'])->middleware('permission:expense_update')->name('expenses.edit');
         Route::put('expenses/{expense}', [\App\Http\Controllers\ProjectExpenseController::class, 'update'])->middleware('permission:expense_update')->name('expenses.update');
         Route::patch('expenses/{expense}', [\App\Http\Controllers\ProjectExpenseController::class, 'update'])->middleware('permission:expense_update');
