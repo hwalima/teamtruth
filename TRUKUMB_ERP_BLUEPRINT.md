@@ -517,7 +517,7 @@ For each subsidiary, collect before go-live:
 
 ## 14. Progress Tracker
 
-_Last reviewed: 22 November 2026. 190 automated tests pass._
+_Last reviewed: 22 November 2026. 195 automated tests pass._
 
 Legend: `[x]` done and in use · `[~]` partly built (see the note) · `[ ]` not started
 
@@ -550,7 +550,7 @@ Legend: `[x]` done and in use · `[~]` partly built (see the note) · `[ ]` not 
   - [~] Sales: leads, opportunities, quotations with approval, sales orders, invoice from order. The screen is basic (single-line quotations, plain forms)
   - [x] Balance sheet, aged receivables and aged payables (Financial Reports page, CSV and branded PDF)
   - [ ] Cash flow statement
-  - [ ] Bank reconciliation (match statement lines to payments and invoices)
+  - [x] Bank reconciliation (match statement lines to customer receipts and vendor payments, explain bank charges, auto-match)
   - [ ] Tax table with effective dates, and a VAT report (confirm ZIMRA rules first)
   - [ ] Fixed assets and depreciation
   - [ ] Group consolidation with inter-company eliminations
@@ -575,7 +575,7 @@ Legend: `[x]` done and in use · `[~]` partly built (see the note) · `[ ]` not 
 These are ordered so each step builds on the one before it and finishes work that is already half there.
 
 1. ~~**Close Phase 4 accounting reports.**~~ Balance sheet, aged receivables and aged payables are done (22 Nov 2026). Cash flow is still to do.
-2. **Bank reconciliation.** Banking already imports statements and the ledger already holds payments. Matching the two (automatic suggestions plus a manual match screen) makes the bank figures trustworthy.
+2. ~~**Bank reconciliation.**~~ Done (22 Nov 2026): Banking → Reconcile suggests the recorded payment for each statement line, matches several payments to one line, explains bank charges and interest, and auto-matches the certain ones. Next step for it: link each bank account to its ledger account so the books balance can be compared with the statement balance.
 3. **Sales screen rebuild.** Bring Sales up to the standard of Invoicing and Purchase: list pages with search, multi-line quotations, a quotation PDF, send to customer, and order → delivery → invoice.
 4. **Purchase order PDF and email to the vendor.** The vendor directory and the branded layout are ready, so this is quick.
 5. **Stock valuation.** Average cost on receipts, with journals for stock, goods received not invoiced and cost of sales. Needed before POS and before the balance sheet shows stock correctly.
@@ -629,6 +629,7 @@ Found while reviewing the code on 22 November 2026, most valuable first.
 
 ## 18. Change log
 
+- **22 Nov 2026:** Bank reconciliation: statement lines matched to customer receipts and vendor payments, with suggestions, split matches, explanations, auto-match and undo.
 - **22 Nov 2026:** Financial Reports page: balance sheet, aged receivables and aged payables, with CSV and branded PDF exports.
 - **22 Nov 2026:** Vendor directory (list, page, add, edit, deactivate, delete if unused, PDF list); Odoo contacts import handles list exports; search as you type across the app.
 - **Nov 2026:** Banking module (statements, import with undo, inter-company transfers, fund requests, dashboard); invoice and credit note PDFs on company branding; Odoo invoice, employee and product imports; HRM module repaired and extended; employee exports.

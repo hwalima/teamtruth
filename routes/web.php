@@ -222,6 +222,7 @@ Route::middleware(['auth', 'verified'])->prefix('erp')->name('erp.')->group(func
         Route::prefix('banking')->name('banking.')->group(function () {
             $banking = \App\Modules\Banking\Http\Controllers\BankingController::class;
             $imports = \App\Modules\Banking\Http\Controllers\StatementImportController::class;
+            $reconcile = \App\Modules\Banking\Http\Controllers\ReconciliationController::class;
 
             // Fund requests reach across companies: each request is checked in
             // its own paying and receiving companies, not the active one.
@@ -237,15 +238,21 @@ Route::middleware(['auth', 'verified'])->prefix('erp')->name('erp.')->group(func
             Route::post('fund-requests/{fundRequest}/cancel', [$funds, 'cancel'])->name('fund-requests.cancel');
             Route::post('fund-requests/{fundRequest}/transfer', [$funds, 'execute'])->name('fund-requests.transfer');
 
-            Route::middleware('erp.permission:erp.banking.view')->group(function () use ($banking) {
+            Route::middleware('erp.permission:erp.banking.view')->group(function () use ($banking, $reconcile) {
                 Route::get('/', [$banking, 'index'])->name('index');
+                Route::get('reconcile', [$reconcile, 'start'])->name('reconcile.start');
+                Route::get('accounts/{account}/reconcile', [$reconcile, 'show'])->name('reconcile.show');
                 Route::get('accounts/{account}', [$banking, 'show'])->name('accounts.show');
                 Route::get('accounts/{account}/statement/{format}', \App\Modules\Banking\Http\Controllers\StatementExportController::class)
                     ->whereIn('format', ['pdf', 'xlsx'])
                     ->name('accounts.statement');
             });
 
-            Route::middleware('erp.permission:erp.banking.manage')->group(function () use ($banking, $imports) {
+            Route::middleware('erp.permission:erp.banking.manage')->group(function () use ($banking, $imports, $reconcile) {
+                Route::post('accounts/{account}/reconcile/auto', [$reconcile, 'autoMatch'])->name('reconcile.auto');
+                Route::post('transactions/{transaction}/reconcile', [$reconcile, 'match'])->name('reconcile.match');
+                Route::post('transactions/{transaction}/explain', [$reconcile, 'explain'])->name('reconcile.explain');
+                Route::delete('transactions/{transaction}/reconcile', [$reconcile, 'undo'])->name('reconcile.undo');
                 Route::post('accounts', [$banking, 'storeAccount'])->name('accounts.store');
                 Route::put('accounts/{account}', [$banking, 'updateAccount'])->name('accounts.update');
                 Route::delete('accounts/{account}', [$banking, 'destroyAccount'])->name('accounts.destroy');

@@ -5,6 +5,7 @@ namespace App\Modules\Banking\Models;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /** One statement line. Imported lines keep their source sheet, row and printed balance. */
 class BankTransaction extends Model
@@ -14,6 +15,7 @@ class BankTransaction extends Model
     protected $fillable = [
         'account_id', 'transaction_date', 'sequence', 'type', 'description', 'reference',
         'debit', 'credit', 'stated_balance', 'source_sheet', 'source_row', 'import_id', 'transfer_id', 'created_by',
+        'reconcile_kind', 'reconcile_note', 'reconciled_at', 'reconciled_by',
     ];
 
     protected function casts(): array
@@ -24,6 +26,7 @@ class BankTransaction extends Model
             'debit' => 'decimal:2',
             'credit' => 'decimal:2',
             'stated_balance' => 'decimal:2',
+            'reconciled_at' => 'datetime',
         ];
     }
 
@@ -46,5 +49,21 @@ class BankTransaction extends Model
     public function isManual(): bool
     {
         return $this->import_id === null && $this->transfer_id === null;
+    }
+
+    public function matches(): HasMany
+    {
+        return $this->hasMany(BankReconciliationMatch::class, 'transaction_id');
+    }
+
+    public function reconciler(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'reconciled_by');
+    }
+
+    /** Transfers between the group's own accounts need no matching: both sides are already here. */
+    public function isReconciled(): bool
+    {
+        return $this->transfer_id !== null || $this->reconciled_at !== null;
     }
 }

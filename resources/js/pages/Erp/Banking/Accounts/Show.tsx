@@ -4,7 +4,7 @@ import { ActionButton, useConfirmDelete } from '@/components/erp/record-actions'
 import { Card, Field, Page, Select, TextInput, primaryButton, secondaryButton } from '@/components/hrm/ui';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { router, useForm } from '@inertiajs/react';
-import { ArrowLeftRight, FileDown, FileSpreadsheet, Plus, Trash2, TriangleAlert } from 'lucide-react';
+import { ArrowLeftRight, CheckCheck, FileDown, FileSpreadsheet, Plus, Trash2, TriangleAlert } from 'lucide-react';
 import { useState, type FormEvent } from 'react';
 import { route } from 'ziggy-js';
 
@@ -82,6 +82,9 @@ export default function BankStatement({ account, statement, filters, canManage, 
                 <>
                     <a href={route('erp.banking.index')} className={secondaryButton}>
                         All accounts
+                    </a>
+                    <a href={route('erp.banking.reconcile.show', account.id)} className={secondaryButton}>
+                        <CheckCheck className="mr-1.5 size-4" /> Reconcile
                     </a>
                     <div className="inline-flex overflow-hidden rounded-xl border shadow-sm" role="group" aria-label="Download statement">
                         <a

@@ -403,6 +403,7 @@ export function useNavigation() {
                         { title: t('Dashboard'), href: route('erp.banking.dashboard') },
                         { title: t('Accounts & Statements'), href: route('erp.banking.index') },
                         { title: t('Fund Requests'), href: route('erp.banking.fund-requests.index') },
+                        { title: t('Reconcile'), href: route('erp.banking.reconcile.start') },
                         ...(canUseErp('erp.banking.manage') ? [{ title: t('Import Statements'), href: route('erp.banking.imports.index') }] : []),
                     ],
                 });
