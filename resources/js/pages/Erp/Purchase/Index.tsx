@@ -1,4 +1,5 @@
 import { VendorFormDialog } from '@/components/erp/vendor-form-dialog';
+import { dangerButton, inputClass, primaryButton, secondaryButton } from '@/components/hrm/ui';
 import { useForm } from '@inertiajs/react';
 import { useState, type FormEvent } from 'react';
 import { route } from 'ziggy-js';
@@ -186,6 +187,15 @@ type Props = {
     receipts: Receipt[];
     locations: Location[];
 };
+const SECTIONS = [
+    { id: 'requisitions', label: 'Requisitions' },
+    { id: 'store-issues', label: 'Store issues' },
+    { id: 'rfqs', label: 'RFQs' },
+    { id: 'orders', label: 'Orders & receipts' },
+    { id: 'contracts', label: 'Contracts, costs & returns' },
+    { id: 'bills', label: 'Bills' },
+    { id: 'payments', label: 'Payments' },
+];
 type RfqInputLine = { product_id: string; quantity: string };
 const blankRfqLine = (productId = ''): RfqInputLine => ({ product_id: productId, quantity: '1' });
 
@@ -199,44 +209,57 @@ export default function PurchaseIndex(props: Props) {
     const rfqErrors = rfqForm.errors as Record<string, string>;
 
     return (
-        <main className="mx-auto max-w-6xl space-y-8 p-6">
-            <header>
-                <p className="text-muted-foreground text-sm">{props.company.code}</p>
-                <h1 className="text-2xl font-semibold">{props.company.name} purchasing</h1>
-                <p className="text-muted-foreground mt-2 text-sm">
-                    Create vendor RFQs, compare submitted quotations, route selected orders for approval, and receive approved goods into stock.
-                </p>
-                <nav className="mt-3 flex flex-wrap gap-4 text-sm">
-                    <a href={route('erp.approvals.workflows.index')} className="text-primary underline">
-                        Configure approval workflows
+        <main className="mx-auto max-w-7xl space-y-6 p-4 sm:space-y-8 sm:p-6">
+            <header className="flex flex-wrap items-start justify-between gap-4">
+                <div className="min-w-0">
+                    <p className="text-muted-foreground text-sm">{props.company.code}</p>
+                    <h1 className="text-2xl font-semibold">{props.company.name} purchasing</h1>
+                    <p className="text-muted-foreground mt-1 max-w-3xl text-sm">
+                        Create vendor RFQs, compare submitted quotations, route selected orders for approval, and receive approved goods into stock.
+                    </p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                    <a href={route('erp.approvals.index')} className={secondaryButton}>
+                        Approval inbox
                     </a>
-                    <a href={route('erp.approvals.index')} className="text-primary underline">
-                        Open approval inbox
+                    <a href={route('erp.approvals.workflows.index')} className={secondaryButton}>
+                        Approval workflows
                     </a>
-                </nav>
+                </div>
             </header>
 
-            <section className="grid gap-6 lg:grid-cols-2">
+            <nav aria-label="Purchasing sections" className="-mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
+                <ul className="flex gap-2 text-sm whitespace-nowrap">
+                    {SECTIONS.map((section) => (
+                        <li key={section.id}>
+                            <a
+                                href={`#${section.id}`}
+                                className="border-border/70 hover:bg-primary/10 hover:border-primary/30 inline-flex rounded-full border px-3 py-1.5 transition-colors"
+                            >
+                                {section.label}
+                            </a>
+                        </li>
+                    ))}
+                </ul>
+            </nav>
+
+            <section className="grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
                 <Panel title="Vendors">
                     <p className="text-muted-foreground text-sm">
                         {props.vendors.length === 0
                             ? 'Add vendors before recording quotations, or import them from Odoo.'
                             : `${props.vendors.length} active vendor${props.vendors.length === 1 ? '' : 's'}. Search, edit and see what you owe each one in the vendor directory.`}
                     </p>
-                    <div className="mt-4 flex flex-wrap gap-2">
-                        <a
-                            href={route('erp.purchase.vendors.index')}
-                            className="bg-primary text-primary-foreground inline-flex min-h-10 items-center rounded-xl px-4 text-sm font-semibold shadow-sm"
-                        >
+                    <div className="flex flex-wrap gap-2">
+                        <a href={route('erp.purchase.vendors.index')} className={primaryButton}>
                             Open vendor directory
                         </a>
-                        <button
-                            type="button"
-                            onClick={() => setAddingVendor(true)}
-                            className="border-border/70 hover:bg-primary/10 inline-flex min-h-10 items-center rounded-xl border px-4 text-sm font-medium"
-                        >
+                        <button type="button" onClick={() => setAddingVendor(true)} className={secondaryButton}>
                             Add vendor
                         </button>
+                        <a href={route('erp.purchase.payments.create')} className={secondaryButton}>
+                            Pay a vendor
+                        </a>
                     </div>
                     <VendorFormDialog
                         open={addingVendor}
@@ -276,10 +299,14 @@ export default function PurchaseIndex(props: Props) {
                                     error={rfqErrors.reference}
                                 />
                             </div>
-                            <h3 className="font-medium">Requested items</h3>
+                            <h3 className="text-sm font-medium">Requested items</h3>
                             {rfqForm.data.lines.map((line, index) => (
-                                <div key={index} className="grid items-end gap-2 sm:grid-cols-[1fr_150px_auto]">
+                                <div
+                                    key={index}
+                                    className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-2 sm:grid-cols-[minmax(0,1fr)_7rem_auto]"
+                                >
                                     <SelectField
+                                        className="col-span-2 sm:col-span-1"
                                         label="Product"
                                         value={line.product_id}
                                         options={props.products.map((product) => ({
@@ -309,21 +336,26 @@ export default function PurchaseIndex(props: Props) {
                                                 rfqForm.data.lines.filter((_, lineIndex) => lineIndex !== index),
                                             )
                                         }
-                                        className="text-destructive pb-2 text-sm underline disabled:opacity-40"
+                                        className={dangerButton}
+                                        aria-label={`Remove item ${index + 1}`}
                                     >
                                         Remove
                                     </button>
-                                    {rfqErrors[`lines.${index}.product_id`] && <ErrorText>{rfqErrors[`lines.${index}.product_id`]}</ErrorText>}
+                                    {rfqErrors[`lines.${index}.product_id`] && (
+                                        <span className="col-span-full">
+                                            <ErrorText>{rfqErrors[`lines.${index}.product_id`]}</ErrorText>
+                                        </span>
+                                    )}
                                 </div>
                             ))}
-                            <div className="flex flex-wrap gap-3">
+                            <div className="flex flex-wrap gap-2 pt-1">
                                 <button
                                     type="button"
                                     disabled={rfqForm.data.lines.length >= 50}
                                     onClick={() =>
                                         rfqForm.setData('lines', [...rfqForm.data.lines, blankRfqLine(props.products[0]?.id.toString() ?? '')])
                                     }
-                                    className="text-primary text-sm underline disabled:opacity-50"
+                                    className={secondaryButton}
                                 >
                                     Add item
                                 </button>
@@ -334,7 +366,7 @@ export default function PurchaseIndex(props: Props) {
                 </Panel>
             </section>
 
-            <section className="space-y-4">
+            <section id="requisitions" className="scroll-mt-20 space-y-4">
                 <div>
                     <h2 className="text-xl font-semibold">Approved purchase requisitions</h2>
                     <p className="text-muted-foreground mt-1 text-sm">
@@ -347,7 +379,7 @@ export default function PurchaseIndex(props: Props) {
                 {props.approvedRequisitions.length === 0 && <Empty>No approved purchase requisitions are waiting for conversion.</Empty>}
             </section>
 
-            <section className="space-y-4">
+            <section id="store-issues" className="scroll-mt-20 space-y-4">
                 <div>
                     <h2 className="text-xl font-semibold">Approved store-issue requisitions</h2>
                     <p className="text-muted-foreground mt-1 text-sm">
@@ -366,7 +398,7 @@ export default function PurchaseIndex(props: Props) {
                 {props.approvedStoreIssueRequisitions.length === 0 && <Empty>No approved store-issue requisitions are waiting to be issued.</Empty>}
             </section>
 
-            <section className="space-y-4">
+            <section id="rfqs" className="scroll-mt-20 space-y-4">
                 <h2 className="text-xl font-semibold">RFQs and quotation comparison</h2>
                 {props.rfqs.map((rfq) => (
                     <RfqCard key={rfq.id} rfq={rfq} vendors={props.vendors} orders={props.orders} />
@@ -374,10 +406,10 @@ export default function PurchaseIndex(props: Props) {
                 {props.rfqs.length === 0 && <Empty>No requests for quotation yet.</Empty>}
             </section>
 
-            <section className="space-y-4">
+            <section id="orders" className="scroll-mt-20 space-y-4">
                 <h2 className="text-xl font-semibold">Purchase orders and receipts</h2>
                 {props.orders.map((order) => (
-                    <article key={order.id} className="space-y-4 rounded-md border p-4">
+                    <article key={order.id} className="bg-card/70 min-w-0 space-y-4 rounded-xl border p-4 sm:p-5">
                         <header className="flex flex-wrap justify-between gap-2">
                             <div>
                                 <h3 className="font-semibold">
@@ -392,7 +424,7 @@ export default function PurchaseIndex(props: Props) {
                         </header>
                         <div className="grid gap-3 lg:grid-cols-2">
                             {order.lines.map((line) => (
-                                <div key={line.id} className="rounded border p-3 text-sm">
+                                <div key={line.id} className="rounded-lg border p-3 text-sm">
                                     <p className="font-medium">
                                         {line.product.sku} — {line.product.name}
                                     </p>
@@ -418,7 +450,7 @@ export default function PurchaseIndex(props: Props) {
                             <div className="mt-3 space-y-2">
                                 <h4 className="font-medium text-sm">Receipts</h4>
                                 {order.receipts.map((receipt) => (
-                                    <div key={receipt.id} className="flex flex-wrap items-center justify-between gap-3 rounded border p-3 text-sm">
+                                    <div key={receipt.id} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border p-3 text-sm">
                                         <span>
                                             <strong>{receipt.document_number}</strong> — Received {new Date(receipt.received_at).toLocaleDateString()}
                                             ({receipt.lines.length} line(s))
@@ -426,7 +458,7 @@ export default function PurchaseIndex(props: Props) {
                                         {['approved', 'partially_received', 'received'].includes(order.status) && (
                                             <a
                                                 href={route('erp.purchase.orders.bills.create', [order.id, receipt.id])}
-                                                className="text-primary underline text-sm"
+                                                className={secondaryButton}
                                             >
                                                 Create vendor bill
                                             </a>
@@ -440,7 +472,7 @@ export default function PurchaseIndex(props: Props) {
                 {props.orders.length === 0 && <Empty>No purchase orders have been created.</Empty>}
             </section>
 
-            <section className="grid gap-6 lg:grid-cols-2">
+            <section id="contracts" className="scroll-mt-20 grid gap-6 lg:grid-cols-2">
                 <BlanketOrdersPanel blanketOrders={props.blanketOrders} vendors={props.vendors} products={props.products} currencies={props.currencies} />
                 <LandedCostsPanel landedCosts={props.landedCosts} receipts={props.receipts} vendors={props.vendors} products={props.products} currencies={props.currencies} />
                 <PurchaseReturnsPanel returns={props.returns} receipts={props.receipts} locations={props.locations} />
@@ -448,15 +480,15 @@ export default function PurchaseIndex(props: Props) {
                 <VendorPriceListsPanel priceLists={props.vendorPriceLists} vendors={props.vendors} products={props.products} currencies={props.currencies} />
             </section>
 
-            <section className="space-y-4">
-                <div className="flex flex-wrap justify-between gap-2 items-center">
+            <section id="bills" className="scroll-mt-20 space-y-4">
+                <div className="flex flex-wrap items-center justify-between gap-2">
                     <h2 className="text-xl font-semibold">Vendor bills</h2>
-                    <a href={route('erp.purchase.payments.create')} className="text-primary text-sm underline">
+                    <a href={route('erp.purchase.payments.create')} className={secondaryButton}>
                         Create payment
                     </a>
                 </div>
                 {props.bills.map((bill) => (
-                    <article key={bill.id} className="space-y-3 rounded-md border p-4">
+                    <article key={bill.id} className="bg-card/70 min-w-0 space-y-3 rounded-xl border p-4 sm:p-5">
                         <header className="flex flex-wrap justify-between gap-2">
                             <div>
                                 <h3 className="font-semibold">{bill.document_number}</h3>
@@ -500,14 +532,14 @@ export default function PurchaseIndex(props: Props) {
                         {bill.status === 'draft' && (
                             <div className="flex gap-2">
                                 <form action={route('erp.purchase.bills.submit', bill.id)} method="POST">
-                                    <button type="submit" className="text-primary underline text-sm">Submit for approval</button>
+                                    <button type="submit" className={secondaryButton}>Submit for approval</button>
                                 </form>
                             </div>
                         )}
                         {bill.status === 'approved' && bill.posted_at === null && (
                             <div className="flex gap-2">
                                 <form action={route('erp.purchase.bills.post', bill.id)} method="POST">
-                                    <button type="submit" className="text-primary underline text-sm">Post to accounting</button>
+                                    <button type="submit" className={secondaryButton}>Post to accounting</button>
                                 </form>
                             </div>
                         )}
@@ -516,10 +548,10 @@ export default function PurchaseIndex(props: Props) {
                 {props.bills.length === 0 && <Empty>No vendor bills yet.</Empty>}
             </section>
 
-            <section className="space-y-4">
+            <section id="payments" className="scroll-mt-20 space-y-4">
                 <h2 className="text-xl font-semibold">Vendor payments</h2>
                 {props.payments.map((payment) => (
-                    <article key={payment.id} className="space-y-3 rounded-md border p-4">
+                    <article key={payment.id} className="bg-card/70 min-w-0 space-y-3 rounded-xl border p-4 sm:p-5">
                         <header className="flex flex-wrap justify-between gap-2">
                             <div>
                                 <h3 className="font-semibold">{payment.document_number}</h3>
@@ -549,7 +581,7 @@ export default function PurchaseIndex(props: Props) {
                         )}
                         {payment.status === 'draft' && (
                             <form action={route('erp.purchase.payments.post', payment.id)} method="POST">
-                                <button type="submit" className="text-primary underline text-sm">Post to accounting</button>
+                                <button type="submit" className={secondaryButton}>Post to accounting</button>
                             </form>
                         )}
                     </article>
@@ -557,11 +589,11 @@ export default function PurchaseIndex(props: Props) {
                 {props.payments.length === 0 && <Empty>No vendor payments yet.</Empty>}
             </section>
 
-            <div className="flex flex-wrap gap-4">
-                <a href={route('erp.inventory.stock.index')} className="text-primary text-sm underline">
+            <div className="flex flex-wrap gap-2 border-t pt-6">
+                <a href={route('erp.inventory.stock.index')} className={secondaryButton}>
                     Stock on hand
                 </a>
-                <a href={route('erp.dashboard')} className="text-primary text-sm underline">
+                <a href={route('erp.dashboard')} className={secondaryButton}>
                     ERP dashboard
                 </a>
             </div>
@@ -602,16 +634,16 @@ function BlanketOrdersPanel({
                     </div>
                     <h3 className="text-sm font-medium">Contract lines</h3>
                     {form.data.lines.map((line, index) => (
-                        <div key={index} className="grid gap-2 sm:grid-cols-[1fr_110px_130px_auto]">
-                            <SelectField label="Product" value={line.product_id} options={products.map((p) => ({ value: p.id.toString(), label: `${p.sku} — ${p.name}` }))} onChange={(value) => updateLine(form.data.lines, index, 'product_id', value, (lines) => form.setData('lines', lines))} error={errors[`lines.${index}.product_id`]} />
+                        <div key={index} className="grid grid-cols-2 items-end gap-2 sm:grid-cols-[minmax(0,1fr)_6.5rem_7.5rem_auto]">
+                            <SelectField className="col-span-2 sm:col-span-1" label="Product" value={line.product_id} options={products.map((p) => ({ value: p.id.toString(), label: `${p.sku} — ${p.name}` }))} onChange={(value) => updateLine(form.data.lines, index, 'product_id', value, (lines) => form.setData('lines', lines))} error={errors[`lines.${index}.product_id`]} />
                             <TextField label="Quantity" type="number" value={line.quantity} onChange={(value) => updateLine(form.data.lines, index, 'quantity', value, (lines) => form.setData('lines', lines))} error={errors[`lines.${index}.quantity`]} required />
                             <TextField label="Unit price" type="number" value={line.unit_price} onChange={(value) => updateLine(form.data.lines, index, 'unit_price', value, (lines) => form.setData('lines', lines))} error={errors[`lines.${index}.unit_price`]} required />
-                            <button type="button" disabled={form.data.lines.length <= 1} onClick={() => form.setData('lines', form.data.lines.filter((_, i) => i !== index))} className="text-destructive pb-2 text-sm underline disabled:opacity-40">Remove</button>
+                            <button type="button" disabled={form.data.lines.length <= 1} onClick={() => form.setData('lines', form.data.lines.filter((_, i) => i !== index))} className={`${dangerButton} col-span-2 sm:col-span-1`}>Remove</button>
                         </div>
                     ))}
                     {errors.lines && <ErrorText>{errors.lines}</ErrorText>}
-                    <div className="flex flex-wrap gap-3">
-                        <button type="button" disabled={form.data.lines.length >= 50} onClick={() => form.setData('lines', [...form.data.lines, { product_id: products[0]?.id.toString() ?? '', quantity: '1', unit_price: '0' }])} className="text-primary text-sm underline disabled:opacity-50">Add line</button>
+                    <div className="flex flex-wrap gap-2">
+                        <button type="button" disabled={form.data.lines.length >= 50} onClick={() => form.setData('lines', [...form.data.lines, { product_id: products[0]?.id.toString() ?? '', quantity: '1', unit_price: '0' }])} className={secondaryButton}>Add line</button>
                         <SubmitButton processing={form.processing}>Create blanket order</SubmitButton>
                     </div>
                 </form>
@@ -628,13 +660,13 @@ function BlanketOrderCard({ blanketOrder }: { blanketOrder: BlanketOrder }) {
     const form = useForm({ lines: blanketOrder.lines.map((line) => ({ blanket_order_line_id: line.id.toString(), quantity: '1' })) });
     const errors = form.errors as Record<string, string>;
     return (
-        <article className="rounded border p-3 text-sm">
+        <article className="rounded-lg border p-3 text-sm">
             <h3 className="font-medium">{blanketOrder.document_number} — {blanketOrder.vendor.name}</h3>
             <p className="text-muted-foreground mt-1">{blanketOrder.status} · {blanketOrder.currency_code} {blanketOrder.amount_used} / {blanketOrder.max_amount} · {blanketOrder.starts_on} to {blanketOrder.ends_on}</p>
             <ul className="my-2 space-y-1">{blanketOrder.lines.map((line) => <li key={line.id}>{line.product.sku} — {line.product.name}: {line.quantity} {line.product.unit.abbreviation} at {blanketOrder.currency_code} {line.unit_price}</li>)}</ul>
             {blanketOrder.status === 'active' && <form onSubmit={(event) => { event.preventDefault(); form.post(route('erp.purchase.blanket-orders.orders.store', blanketOrder.id)); }} className="space-y-2 border-t pt-2">
                 <p className="font-medium">Create purchase order from this blanket order</p>
-                {form.data.lines.map((line, index) => <div key={line.blanket_order_line_id} className="grid items-end gap-2 sm:grid-cols-[1fr_140px]">
+                {form.data.lines.map((line, index) => <div key={line.blanket_order_line_id} className="grid items-end gap-2 sm:grid-cols-[minmax(0,1fr)_8.75rem]">
                     <span>{blanketOrder.lines[index]?.product.name}</span>
                     <TextField label="Order quantity" type="number" value={line.quantity} onChange={(value) => updateLine(form.data.lines, index, 'quantity', value, (lines) => form.setData('lines', lines))} error={errors[`lines.${index}.quantity`]} required />
                 </div>)}
@@ -655,18 +687,18 @@ function LandedCostsPanel({ landedCosts, receipts, vendors, products, currencies
                 <SelectField label="Currency" value={form.data.currency_code} options={currencies.map((c) => ({ value: c.code, label: `${c.code} — ${c.name}` }))} onChange={(value) => form.setData('currency_code', value)} error={errors.currency_code} />
             </div>
             <h3 className="text-sm font-medium">Cost allocations</h3>
-            {form.data.lines.map((line, index) => <div key={index} className="grid gap-2 rounded border p-3 sm:grid-cols-2">
+            {form.data.lines.map((line, index) => <div key={index} className="grid gap-2 rounded-lg border p-3 sm:grid-cols-2">
                 <SelectField label="Product (optional)" value={line.product_id} options={[{ value: '', label: 'No product' }, ...products.map((p) => ({ value: p.id.toString(), label: `${p.sku} — ${p.name}` }))]} onChange={(value) => updateLine(form.data.lines, index, 'product_id', value, (lines) => form.setData('lines', lines))} error={errors[`lines.${index}.product_id`]} />
                 <TextField label="Accounting account ID" type="number" value={line.account_id} onChange={(value) => updateLine(form.data.lines, index, 'account_id', value, (lines) => form.setData('lines', lines))} error={errors[`lines.${index}.account_id`]} required />
                 <TextField label="Cost name" value={line.name} onChange={(value) => updateLine(form.data.lines, index, 'name', value, (lines) => form.setData('lines', lines))} error={errors[`lines.${index}.name`]} required />
                 <TextField label="Amount" type="number" value={line.amount} onChange={(value) => updateLine(form.data.lines, index, 'amount', value, (lines) => form.setData('lines', lines))} error={errors[`lines.${index}.amount`]} required />
                 <SelectField label="Split method" value={line.split_method} options={[{ value: 'by_quantity', label: 'By quantity' }, { value: 'by_value', label: 'By value' }, { value: 'equally', label: 'Equally' }]} onChange={(value) => updateLine(form.data.lines, index, 'split_method', value, (lines) => form.setData('lines', lines))} error={errors[`lines.${index}.split_method`]} />
-                <button type="button" disabled={form.data.lines.length <= 1} onClick={() => form.setData('lines', form.data.lines.filter((_, i) => i !== index))} className="text-destructive self-end pb-2 text-sm underline disabled:opacity-40">Remove line</button>
+                <button type="button" disabled={form.data.lines.length <= 1} onClick={() => form.setData('lines', form.data.lines.filter((_, i) => i !== index))} className={`${dangerButton} self-end`}>Remove line</button>
             </div>)}
             {errors.lines && <ErrorText>{errors.lines}</ErrorText>}
-            <div className="flex flex-wrap gap-3"><button type="button" onClick={() => form.setData('lines', [...form.data.lines, { product_id: '', account_id: '', name: '', amount: '', split_method: 'by_quantity' }])} className="text-primary text-sm underline">Add cost</button><SubmitButton processing={form.processing}>Create landed cost</SubmitButton></div>
+            <div className="flex flex-wrap gap-2"><button type="button" onClick={() => form.setData('lines', [...form.data.lines, { product_id: '', account_id: '', name: '', amount: '', split_method: 'by_quantity' }])} className={secondaryButton}>Add cost</button><SubmitButton processing={form.processing}>Create landed cost</SubmitButton></div>
         </form>}
-        <div className="space-y-2 border-t pt-3">{landedCosts.map((cost) => <article key={cost.id} className="rounded border p-3 text-sm"><strong>{cost.document_number} — {cost.vendor.name}</strong><p className="text-muted-foreground">Receipt {cost.purchaseReceipt.document_number} · {cost.status} · {cost.currency_code} {cost.total_amount}</p></article>)}{landedCosts.length === 0 && <Empty>No landed costs recorded.</Empty>}</div>
+        <div className="space-y-2 border-t pt-3">{landedCosts.map((cost) => <article key={cost.id} className="rounded-lg border p-3 text-sm"><strong>{cost.document_number} — {cost.vendor.name}</strong><p className="text-muted-foreground">Receipt {cost.purchaseReceipt.document_number} · {cost.status} · {cost.currency_code} {cost.total_amount}</p></article>)}{landedCosts.length === 0 && <Empty>No landed costs recorded.</Empty>}</div>
     </Panel>;
 }
 
@@ -685,11 +717,11 @@ function PurchaseReturnsPanel({ returns, receipts, locations }: { returns: Purch
                 <TextField label="Reason" value={form.data.reason} onChange={(value) => form.setData('reason', value)} error={errors.reason} required />
             </div>
             <h3 className="text-sm font-medium">Receipt quantities to return</h3>
-            {selectedReceipt?.lines.map((line, index) => <div key={line.id} className="grid items-end gap-2 sm:grid-cols-[1fr_150px]"><p className="text-sm">{line.purchaseOrderLine.product.sku} — {line.purchaseOrderLine.product.name}<span className="text-muted-foreground block">Received {line.quantity} {line.purchaseOrderLine.product.unit.abbreviation}</span></p><TextField label="Return quantity" type="number" value={form.data.lines[index]?.quantity ?? ''} onChange={(value) => updateLine(form.data.lines, index, 'quantity', value, (lines) => form.setData('lines', lines))} error={errors[`lines.${index}.quantity`]} required /></div>)}
+            {selectedReceipt?.lines.map((line, index) => <div key={line.id} className="grid items-end gap-2 sm:grid-cols-[minmax(0,1fr)_9.375rem]"><p className="text-sm">{line.purchaseOrderLine.product.sku} — {line.purchaseOrderLine.product.name}<span className="text-muted-foreground block">Received {line.quantity} {line.purchaseOrderLine.product.unit.abbreviation}</span></p><TextField label="Return quantity" type="number" value={form.data.lines[index]?.quantity ?? ''} onChange={(value) => updateLine(form.data.lines, index, 'quantity', value, (lines) => form.setData('lines', lines))} error={errors[`lines.${index}.quantity`]} required /></div>)}
             {errors.lines && <ErrorText>{errors.lines}</ErrorText>}
             <SubmitButton processing={form.processing}>Create purchase return</SubmitButton>
         </form>}
-        <div className="space-y-2 border-t pt-3">{returns.map((item) => <article key={item.id} className="rounded border p-3 text-sm"><strong>{item.document_number}</strong><p className="text-muted-foreground">Receipt {item.purchaseReceipt.document_number} · {item.return_date} · {item.status} · {item.reason}</p></article>)}{returns.length === 0 && <Empty>No purchase returns recorded.</Empty>}</div>
+        <div className="space-y-2 border-t pt-3">{returns.map((item) => <article key={item.id} className="rounded-lg border p-3 text-sm"><strong>{item.document_number}</strong><p className="text-muted-foreground">Receipt {item.purchaseReceipt.document_number} · {item.return_date} · {item.status} · {item.reason}</p></article>)}{returns.length === 0 && <Empty>No purchase returns recorded.</Empty>}</div>
     </Panel>;
 }
 
@@ -752,7 +784,7 @@ function StoreIssueRequisitionCard({
     const missingLocations = internalLocations.length === 0 || departmentLocations.length === 0;
 
     return (
-        <article className="space-y-4 rounded-md border p-4">
+        <article className="bg-card/70 min-w-0 space-y-4 rounded-xl border p-4 sm:p-5">
             <header>
                 <h3 className="font-semibold">{requisition.document_number}</h3>
                 <p className="text-muted-foreground text-sm">Approved · {requisition.department ?? 'No department'}</p>
@@ -784,7 +816,7 @@ function StoreIssueRequisitionCard({
                     const matchingProducts = products.filter((product) => sameUnit(line.unit, product.unit.abbreviation));
                     const selectedProduct = products.find((product) => product.id.toString() === form.data.lines[index].product_id);
                     return (
-                        <div key={line.id} className="grid gap-3 rounded border p-3 sm:grid-cols-2">
+                        <div key={line.id} className="grid gap-3 rounded-lg border p-3 sm:grid-cols-2">
                             <div>
                                 <p className="text-sm font-medium">{line.item}</p>
                                 {line.description && <p className="text-muted-foreground text-sm">{line.description}</p>}
@@ -863,7 +895,7 @@ function RequisitionConversionCard({ requisition, products }: { requisition: App
     const hasUnmappedUnits = requisition.lines.some((line) => !products.some((product) => sameUnit(line.unit, product.unit.abbreviation)));
 
     return (
-        <article className="space-y-4 rounded-md border p-4">
+        <article className="bg-card/70 min-w-0 space-y-4 rounded-xl border p-4 sm:p-5">
             <header className="flex flex-wrap justify-between gap-2">
                 <div>
                     <h3 className="font-semibold">{requisition.document_number}</h3>
@@ -871,7 +903,7 @@ function RequisitionConversionCard({ requisition, products }: { requisition: App
                         Approved · {requisition.department ?? 'No department'} · Estimated {requisition.currency_code} {requisition.estimated_total}
                     </p>
                 </div>
-                <a className="text-primary text-sm underline" href={route('erp.requisitions.show', requisition.id)}>
+                <a className={secondaryButton} href={route('erp.requisitions.show', requisition.id)}>
                     View requisition
                 </a>
             </header>
@@ -885,7 +917,7 @@ function RequisitionConversionCard({ requisition, products }: { requisition: App
                 {requisition.lines.map((line, index) => {
                     const matchingProducts = products.filter((product) => sameUnit(line.unit, product.unit.abbreviation));
                     return (
-                        <div key={line.id} className="grid gap-3 sm:grid-cols-[1fr_1fr]">
+                        <div key={line.id} className="grid gap-3 sm:grid-cols-2">
                             <p className="self-center text-sm">
                                 <strong>{line.item}</strong>
                                 {line.description && <span className="text-muted-foreground"> · {line.description}</span>}
@@ -933,7 +965,7 @@ function RfqCard({ rfq, vendors, orders }: { rfq: RFQ; vendors: Vendor[]; orders
     const quoteOrderIds = new Set(orders.map((order) => order.quotation_id).filter((id): id is number => id !== null));
 
     return (
-        <article className="space-y-4 rounded-md border p-4">
+        <article className="bg-card/70 min-w-0 space-y-4 rounded-xl border p-4 sm:p-5">
             <header className="flex flex-wrap justify-between gap-2">
                 <div>
                     <h3 className="font-semibold">{rfq.document_number}</h3>
@@ -971,7 +1003,7 @@ function RfqCard({ rfq, vendors, orders }: { rfq: RFQ; vendors: Vendor[]; orders
                 <div className="space-y-2">
                     <h4 className="font-medium">Submitted quotations (lowest total first)</h4>
                     {rfq.quotations.map((quotation) => (
-                        <div key={quotation.id} className="flex flex-wrap items-center justify-between gap-3 rounded border p-3 text-sm">
+                        <div key={quotation.id} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border p-3 text-sm">
                             <span>
                                 {quotation.vendor.code} — {quotation.vendor.name}
                                 {quotation.vendor_reference ? ` · Ref ${quotation.vendor_reference}` : ''}
@@ -996,7 +1028,7 @@ function RfqCard({ rfq, vendors, orders }: { rfq: RFQ; vendors: Vendor[]; orders
                                             }
                                         }}
                                     >
-                                        <button type="submit" disabled={orderForm.processing} className="text-primary underline disabled:opacity-50">
+                                        <button type="submit" disabled={orderForm.processing} className={primaryButton}>
                                             Select and create PO
                                         </button>
                                     </form>
@@ -1011,7 +1043,7 @@ function RfqCard({ rfq, vendors, orders }: { rfq: RFQ; vendors: Vendor[]; orders
             )}
 
             {rfq.status === 'open' && vendors.length > 0 && (
-                <details className="rounded border p-3">
+                <details className="rounded-lg border p-3">
                     <summary className="cursor-pointer text-sm font-medium">Record a vendor quotation</summary>
                     <form
                         onSubmit={(event: FormEvent<HTMLFormElement>) => {
@@ -1038,7 +1070,7 @@ function RfqCard({ rfq, vendors, orders }: { rfq: RFQ; vendors: Vendor[]; orders
                             />
                         </div>
                         {rfq.lines.map((line, index) => (
-                            <div key={line.id} className="grid gap-3 sm:grid-cols-[1fr_200px]">
+                            <div key={line.id} className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_12.5rem]">
                                 <p className="self-center text-sm">
                                     {line.product.sku} — {line.product.name} · {line.quantity} {line.product.unit.abbreviation}
                                 </p>
@@ -1164,7 +1196,7 @@ function sameUnit(left: string, right: string) {
 
 function Panel({ title, children }: { title: string; children: React.ReactNode }) {
     return (
-        <section className="space-y-3 rounded-md border p-4">
+        <section className="bg-card/70 min-w-0 space-y-3 rounded-xl border p-4 sm:p-5">
             <h2 className="text-lg font-medium">{title}</h2>
             {children}
         </section>
@@ -1178,7 +1210,9 @@ function TextField({
     error,
     type = 'text',
     required = false,
+    className = '',
 }: {
+    className?: string;
     label: string;
     value: string;
     onChange: (value: string) => void;
@@ -1187,7 +1221,7 @@ function TextField({
     required?: boolean;
 }) {
     return (
-        <label className="grid gap-1 text-sm">
+        <label className={`grid min-w-0 gap-1.5 text-sm ${className}`}>
             {label}
             <input
                 required={required}
@@ -1196,7 +1230,7 @@ function TextField({
                 type={type}
                 value={value}
                 onChange={(event) => onChange(event.target.value)}
-                className="bg-background rounded-md border px-3 py-2"
+                className={inputClass}
             />
             {error && <ErrorText>{error}</ErrorText>}
         </label>
@@ -1209,7 +1243,9 @@ function SelectField({
     options,
     onChange,
     error,
+    className = '',
 }: {
+    className?: string;
     label: string;
     value: string;
     options: Array<{ value: string; label: string }>;
@@ -1217,9 +1253,9 @@ function SelectField({
     error?: string;
 }) {
     return (
-        <label className="grid gap-1 text-sm">
+        <label className={`grid min-w-0 gap-1.5 text-sm ${className}`}>
             {label}
-            <select value={value} onChange={(event) => onChange(event.target.value)} className="bg-background rounded-md border px-3 py-2">
+            <select value={value} onChange={(event) => onChange(event.target.value)} className={`${inputClass} truncate`}>
                 {options.map((option) => (
                     <option key={option.value} value={option.value}>
                         {option.label}
@@ -1236,7 +1272,7 @@ function SubmitButton({ processing, children }: { processing: boolean; children:
         <button
             type="submit"
             disabled={processing}
-            className="bg-primary text-primary-foreground rounded-md px-4 py-2 text-sm font-medium disabled:opacity-50"
+            className={`${primaryButton} self-end justify-self-start`}
         >
             {children}
         </button>
