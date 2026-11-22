@@ -1,5 +1,5 @@
 import { balanceClass, money, shortDate } from '@/components/banking/money';
-import { TransferDialog } from '@/components/banking/transfer-dialog';
+import { TransferDialog, type TransferAccount } from '@/components/banking/transfer-dialog';
 import { ActionButton, useConfirmDelete } from '@/components/erp/record-actions';
 import { Card, Field, Page, Select, TextInput, primaryButton, secondaryButton } from '@/components/hrm/ui';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -50,10 +50,11 @@ type Props = {
     };
     filters: { from?: string; to?: string };
     canManage: boolean;
-    transferAccounts: { id: number; label: string; company: string }[];
+    transferAccounts: TransferAccount[];
+    savedSignatureUrl: string | null;
 };
 
-export default function BankStatement({ account, statement, filters, canManage, transferAccounts }: Props) {
+export default function BankStatement({ account, statement, filters, canManage, transferAccounts, savedSignatureUrl }: Props) {
     const { askDelete, deleteDialog } = useConfirmDelete();
     const [lineOpen, setLineOpen] = useState(false);
     const [transferOpen, setTransferOpen] = useState(false);
@@ -106,7 +107,7 @@ export default function BankStatement({ account, statement, filters, canManage, 
                                 onClick={() => setTransferOpen(true)}
                                 disabled={transferAccounts.length === 0}
                             >
-                                <ArrowLeftRight className="mr-1.5 size-4" /> Transfer
+                                <ArrowLeftRight className="mr-1.5 size-4" /> Move funds
                             </button>
                             <button type="button" className={primaryButton} onClick={() => setLineOpen(true)}>
                                 <Plus className="mr-1.5 size-4" /> Record transaction
@@ -282,7 +283,19 @@ export default function BankStatement({ account, statement, filters, canManage, 
             )}
 
             {lineOpen && <LineDialog accountId={account.id} onClose={() => setLineOpen(false)} />}
-            <TransferDialog open={transferOpen} onClose={() => setTransferOpen(false)} accounts={transferAccounts} fromAccountId={account.id} />
+            <TransferDialog
+                open={transferOpen}
+                onClose={() => setTransferOpen(false)}
+                accounts={transferAccounts}
+                fromAccount={{
+                    id: account.id,
+                    label: `${account.account_number} · ${account.account_name}`,
+                    company: account.company.name,
+                    company_id: account.company.id,
+                    currency: account.currency,
+                }}
+                savedSignatureUrl={savedSignatureUrl}
+            />
             {deleteDialog}
         </Page>
     );

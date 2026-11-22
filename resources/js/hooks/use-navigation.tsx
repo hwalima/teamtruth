@@ -384,7 +384,9 @@ export function useNavigation() {
                     icon: Banknote,
                     group: t('Modules'),
                     children: [
+                        { title: t('Dashboard'), href: route('erp.banking.dashboard') },
                         { title: t('Accounts & Statements'), href: route('erp.banking.index') },
+                        { title: t('Fund Requests'), href: route('erp.banking.fund-requests.index') },
                         ...(canUseErp('erp.banking.manage') ? [{ title: t('Import Statements'), href: route('erp.banking.imports.index') }] : []),
                     ],
                 });

@@ -4,7 +4,7 @@ import { ActionButton, RecordActions, useConfirmDelete } from '@/components/erp/
 import { Card, Empty, Field, Page, Select, StatusBadge, TextArea, TextInput, primaryButton, secondaryButton } from '@/components/hrm/ui';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useForm } from '@inertiajs/react';
-import { ArrowLeftRight, FileUp, Landmark, Pencil, Plus, Trash2 } from 'lucide-react';
+import { ArrowLeftRight, FileUp, Landmark, LayoutDashboard, Pencil, Plus, ShieldCheck, Trash2 } from 'lucide-react';
 import { useMemo, useState, type FormEvent } from 'react';
 import { route } from 'ziggy-js';
 
@@ -45,6 +45,7 @@ type Props = {
     banks: string[];
     nextAccountNumber: string;
     canManage: boolean;
+    savedSignatureUrl: string | null;
 };
 
 export default function BankingIndex(props: Props) {
@@ -73,19 +74,32 @@ export default function BankingIndex(props: Props) {
             title="Banking"
             subtitle={`${props.accounts.length} account(s) across ${groups.length} compan${groups.length === 1 ? 'y' : 'ies'}`}
             actions={
-                props.canManage && (
-                    <>
-                        <a href={route('erp.banking.imports.index')} className={secondaryButton}>
-                            <FileUp className="mr-1.5 size-4" /> Import statements
-                        </a>
-                        <button type="button" className={secondaryButton} onClick={() => setTransferOpen(true)} disabled={props.accounts.length < 2}>
-                            <ArrowLeftRight className="mr-1.5 size-4" /> Transfer
-                        </button>
-                        <button type="button" className={primaryButton} onClick={() => setAccountDialog('new')}>
-                            <Plus className="mr-1.5 size-4" /> Open account
-                        </button>
-                    </>
-                )
+                <>
+                    <a href={route('erp.banking.dashboard')} className={secondaryButton}>
+                        <LayoutDashboard className="mr-1.5 size-4" /> Dashboard
+                    </a>
+                    <a href={route('erp.banking.fund-requests.index')} className={secondaryButton}>
+                        <ShieldCheck className="mr-1.5 size-4" /> Fund requests
+                    </a>
+                    {props.canManage && (
+                        <>
+                            <a href={route('erp.banking.imports.index')} className={secondaryButton}>
+                                <FileUp className="mr-1.5 size-4" /> Import statements
+                            </a>
+                            <button
+                                type="button"
+                                className={secondaryButton}
+                                onClick={() => setTransferOpen(true)}
+                                disabled={props.accounts.length < 2}
+                            >
+                                <ArrowLeftRight className="mr-1.5 size-4" /> Move funds
+                            </button>
+                            <button type="button" className={primaryButton} onClick={() => setAccountDialog('new')}>
+                                <Plus className="mr-1.5 size-4" /> Open account
+                            </button>
+                        </>
+                    )}
+                </>
             }
         >
             <div className="grid gap-3 sm:grid-cols-3">
@@ -243,7 +257,14 @@ export default function BankingIndex(props: Props) {
                 onClose={() => setTransferOpen(false)}
                 accounts={props.accounts
                     .filter((a) => a.can_manage && a.status === 'active')
-                    .map((a) => ({ id: a.id, label: `${a.account_number} · ${a.account_name}`, company: a.company.name }))}
+                    .map((a) => ({
+                        id: a.id,
+                        label: `${a.account_number} · ${a.account_name}`,
+                        company: a.company.name,
+                        company_id: a.company.id,
+                        currency: a.currency,
+                    }))}
+                savedSignatureUrl={props.savedSignatureUrl}
             />
             {deleteDialog}
         </Page>

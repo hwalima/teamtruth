@@ -5,6 +5,7 @@ use App\Modules\Banking\Models\BankAccount;
 use App\Modules\Banking\Models\BankTransaction;
 use App\Modules\Banking\Models\BankTransfer;
 use App\Modules\Banking\Models\StatementImport;
+use App\Modules\Banking\Services\BankingService;
 use App\Modules\Banking\Services\StatementImportService;
 use App\Modules\Core\Models\Company;
 use App\Modules\Core\Services\CompanyContext;
@@ -216,10 +217,12 @@ test('money moves between companies by transfer, and hand-entered lines can be r
     importStatements();
     $alpha = BankAccount::query()->where('account_number', '200201')->sole();
     $gamma = BankAccount::query()->where('account_number', '200203')->sole();
+    $transfer = ['from_account_id' => $gamma->id, 'to_account_id' => $alpha->id, 'transfer_date' => '2026-10-20', 'amount' => '120.40', 'description' => 'Float'];
 
-    $this->post(route('erp.banking.transfers.store'), [
-        'from_account_id' => $gamma->id, 'to_account_id' => $alpha->id, 'transfer_date' => '2026-10-20', 'amount' => '120.40', 'description' => 'Float',
-    ])->assertSessionHasNoErrors();
+    // Between companies a transfer needs an approved fund request first.
+    $this->post(route('erp.banking.transfers.store'), $transfer)->assertSessionHasErrors('to_account_id');
+    expect(BankTransfer::query()->count())->toBe(0);
+    app(BankingService::class)->transfer($this->user, $transfer, approved: true);
 
     expect($gamma->balanceCents())->toBe(-50000 - 12040)
         ->and($alpha->balanceCents())->toBe(-2975 + 12040)

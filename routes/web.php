@@ -223,6 +223,20 @@ Route::middleware(['auth', 'verified'])->prefix('erp')->name('erp.')->group(func
             $banking = \App\Modules\Banking\Http\Controllers\BankingController::class;
             $imports = \App\Modules\Banking\Http\Controllers\StatementImportController::class;
 
+            // Fund requests reach across companies: each request is checked in
+            // its own paying and receiving companies, not the active one.
+            $funds = \App\Modules\Banking\Http\Controllers\FundRequestController::class;
+            Route::get('dashboard', \App\Modules\Banking\Http\Controllers\BankingDashboardController::class)->name('dashboard');
+            Route::get('fund-requests', [$funds, 'index'])->name('fund-requests.index');
+            Route::get('fund-requests/register.pdf', [$funds, 'registerPdf'])->name('fund-requests.register');
+            Route::post('fund-requests', [$funds, 'store'])->name('fund-requests.store');
+            Route::get('fund-requests/{fundRequest}', [$funds, 'show'])->name('fund-requests.show');
+            Route::get('fund-requests/{fundRequest}/pdf', [$funds, 'pdf'])->name('fund-requests.pdf');
+            Route::post('fund-requests/{fundRequest}/approve', [$funds, 'approve'])->name('fund-requests.approve');
+            Route::post('fund-requests/{fundRequest}/reject', [$funds, 'reject'])->name('fund-requests.reject');
+            Route::post('fund-requests/{fundRequest}/cancel', [$funds, 'cancel'])->name('fund-requests.cancel');
+            Route::post('fund-requests/{fundRequest}/transfer', [$funds, 'execute'])->name('fund-requests.transfer');
+
             Route::middleware('erp.permission:erp.banking.view')->group(function () use ($banking) {
                 Route::get('/', [$banking, 'index'])->name('index');
                 Route::get('accounts/{account}', [$banking, 'show'])->name('accounts.show');

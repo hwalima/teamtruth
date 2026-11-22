@@ -60,7 +60,8 @@ class ErpRoleService
             ],
             'Banking' => [
                 'erp.banking.view' => 'View bank accounts and statements',
-                'erp.banking.manage' => 'Import statements, record bank transactions and transfer between companies',
+                'erp.banking.manage' => 'Import statements, record bank transactions and request transfers between companies',
+                'erp.banking.approve' => 'Approve fund requests that pay out of this company',
             ],
             'Invoicing' => [
                 'erp.invoicing.view' => 'View invoices, credit notes and customers',
@@ -163,6 +164,7 @@ class ErpRoleService
                 'erp.inventory.view',
                 'erp.inventory.manage',
                 'erp.stock.manage',
+                'erp.banking.approve',
                 'erp.approvals.view',
                 'erp.approvals.act',
             ],
@@ -219,7 +221,7 @@ class ErpRoleService
             $permissions = [...$permissions, ...array_filter($hrm, fn (string $key) => str_ends_with($key, '.view'))];
         }
 
-        if (in_array('erp.banking.manage', $permissions, true)) {
+        if (in_array('erp.banking.manage', $permissions, true) || in_array('erp.banking.approve', $permissions, true)) {
             $permissions[] = 'erp.banking.view';
         }
 

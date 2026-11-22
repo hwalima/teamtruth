@@ -10,9 +10,11 @@ use App\Modules\Banking\Models\BankTransfer;
 use App\Modules\Banking\Models\Money;
 use App\Modules\Banking\Services\BankingAccess;
 use App\Modules\Banking\Services\BankingService;
+use App\Modules\Banking\Services\FundRequestService;
 use App\Modules\Banking\Services\StatementService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
@@ -86,6 +88,7 @@ class BankingController extends Controller
             'banks' => Bank::query()->orderBy('name')->pluck('name'),
             'nextAccountNumber' => $this->banking->nextAccountNumber(),
             'canManage' => $manageIds !== [],
+            'savedSignatureUrl' => $this->savedSignatureUrl($user),
         ]);
     }
 
@@ -117,6 +120,7 @@ class BankingController extends Controller
             'filters' => array_filter($filters),
             'canManage' => $canManage,
             'transferAccounts' => $canManage ? $this->transferAccounts($user, $account) : [],
+            'savedSignatureUrl' => $canManage ? $this->savedSignatureUrl($user, $account) : null,
         ]);
     }
 
@@ -212,6 +216,13 @@ class BankingController extends Controller
     }
 
     /** @return list<array{id: int, label: string, company: string}> */
+    private function savedSignatureUrl($user, ?BankAccount $account = null): ?string
+    {
+        $path = app(FundRequestService::class)->savedSignaturePath($user, $account?->company);
+
+        return $path ? Storage::disk('public')->url($path) : null;
+    }
+
     private function transferAccounts($user, ?BankAccount $except = null): array
     {
         return BankAccount::query()
@@ -221,7 +232,7 @@ class BankingController extends Controller
             ->when($except, fn ($q) => $q->whereKeyNot($except->id))
             ->orderBy('account_number')
             ->get()
-            ->map(fn (BankAccount $a) => ['id' => $a->id, 'label' => $a->account_number.' · '.$a->account_name, 'company' => $a->company->name])
+            ->map(fn (BankAccount $a) => ['id' => $a->id, 'label' => $a->account_number.' · '.$a->account_name, 'company' => $a->company->name, 'company_id' => $a->company_id, 'currency' => $a->currency])
             ->all();
     }
 }

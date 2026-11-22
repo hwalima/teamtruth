@@ -7,6 +7,7 @@ use App\Modules\Banking\Models\Bank;
 use App\Modules\Banking\Models\BankAccount;
 use App\Modules\Banking\Models\BankTransaction;
 use App\Modules\Banking\Models\BankTransfer;
+use App\Modules\Banking\Models\FundRequest;
 use App\Modules\Banking\Models\Money;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -102,7 +103,11 @@ class BankingService
         $line->delete();
     }
 
-    public function transfer(User $user, array $data): BankTransfer
+    /**
+     * Moves money between two accounts. Between different companies this only
+     * runs for an approved fund request (FundRequestService passes approved).
+     */
+    public function transfer(User $user, array $data, bool $approved = false): BankTransfer
     {
         $from = BankAccount::query()->with('company:id,name')->findOrFail($data['from_account_id']);
         $to = BankAccount::query()->with('company:id,name')->findOrFail($data['to_account_id']);
@@ -113,6 +118,9 @@ class BankingService
         }
         if ($from->status !== 'active' || $to->status !== 'active') {
             throw ValidationException::withMessages(['from_account_id' => 'Both accounts must be active.']);
+        }
+        if (! $approved && (int) $from->company_id !== (int) $to->company_id) {
+            throw ValidationException::withMessages(['to_account_id' => 'Moving money to another company needs a fund request approved by '.$from->company->name.'.']);
         }
         $amount = Money::cents($data['amount']);
         if ($amount <= 0) {
@@ -155,6 +163,10 @@ class BankingService
         $this->access->authorize($user, $transfer->fromAccount, 'erp.banking.manage');
         $this->access->authorize($user, $transfer->toAccount, 'erp.banking.manage');
         DB::transaction(function () use ($transfer): void {
+            // An approved request whose transfer is removed goes back to waiting for its transfer.
+            FundRequest::query()->where('transfer_id', $transfer->id)->update([
+                'status' => FundRequest::APPROVED, 'transfer_id' => null, 'transferred_by' => null, 'transferred_at' => null,
+            ]);
             $transfer->transactions()->delete();
             $transfer->delete();
         });
