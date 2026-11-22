@@ -54,8 +54,21 @@ function statementSheet(Worksheet $sheet, string $title, string $holderLine, str
 
 function statementWorkbook(): UploadedFile
 {
+    // The workbook is built once and copied for each call. Saving it again would not give the same bytes
+    // (the zip inside an .xlsx stamps the save time), and duplicate detection compares the file's hash.
+    static $master = null;
+    if ($master === null || ! is_file($master)) {
+        $master = buildStatementWorkbook();
+    }
+    $path = tempnam(sys_get_temp_dir(), 'stmt').'.xlsx';
+    copy($master, $path);
+
+    return new UploadedFile($path, 'Statements.xlsx', null, null, true);
+}
+
+function buildStatementWorkbook(): string
+{
     $book = new Spreadsheet;
-    // A fixed timestamp keeps the file byte-identical between calls, so duplicate detection is testable.
     $book->getProperties()->setCreated(1790000000)->setModified(1790000000);
     // 46296 = 1 Oct 2026.
     statementSheet($book->getActiveSheet(), 'Alpha ', 'Sample Holdings Account', 'Account No: 200201', [46296, 100, null], [
@@ -77,7 +90,7 @@ function statementWorkbook(): UploadedFile
     $path = tempnam(sys_get_temp_dir(), 'stmt').'.xlsx';
     (new Xlsx($book))->save($path);
 
-    return new UploadedFile($path, 'Statements.xlsx', null, null, true);
+    return $path;
 }
 
 function previewStatements(): StatementImport

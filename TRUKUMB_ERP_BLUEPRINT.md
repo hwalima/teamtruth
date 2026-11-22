@@ -8,7 +8,7 @@
 ## 0. How to use this file with Copilot
 
 1. Copy **Section 2 (Standing Rules)** into `.github/copilot-instructions.md`. Copilot then reads it on every request.
-2. Open **Copilot Chat â†’ Agent mode** (not Ask mode) so it can create and edit files and run terminal commands.
+2. Open **Copilot Chat → Agent mode** (not Ask mode) so it can create and edit files and run terminal commands.
 3. Work **one phase and one module at a time**. Never paste the whole ERP into one prompt.
 4. Start each session with: `Read #file:TRUKUMB_ERP_BLUEPRINT.md and the existing codebase. We are working on Phase X, Module Y.`
 5. After each module: run tests, commit, and tick the checklist in Section 14.
@@ -29,7 +29,7 @@ Expand the existing Laravel + MySQL planning system into a **multi-subsidiary ER
 | 5 | Inventory + Purchase | Inventory, Purchase |
 | 6 | Company-wide Requisition & Approval | Approvals |
 | 0 | **Core/Foundation**: companies (subsidiaries), branding, users, roles, approvals engine, documents | n/a |
-| âœ“ | **Existing**: Project / Planning system (keep working, integrate) | Project |
+| ✓ | **Existing**: Project / Planning system (keep working, integrate) | Project |
 
 **Non-negotiable cross-cutting requirements**
 
@@ -100,7 +100,7 @@ app/
 ```
 
 - Option A: `nwidart/laravel-modules`. Option B: plain namespaces under `app/Modules`. **Pick whichever matches the existing project with the least disruption**, and tell Copilot which.
-- Modules talk through **Service classes and domain Events**, never by reaching into each other's tables. Example: `GoodsReceived` event â†’ Accounting listener posts the journal.
+- Modules talk through **Service classes and domain Events**, never by reaching into each other's tables. Example: `GoodsReceived` event → Accounting listener posts the journal.
 
 ### 3.2 Multi-subsidiary strategy
 
@@ -238,15 +238,15 @@ Requisition types: **Purchase**, **Stock/Store issue**, **Petty cash / Cash adva
 
 - Fields: requisition no. (per company), requester, department, project (link to existing Projects), cost center, required-by date, priority, justification, lines (item/description, qty, unit, estimated price, GL account, budget line), attachments.
 - Budget check: warn or block when the department/project budget would be exceeded.
-- Status: Draft â†’ Submitted â†’ In Approval â†’ Approved â†’ (Converted to PO / Issued / Paid) â†’ Closed; plus Rejected, Returned, Cancelled.
-- **Conversion**: approved purchase requisition â†’ RFQ/PO in Purchase; approved store requisition â†’ stock issue in Inventory; payment requisition â†’ vendor bill/payment in Accounting.
+- Status: Draft → Submitted → In Approval → Approved → (Converted to PO / Issued / Paid) → Closed; plus Rejected, Returned, Cancelled.
+- **Conversion**: approved purchase requisition → RFQ/PO in Purchase; approved store requisition → stock issue in Inventory; payment requisition → vendor bill/payment in Accounting.
 - Branded PDF with signatory block showing every approver and timestamp.
 - Reports: pending by approver, ageing, spend by department, turnaround time.
 
 ### 7.2 Inventory (Module 5a, like Odoo Inventory)
 
 - Products: type (storable, consumable, service), SKU/barcode, categories, UoM + conversions, variants (optional), costing method (Average / FIFO), tracking (none/lot/serial), reorder rules, preferred suppliers.
-- Warehouses â†’ locations (hierarchical), including virtual locations (supplier, customer, production, scrap, adjustment).
+- Warehouses → locations (hierarchical), including virtual locations (supplier, customer, production, scrap, adjustment).
 - **Stock moves are the single source of truth**: `stock_moves` (+ lines) between locations. On-hand is derived, with cached `stock_quants`.
 - Operations: Receipts (from PO), Deliveries (from sales), Internal transfers (inter-warehouse and **inter-subsidiary**, which generates intercompany entries), Adjustments / stocktake, Scrap, Store issues (from requisitions).
 - Valuation: every move creates a valuation layer; posts to Accounting (stock valuation, COGS, GRNI).
@@ -257,7 +257,7 @@ Requisition types: **Purchase**, **Stock/Store issue**, **Petty cash / Cash adva
 ### 7.3 Purchase (Module 5b, like Odoo Purchase)
 
 - Vendors (with company-specific payment terms, tax, bank details), vendor price lists.
-- Flow: **RFQ â†’ compare quotations â†’ Purchase Order â†’ Receipt â†’ Vendor Bill â†’ Payment**.
+- Flow: **RFQ → compare quotations → Purchase Order → Receipt → Vendor Bill → Payment**.
 - PO approval via the approval engine (amount-based).
 - **Three-way match**: PO vs Goods Receipt vs Vendor Bill with tolerance rules.
 - Blanket/agreement orders, multi-currency, landed costs, returns/debit notes.
@@ -287,10 +287,10 @@ Requisition types: **Purchase**, **Stock/Store issue**, **Petty cash / Cash adva
 ### 7.6 Sales (Module 2c, like Odoo Sales)
 
 - CRM-lite: leads/opportunities pipeline (optional but recommended), customers/contacts.
-- Quotation â†’ Sales Order â†’ Delivery â†’ Invoice. Quotation templates, discounts, optional products, e-sign/approval of quotation.
+- Quotation → Sales Order → Delivery → Invoice. Quotation templates, discounts, optional products, e-sign/approval of quotation.
 - Price lists, margins, salesperson targets and commissions, sales teams.
 - Quotation approval for discounts beyond a threshold (approval engine).
-- Link to Projects (sales order â†’ project creation) since you already have a planning system.
+- Link to Projects (sales order → project creation) since you already have a planning system.
 - Reports: pipeline, sales by product/customer/salesperson/subsidiary, quotation conversion.
 
 ### 7.7 HRM: Employee files & Core (Module 1)
@@ -304,16 +304,16 @@ Requisition types: **Purchase**, **Stock/Store issue**, **Petty cash / Cash adva
 ### 7.8 HRM: Leave & Leave Calendar
 
 - Leave types (annual, sick, maternity/paternity, compassionate, study, unpaid), accrual rules, carry-over, balances ledger (`leave_ledger` entries, not just a counter), public holidays per country/company, half days.
-- Request â†’ approval engine â†’ balance deduction â†’ feeds attendance and payroll.
+- Request → approval engine → balance deduction → feeds attendance and payroll.
 - **Leave calendar**: month/week team views, department filter, conflict and minimum-staffing warnings, public holiday overlay (FullCalendar).
 
 ### 7.9 HRM: Time & Attendance with Biometrics
 
 - Devices table: `company_id, name, brand/model, serial, ip, port, location, protocol, last_sync_at, status`.
 - **Adapter pattern**: `BiometricDriverInterface` with implementations. Popular devices (ZKTeco and similar) either push data to a server (ADMS/push protocol) or are polled over TCP. Keep the integration behind the interface so brands can be swapped. Verify the exact model and protocol before choosing the approach. A small on-site sync agent (Python/Node) that posts to a secured API endpoint is often the most reliable option for devices on a local network.
-- `attendance_raw_logs` (immutable device punches) â†’ processed into `attendance_records` (daily clock-in/out) by a rules engine.
+- `attendance_raw_logs` (immutable device punches) → processed into `attendance_records` (daily clock-in/out) by a rules engine.
 - Shifts & rosters (including night/rotating shifts for the food court and security), grace periods, late/early/overtime rules, break rules, public-holiday multipliers.
-- Employee â†” device user ID mapping, enrolment workflow, duplicate-punch filtering.
+- Employee ↔ device user ID mapping, enrolment workflow, duplicate-punch filtering.
 - Exceptions inbox: missed punches, manual corrections (require reason + approval, fully audited).
 - Time off integration: approved leave auto-fills attendance.
 - Timesheets by project (link to the existing planning module) for billable/project costing.
@@ -324,7 +324,7 @@ Requisition types: **Purchase**, **Stock/Store issue**, **Petty cash / Cash adva
 
 - Payroll configuration (all **effective-dated and editable**, never hardcoded): salary structures, earnings, allowances, deductions, benefits-in-kind, statutory contributions, tax tables, currency split (USD/ZWG).
 - Zimbabwe statutory items to configure and verify against current legislation: PAYE and AIDS levy, NSSA, ZIMDEF, NEC levies, pension/medical aid, bonus/13th-cheque treatment, leave pay-out, loans/advances. **Do not trust remembered rates. Have your accountant supply the current tables.**
-- Run workflow: create run â†’ compute (queued) â†’ review exceptions â†’ approval â†’ lock â†’ post journal to Accounting â†’ generate payslips â†’ bank payment file.
+- Run workflow: create run → compute (queued) → review exceptions → approval → lock → post journal to Accounting → generate payslips → bank payment file.
 - Payslips as branded PDFs per subsidiary, emailed securely or available in the portal (password-protected PDFs optional).
 - Loans, salary advances, garnishees, overtime, back-pay, final-pay/termination calculations.
 - Statutory reports: PAYE return, NSSA schedule, ZIMDEF, payroll summary, cost by department, year-end tax certificates (ITF16 equivalent) per current ZIMRA format.
@@ -333,20 +333,20 @@ Requisition types: **Purchase**, **Stock/Store issue**, **Petty cash / Cash adva
 ### 7.11 HRM: Performance Management
 
 - **Job descriptions** per position: purpose, duties, KPIs, qualifications, reporting line, versioned; employees acknowledge them digitally.
-- Appraisal cycles per company: templates with weighted sections, competencies, goals/KPIs (can link to projects/tasks in the existing system), self â†’ manager â†’ HOD â†’ HR review, calibration, rating scales, development plans, probation and annual appraisals, 360 option.
+- Appraisal cycles per company: templates with weighted sections, competencies, goals/KPIs (can link to projects/tasks in the existing system), self → manager → HOD → HR review, calibration, rating scales, development plans, probation and annual appraisals, 360 option.
 - Appraisal outcome feeds promotion/increment recommendations (to Payroll through approval).
 - Dashboards: completion rate, rating distribution, by department/subsidiary.
 
 ### 7.12 HRM: Disciplinary Records
 
-- Case lifecycle: incident report â†’ investigation â†’ notice of hearing â†’ hearing record â†’ outcome (verbal/written/final warning, suspension, dismissal) â†’ appeal.
+- Case lifecycle: incident report → investigation → notice of hearing → hearing record → outcome (verbal/written/final warning, suspension, dismissal) → appeal.
 - Templates for notices and warnings (branded, with signatories), witness statements, evidence attachments, timelines.
 - **Warnings expire** (validity period) and are tracked per employee; strict confidentiality permissions; full audit.
 - Align templates with the applicable Zimbabwe labour regulations and your company code of conduct. Confirm with HR/legal.
 
 ### 7.13 ATS: Recruitment
 
-- Job requisition (approval engine) â†’ job posting â†’ applications â†’ screening â†’ interviews â†’ offer â†’ hire (creates employee record + onboarding checklist).
+- Job requisition (approval engine) → job posting → applications → screening → interviews → offer → hire (creates employee record + onboarding checklist).
 - Per-subsidiary careers pages. **Multiple source websites** apply through:
   - A public, rate-limited **Applications API** (`POST /api/public/applications`) with per-site API keys, CORS allow-list, honeypot/captcha, file validation and virus scanning of CV uploads.
   - Embeddable apply form/JS widget and a hosted careers page.
@@ -356,10 +356,10 @@ Requisition types: **Purchase**, **Stock/Store issue**, **Petty cash / Cash adva
 
 ### 7.14 E-Learning with SCORM (like Odoo eLearning)
 
-- Courses â†’ sections â†’ content (video, PDF, slides, quiz, **SCORM package**), prerequisites, certificates (branded per subsidiary), enrolment (manual, by department/role/position, auto on hire), due dates, reminders, completion tracking.
+- Courses → sections → content (video, PDF, slides, quiz, **SCORM package**), prerequisites, certificates (branded per subsidiary), enrolment (manual, by department/role/position, auto on hire), due dates, reminders, completion tracking.
 - **Compliance training**: mandatory courses per role, recurrence (annual refresher), expiry and overdue dashboards, manager visibility, attestation sign-off, HR export for audits.
 - **SCORM support (1.2 and 2004)**:
-  - Upload ZIP â†’ validate and parse `imsmanifest.xml` â†’ extract to storage â†’ serve content from a same-origin route (SCORM requires same-origin API discovery; do not serve from a different domain).
+  - Upload ZIP → validate and parse `imsmanifest.xml` → extract to storage → serve content from a same-origin route (SCORM requires same-origin API discovery; do not serve from a different domain).
   - Player page with iframe + JS runtime implementing the SCORM API (`API` for 1.2, `API_1484_11` for 2004). Use an existing open-source runtime such as **scorm-again** rather than writing one.
   - Persist CMI data (`lesson_status`, `score`, `suspend_data`, `session_time`) per attempt via a commit endpoint; resume support.
   - Guard against zip-slip, oversized and malicious archives.
@@ -408,7 +408,7 @@ Requisition types: **Purchase**, **Stock/Store issue**, **Petty cash / Cash adva
 | Event | Producer | Consumer / Result |
 |-------|----------|-------------------|
 | Requisition approved | Requisitions | Creates RFQ/PO, stock issue, or payment bill |
-| Goods received | Inventory | Valuation layer â†’ Accounting journal (stock vs GRNI) |
+| Goods received | Inventory | Valuation layer → Accounting journal (stock vs GRNI) |
 | Vendor bill posted | Purchase/Invoicing | Accounting payable entry, three-way match |
 | Sales delivery validated | Inventory | COGS journal |
 | Invoice posted / paid | Invoicing | Receivable entry, reconciliation |
@@ -426,7 +426,7 @@ Implement these with Laravel **Events + Listeners (queued)** so modules stay dec
 
 ## 10. Security, Compliance & Audit
 
-- Role-based access per company; separate permissions for view/create/edit/approve/post/export on each resource. Segregation of duties (creator cannot approve own document, payroll preparer â‰  approver).
+- Role-based access per company; separate permissions for view/create/edit/approve/post/export on each resource. Segregation of duties (creator cannot approve own document, payroll preparer ≠ approver).
 - 2FA for finance, payroll and admin roles. Password policy, session timeout, login audit, IP restrictions for sensitive modules if needed.
 - Encrypt sensitive HR/payroll fields; protect file downloads with signed, authorised URLs; never expose files via public storage paths.
 - Full activity log with who/what/when/old/new values; immutable accounting and payroll history.
@@ -517,168 +517,123 @@ For each subsidiary, collect before go-live:
 
 ## 14. Progress Tracker
 
-- [x] Phase 0: Audit and structure
-- [x] Phase 1: Core (companies, branding, roles, sequences, approvals, documents)
-- [x] Phase 2: Requisitions & approvals
-- [x] Phase 3: Inventory + Purchase
-   - [x] Inventory foundation (units, categories, products, warehouses, locations)
-   - [x] Stock movements (receipts, issues, transfers, on-hand derivation)
-   - [x] Stock reports (CSV/PDF exports)
-   - [x] Product import/export (Odoo product.template format)
-   - [x] Purchase module (RFQ, PO, vendor bills, three-way match)
-     - [x] Vendors, RFQ, Quotations, Purchase Orders, Receipts
-     - [x] Vendor bills (from PO + Receipt)
-     - [x] Three-way match validation
-     - [x] Purchase payments
-     - [ ] Blanket orders management
-     - [ ] Landed costs allocation
-     - [ ] Purchase returns processing
-     - [ ] Vendor evaluations
-     - [ ] Vendor price lists
-- [ ] Phase 4: Accounting + Invoicing + Sales
-  - [x] Chart of accounts per company
-  - [x] Journals and fiscal periods
-  - [x] Journal entry posting (balanced, locked periods, reversal)
-  - [x] Trial balance, General ledger, Profit & Loss reports
-  - [x] Report exports (CSV with BOM, PDF)
-  - [ ] Invoicing module
-  - [ ] Sales module
-- [ ] Phase 5: HRM core (files, leave, JDs, disciplinary)
-- [ ] Phase 6: Attendance (biometrics) + Payroll
-- [ ] Phase 7: Performance + ATS + E-learning (SCORM)
-- [ ] Phase 8: Fleet
-- [ ] Phase 9: POS (Talen Vision)
-- [ ] Phase 10: Group reporting, hardening, migration, go-live
+_Last reviewed: 22 November 2026. 187 automated tests pass._
+
+Legend: `[x]` done and in use · `[~]` partly built (see the note) · `[ ]` not started
+
+- [x] **Phase 0: Audit and structure.** Modular monolith under `app/Modules/*`, Laravel 12 + Inertia React + Pest.
+- [x] **Phase 1: Core**
+  - [x] Companies (subsidiaries), company switcher, `BelongsToCompany` scope, company members and ERP roles
+  - [x] Branding and signatories. Every PDF uses the company's logo, colours and details (uploaded letterheads retired)
+  - [x] Currencies and exchange rates
+  - [x] Per-company document sequences
+  - [x] Audit log of financial, HR and approval actions
+  - [x] Approval engine: workflows, steps, amount rules, delegation, "My approvals"
+  - [x] `DocumentRenderer` and shared branded report and document layouts
+  - [~] SLA escalation of overdue approvals (no scheduled job yet)
+- [x] **Phase 2: Requisitions & approvals.** Requisitions, budget checks, project link, PDF, reports, conversion to RFQ and store issue
+- [x] **Phase 3: Inventory + Purchase**
+  - [x] Units, categories, products (CRUD, import and export), warehouses, locations
+  - [x] Stock moves (receipts, issues, transfers), on-hand quantities, stock reports (CSV and PDF)
+  - [x] RFQ → quotations → purchase orders → receipts → vendor bills (three-way match) → payments
+  - [x] Blanket orders, landed costs, purchase returns, vendor evaluations, vendor price lists
+  - [x] Vendor directory: search as you type, add, edit, deactivate, delete if unused, vendor page, PDF list
+  - [ ] Stock valuation and costing (average or FIFO), with journals for stock, GRNI and COGS
+  - [ ] Reorder rules (min/max) and suggested RFQs; lot and expiry tracking
+  - [ ] Branded purchase order PDF, emailed to the vendor
+- [~] **Phase 4: Accounting + Invoicing + Sales**
+  - [x] Chart of accounts, journals, fiscal years and periods with locking
+  - [x] Journal posting (balanced, immutable, reversal), trial balance, general ledger, profit & loss, CSV and PDF exports
+  - [x] Invoicing: invoices, credit notes, payments, recurring invoices, payment terms, customer statements, payment reminders, branded PDFs, fiscal-device hook
+  - [x] Invoices, credit notes and payments post to the ledger; vendor bills and payments post to the ledger
+  - [x] Banking: bank accounts, statement import (with undo), statements, inter-company transfers, fund requests with approval, dashboard
+  - [~] Sales: leads, opportunities, quotations with approval, sales orders, invoice from order. The screen is basic (single-line quotations, plain forms)
+  - [ ] Balance sheet, cash flow, aged receivables and aged payables
+  - [ ] Bank reconciliation (match statement lines to payments and invoices)
+  - [ ] Tax table with effective dates, and a VAT report (confirm ZIMRA rules first)
+  - [ ] Fixed assets and depreciation
+  - [ ] Group consolidation with inter-company eliminations
+- [x] **Data import (go-live tooling).** Odoo imports with dry run, row report and undo: products, product variants, contacts (customers and vendors), employees, customer invoices
+- [~] **Phase 5: HRM core**
+  - [x] Employees (import, export to Excel/CSV/PDF), departments, positions, grades, cost centres, transfers
+  - [x] Contracts and contract templates, disciplinary cases with documents and appeals
+  - [x] Leave types, balances ledger, requests with approval, public holidays, self-service requests
+  - [ ] Job descriptions screen (the table exists, no screen yet)
+  - [ ] Leave calendar (team month/week view)
+  - [ ] Document expiry and contract renewal alerts
+- [ ] **Phase 6: Attendance (biometrics) + Payroll.** Needs the device model and the signed-off payroll rules first
+- [ ] **Phase 7: Performance + ATS + E-learning (SCORM)**
+- [ ] **Phase 8: Fleet**
+- [ ] **Phase 9: POS (Talen Vision food court)**
+- [ ] **Phase 10: Group reporting, hardening, migration, go-live**
 
 ---
 
-## 15. Things to Decide Early (open questions)
+## 15. What's next (recommended order)
 
-1. **Frontend stack** in the current system (Blade/Livewire/Inertia)? The ERP UI should extend it, not fight it.
+These are ordered so each step builds on the one before it and finishes work that is already half there.
 
----
-
-## 16. Recent Changes Log
-
-### 2025-01-XX: Universal Sidebar Navigation (Session work)
-
-**Goal**: Make sidebar navigation items universally available across all layout variants (sidebar + header layouts).
-
-**Changes Made**:
-
-1. **Created `resources/js/hooks/use-navigation.tsx`** - New shared hook that extracts all navigation generation logic from `AppSidebar`. Handles permission-based navigation for:
-   - SaaS Super Admin
-   - SaaS Company User
-   - Non-SaaS users
-   - ERP context
-   Returns `navItems` array and `isRTL` flag.
-
-2. **Refactored `AppSidebar` (`resources/js/components/app-sidebar.tsx`)** - Now uses `useNavigation` hook instead of duplicating ~400 lines of navigation logic. Cleaner, more maintainable.
-
-3. **Updated `AppHeader` (`resources/js/components/app-header.tsx`)** - Now uses `useNavigation` hook for mobile menu. Replaced hardcoded `mainNavItems` with full permission-based navigation.
-
-4. **Enhanced `AppShell` (`resources/js/components/app-shell.tsx`)** - Added sidebar drawer support for header layout variant:
-   - New props: `enableSidebarDrawer`, `sidebarDrawerOpen`, `setSidebarDrawerOpen`
-   - Renders full `AppSidebar` in a Sheet drawer when enabled
-
-5. **Updated `AppHeaderLayout` (`resources/js/layouts/app/app-header-layout.tsx`)** - Enables sidebar drawer and manages drawer state.
-
-**Result**:
-- **Sidebar layout**: Full sidebar navigation (unchanged)
-- **Header layout**: 
-  - Desktop: Simple top navigation (Dashboard)
-  - Mobile: Hamburger menu opens full sidebar drawer with all navigation items
-- **Both layouts**: Use the same permission-based navigation logic from the shared hook
-
-**Files Created**:
-- `resources/js/hooks/use-navigation.tsx`
-
-**Files Modified**:
-- `resources/js/components/app-sidebar.tsx`
-- `resources/js/components/app-header.tsx`
-- `resources/js/components/app-shell.tsx`
-- `resources/js/layouts/app/app-header-layout.tsx`
-
-**Verification**:
-- ✅ Build passes (`npm run build`)
-- ✅ TypeScript compiles without errors
-
-**Next Steps**:
-- Test manually in both sidebar and header layout modes
-- Verify mobile drawer opens/closes correctly
-- Verify permission-based navigation works in both layouts
+1. **Close Phase 4 accounting reports.** Balance sheet, aged receivables and aged payables, then cash flow. The ledger already holds the data, so these are reports only. They are what management asks for first.
+2. **Bank reconciliation.** Banking already imports statements and the ledger already holds payments. Matching the two (automatic suggestions plus a manual match screen) makes the bank figures trustworthy.
+3. **Sales screen rebuild.** Bring Sales up to the standard of Invoicing and Purchase: list pages with search, multi-line quotations, a quotation PDF, send to customer, and order → delivery → invoice.
+4. **Purchase order PDF and email to the vendor.** The vendor directory and the branded layout are ready, so this is quick.
+5. **Stock valuation.** Average cost on receipts, with journals for stock, goods received not invoiced and cost of sales. Needed before POS and before the balance sheet shows stock correctly.
+6. **Finish HRM core.** Job descriptions screen, leave calendar, and expiry alerts for documents and contracts (a daily scheduled job).
+7. **Phase 6 preparation (needs you).** Confirm the biometric device brand and model, and get the payroll rules (PAYE, AIDS levy, NSSA, ZIMDEF, NEC) signed off by Finance. Build starts once these are in hand.
 
 ---
 
-### 2025-01-XX: Purchase Module Completion (Phase 3)
+## 16. Improvements to the existing system
 
-**Goal**: Complete the Purchase module implementation including vendor bills, three-way match validation, and purchase payments.
+Found while reviewing the code on 22 November 2026, most valuable first.
 
-**Implementation Status**: All core Purchase module features are implemented and tested.
+**Reliability and operations**
+- **Background jobs.** PDFs, imports and emails run while the user waits. Move them to a queue with a cron-driven worker (the database queue works on cPanel).
+- **Scheduler.** Add one cron entry (`php artisan schedule:run`) and use it for recurring invoices, payment reminders, approval escalation and expiry alerts. Today these only run when triggered by hand.
+- **Automatic backups.** Nightly database and uploaded-files backup kept off the server, with a restore that has been tested once.
+- **Error monitoring.** Send production errors somewhere they are seen (email digest or a monitoring service) instead of only the log file.
 
-**Backend Implementation** (`app/Modules/Purchase`):
-- **Models**: `PurchaseVendor`, `PurchaseOrder`, `PurchaseOrderLine`, `PurchaseReceipt`, `PurchaseBill`, `PurchaseBillLine`, `PurchasePayment`, `PurchasePaymentAllocation`
-- **Service** (`PurchaseService`): 
-  - `validateThreeWayMatch()` - Compares PO vs Receipt vs Bill quantities/prices with configurable tolerance (default 5%)
-  - `createBillFromOrderAndReceipt()` - Creates vendor bill from approved PO and posted receipt
-  - `submitBillForApproval()`, `postBill()` - Bill approval and posting workflow
-  - `createPayment()`, `postPayment()` - Purchase payment creation and posting with allocation
-- **Controller** (`PurchaseController`): Full CRUD for bills and payments with proper authorization
-- **Policies**: `PurchaseBillPolicy`, `PurchasePaymentPolicy` with spatie/laravel-permission integration
-- **Routes**: RESTful routes for orders, receipts, bills, payments
+**Security**
+- **Two-factor sign-in** for owners, finance and HR roles (the user model already supports it; it needs switching on and enforcing for those roles).
+- **Separation of duties.** Block a user from approving a document they created (requisitions, bills, payments, journals).
+- **Protected file downloads.** Serve HR and finance attachments only through authorised, expiring links.
 
-**Frontend Implementation** (`resources/js/pages/Erp/Purchase`):
-- `Index.tsx` - Main purchase page with tabs for Bills and Payments, status badges, actions (Submit, Post, Create Payment)
-- `CreateBill.tsx` - Three-way matched bill creation from PO + Receipt with editable quantities/prices/tax/account
+**Usability**
+- **Consistent list pages.** Search as you type is now on every list. Next, give every list the same pieces the vendor list has: tabs for status, icon actions, a PDF and Excel export, and readable dates.
+- **Sales and Accounting screens.** Both are long single pages of forms. Split them into list, view and edit pages like Invoicing.
+- **Dashboard.** One landing page per company: cash in the bank, owed by customers, owed to vendors, pending approvals, low stock.
+- **Clean-up of imported data.** A merge tool for duplicate vendors and customers, and a review list of records with odd names or shared emails.
 
-**Three-Way Match Validation** (PurchaseService):
-- Compares PO ordered quantity vs Receipt received quantity vs Bill quantity
-- Compares PO unit price vs Bill unit price
-- Configurable tolerance (default 5% for quantity, 2% for price)
-- Returns detailed mismatch report per line
-
-**Tests**: All 81 tests pass (504 assertions) including PurchaseRequisitionConversionTest (3 tests, 22 assertions)
-
-**Files Implemented**:
-- `app/Modules/Purchase/Models/*.php` (8 models)
-- `app/Modules/Purchase/Services/PurchaseService.php`
-- `app/Modules/Purchase/Http/Controllers/PurchaseController.php`
-- `app/Modules/Purchase/Policies/PurchaseBillPolicy.php`
-- `app/Modules/Purchase/Policies/PurchasePaymentPolicy.php`
-- `resources/js/pages/Erp/Purchase/Index.tsx`
-- `resources/js/pages/Erp/Purchase/CreateBill.tsx`
-
-**Verification**:
-- ✅ Build passes (`npm run build`)
-- ✅ All 81 Pest tests pass
-- ✅ TypeScript compiles without errors
-
-**Remaining Purchase Items** (for future enhancement):
-- Blanket orders management
-- Landed costs allocation
-- Purchase returns processing
-- Vendor evaluations
-- Vendor price lists
+**Code health**
+- **TypeScript errors.** About 2,175 old type errors (mostly in the older project pages) hide new mistakes. Fix them a folder at a time, starting with the ERP pages.
+- **Remove leftovers**, for example `InventoryProductImportExportController.php.bak`.
+- **Flaky test fixed.** The banking duplicate-import test rebuilt its spreadsheet and sometimes got a different file; it now builds it once.
 
 ---
 
-## 15. Things to Decide Early (open questions)
+## 17. Open questions (decide early)
 
-1. **Frontend stack** in the current system (Blade/Livewire/Inertia)? The ERP UI should extend it, not fight it.
-2. **Hosting**: current server specs, PHP/MySQL versions, Redis availability, can Node/Chrome run for PDF generation?
+1. ~~Frontend stack~~ **Decided:** Inertia + React + TypeScript, Tailwind.
+2. ~~Hosting~~ **Decided:** cPanel shared hosting with LiteSpeed and MySQL; deploy by `git pull` with the built assets committed. Still to confirm: can a cron job and a queue worker run?
 3. **Biometric device brand/model** and network layout between sites and the server.
-4. **Currency policy**: which currencies are transacted, which is the reporting currency, how exchange rates are sourced.
+4. **Currency policy**: USD and ZWG are in use. Still to confirm: the reporting currency and where exchange rates come from.
 5. **ZIMRA fiscalisation** requirements for invoicing and POS (devices/FDMS), confirmed with your accountant.
 6. **Payroll rules** supplied and signed off by Finance/HR (do not infer them).
 7. **Existing planning data**: which tables map to which company; are there users who span subsidiaries?
 8. **Offline requirements** per site (POS definitely; others?).
 9. **Mobile**: responsive web + PWA first; native apps later if needed.
-10. **Build vs integrate**: for any module where a subsidiary is already using software, plan a migration path.
+10. **Build vs integrate**: Odoo is being replaced; imports exist for products, contacts, employees and invoices. Still to bring across: opening balances, chart of accounts, open vendor bills.
 
 ---
 
-### Closing tip for working with Copilot
+## 18. Change log
 
-Copilot is strongest on well-scoped, pattern-following tasks and weakest on cross-cutting design. **You make the architecture decisions (this document); Copilot generates the scaffolding.** Keep prompts small, demand a plan first, review migrations and anything touching money, stock, tax or payroll line by line, and commit after every verified step.
+- **22 Nov 2026:** Vendor directory (list, page, add, edit, deactivate, delete if unused, PDF list); Odoo contacts import handles list exports; search as you type across the app.
+- **Nov 2026:** Banking module (statements, import with undo, inter-company transfers, fund requests, dashboard); invoice and credit note PDFs on company branding; Odoo invoice, employee and product imports; HRM module repaired and extended; employee exports.
+- **Earlier:** Phases 0 to 3, accounting ledger and reports, invoicing, sales workflows, universal sidebar navigation (shared `use-navigation` hook across sidebar and header layouts).
 
+---
 
+### Closing tip
+
+Keep prompts small, demand a plan first, review migrations and anything touching money, stock, tax or payroll line by line, and commit after every verified step.
