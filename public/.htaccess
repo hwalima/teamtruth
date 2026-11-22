@@ -45,17 +45,12 @@
     Header always set Pragma "no-cache"
     Header always set Expires "0"
     Header always set X-LiteSpeed-Cache-Control "no-cache"
-    # CRITICAL: Prevent LiteSpeed from stripping Set-Cookie header
-    Header always edit Set-Cookie ^(.*)$ $1; HttpOnly; Secure; SameSite=Lax
 </IfModule>
 
-# Explicitly protect session cookie for login/register routes
-<IfModule mod_headers.c>
-    <FilesMatch "^(login|register)$">
-        Header always set Cache-Control "private, no-store, no-cache, must-revalidate, max-age=0"
-        Header always edit Set-Cookie ^(.*)$ $1; HttpOnly; Secure; SameSite=Lax
-    </FilesMatch>
-</IfModule>
+# Do NOT edit Set-Cookie here. Forcing HttpOnly on every cookie also hits the
+# XSRF-TOKEN cookie, which Inertia must read from JavaScript; without it the
+# X-XSRF-TOKEN header is missing and every POST (including login) returns 419.
+# Cookie flags are controlled by config/session.php (SESSION_SECURE_COOKIE, SESSION_SAME_SITE).
 
 # Ensure manifest.json is served with correct Content-Type and no caching
 <IfModule mod_mime.c>
