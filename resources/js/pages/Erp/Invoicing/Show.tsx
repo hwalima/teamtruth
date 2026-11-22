@@ -388,7 +388,7 @@ export default function InvoicingShow(props: Props) {
                                                 <span className="font-medium">{formatCurrency(payment.currency_code, payment.amount)}</span>
                                                 {payment.journal_entry && (
                                                     <a
-                                                        href={route('erp.accounting.entries.show', payment.journal_entry.id)}
+                                                        href={route('erp.accounting.index')}
                                                         className="text-primary underline text-xs"
                                                     >
                                                         Journal: {payment.journal_entry.document_number}
@@ -562,7 +562,7 @@ export default function InvoicingShow(props: Props) {
                             <div className="flex flex-wrap justify-between gap-3 items-center">
                                 <h2 className="text-lg font-medium">Journal Entry</h2>
                                 <a
-                                    href={route('erp.accounting.entries.show', invoice.journal_entry.id)}
+                                    href={route('erp.accounting.index')}
                                     className="text-primary text-sm underline"
                                 >
                                     View Full Entry

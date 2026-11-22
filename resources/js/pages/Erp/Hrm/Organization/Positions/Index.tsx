@@ -81,12 +81,12 @@ const renderPositionTree = (positions: Position[], level = 0) => (
                     {pos.sort_order}
                 </td>
                 <td className="py-3 text-right">
-                    <a
+                    {route().has('erp.hrm.organization.positions.edit') && (<a
                         href={route('erp.hrm.organization.positions.edit', pos.id)}
                         className="text-primary underline text-sm"
                     >
                         Edit
-                    </a>
+                    </a>)}
                 </td>
             </tr>
         ))}
@@ -132,12 +132,12 @@ export default function PositionsIndex(props: Props) {
             <section className="space-y-4 rounded-xl border p-4 sm:p-6">
                 <div className="flex flex-wrap justify-between gap-3 items-center">
                     <h2 className="text-lg font-medium">Positions</h2>
-                    <a
+                    {route().has('erp.hrm.organization.positions.create') && (<a
                         href={route('erp.hrm.organization.positions.create')}
                         className="bg-primary text-primary-foreground inline-flex min-h-10 items-center justify-center rounded-xl px-4 py-2 text-sm font-semibold shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
                     >
                         Add Position
-                    </a>
+                    </a>)}
                 </div>
 
                 <form onSubmit={handleFilterSubmit} className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -267,7 +267,7 @@ export default function PositionsIndex(props: Props) {
 
                 {props.positions.data.length === 0 && (
                     <div className="border-border/80 bg-muted/20 text-muted-foreground rounded-xl border border-dashed px-4 py-10 text-center text-sm leading-6">
-                        No positions found. <a href={route('erp.hrm.organization.positions.create')} className="text-primary underline">Create your first position</a>.
+                        No positions found. {route().has('erp.hrm.organization.positions.create') && (<a href={route('erp.hrm.organization.positions.create')} className="text-primary underline">Create your first position</a>)}.
                     </div>
                 )}
 

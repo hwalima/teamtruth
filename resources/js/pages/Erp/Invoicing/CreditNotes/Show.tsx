@@ -348,7 +348,7 @@ export default function CreditNoteShow(props: Props) {
                                                 <span className="font-medium">{formatCurrency(payment.currency_code, payment.amount)}</span>
                                                 {payment.journal_entry && (
                                                     <a
-                                                        href={route('erp.accounting.entries.show', payment.journal_entry.id)}
+                                                        href={route('erp.accounting.index')}
                                                         className="text-primary underline text-xs"
                                                     >
                                                         Journal: {payment.journal_entry.document_number}

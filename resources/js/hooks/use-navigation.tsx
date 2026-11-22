@@ -394,13 +394,13 @@ export function useNavigation() {
             }
             if (canUseErp('erp.hrm.view')) {
                 const hrmItems: NavItem[] = [];
-                if (canUseErp('erp.hrm.employees.view')) {
+                if (canUseErp('erp.hrm.employee.view')) {
                     hrmItems.push({ title: t('Employees'), href: route('erp.hrm.employees.index'), icon: Users });
                 }
                 if (canUseErp('erp.hrm.leave.view')) {
-                    hrmItems.push({ title: t('Leave Management'), href: route('erp.hrm.leave.index'), icon: CalendarDays });
+                    hrmItems.push({ title: t('Leave Management'), href: route('erp.hrm.leave.requests.index'), icon: CalendarDays });
                 }
-                if (canUseErp('erp.hrm.contracts.view')) {
+                if (canUseErp('erp.hrm.contract.view')) {
                     hrmItems.push({ title: t('Contracts'), href: route('erp.hrm.contracts.index'), icon: FileSignature });
                 }
                 if (canUseErp('erp.hrm.organization.view')) {
