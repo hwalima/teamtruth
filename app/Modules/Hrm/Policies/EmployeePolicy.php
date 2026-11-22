@@ -31,10 +31,6 @@ class EmployeePolicy
 
     public function update(User $user, Employee $employee): bool
     {
-        // Employees can update limited fields on their own record
-        if ($employee->user_id === $user->id) {
-            return true; // Limited fields enforced in controller/service
-        }
         return $user->can('erp.hrm.employee.manage');
     }
 

@@ -4,6 +4,8 @@ namespace App\Modules\Hrm\Enums;
 
 enum LeaveAccrualType: string
 {
+    use Concerns\HasOptions;
+
     case Fixed = 'fixed';
     case Monthly = 'monthly';
     case Yearly = 'yearly';

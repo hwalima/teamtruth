@@ -4,6 +4,8 @@ namespace App\Modules\Hrm\Enums;
 
 enum LeaveRequestStatus: string
 {
+    use Concerns\HasOptions;
+
     case Draft = 'draft';
     case Submitted = 'submitted';
     case InApproval = 'in_approval';

@@ -2,171 +2,111 @@
 
 namespace App\Modules\Hrm\Http\Controllers;
 
-use App\Http\Controllers\Controller;
-use App\Models\User;
-use App\Modules\Core\Services\CompanyContext;
 use App\Modules\Hrm\Models\Employee;
 use App\Modules\Hrm\Models\LeaveBalance;
 use App\Modules\Hrm\Models\LeaveType;
+use App\Modules\Hrm\Services\LeaveService;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 
-class LeaveBalanceController extends Controller
+class LeaveBalanceController extends HrmController
 {
+    public function __construct(
+        private LeaveService $leaveService,
+    ) {}
+
     public function index(Request $request): Response
     {
-        $company = app(CompanyContext::class)->requireActiveCompany();
+        $filters = $request->only(['search', 'leave_type_id', 'year']);
+        $year = (int) ($filters['year'] ?? now()->year);
+        $canManage = $this->allowsErpPermission('erp.hrm.leave.manage');
+        $ownEmployee = Employee::query()->where('user_id', $request->user()->id)->first();
 
-        $query = LeaveBalance::where('company_id', $company->id)
-            ->with(['employee.user', 'leaveType'])
-            ->withSum('ledgerEntries as used_sum', 'days')
-            ->withSum('ledgerEntries as pending_sum', 'days');
-
-        if ($request->filled('search')) {
-            $search = $request->search;
-            $query->whereHas('employee', fn ($q) => $q->where('first_name', 'like', "%{$search}%")
+        $balances = LeaveBalance::query()
+            ->with(['employee:id,employee_number,first_name,middle_name,last_name', 'leaveType:id,name,code,color'])
+            ->whereYear('period_start', $year)
+            ->when(! $this->allowsErpPermission('erp.hrm.leave.approve') && ! $canManage, fn ($q) => $q->where('employee_id', $ownEmployee?->id ?? 0))
+            ->when($filters['leave_type_id'] ?? null, fn ($q, $id) => $q->where('leave_type_id', $id))
+            ->when($filters['search'] ?? null, fn ($q, $search) => $q->whereHas('employee', fn ($e) => $e
+                ->where('first_name', 'like', "%{$search}%")
                 ->orWhere('last_name', 'like', "%{$search}%")
-                ->orWhere('employee_number', 'like', "%{$search}%"));
-        }
-
-        if ($request->filled('leave_type_id')) {
-            $query->where('leave_type_id', $request->leave_type_id);
-        }
-
-        if ($request->filled('period_start')) {
-            $query->where('period_start', $request->period_start);
-        }
-
-        if ($request->filled('period_end')) {
-            $query->where('period_end', $request->period_end);
-        }
-
-        $balances = $query->orderBy('period_start', 'desc')
-            ->orderBy('period_end', 'desc')
-            ->paginate(20)->withQueryString();
-
-        $employees = Employee::where('company_id', $company->id)
-            ->where('employment_status', 'active')
-            ->with('user')
-            ->orderBy('last_name')
-            ->orderBy('first_name')
-            ->get(['id', 'employee_number', 'first_name', 'last_name', 'user_id']);
-
-        $leaveTypes = LeaveType::where('company_id', $company->id)
-            ->where('is_active', true)
-            ->where('tracks_balance', true)
-            ->orderBy('name')
-            ->get(['id', 'name', 'code', 'default_entitlement']);
-
-        // Get distinct periods
-        $periods = LeaveBalance::where('company_id', $company->id)
-            ->select('period_start', 'period_end')
-            ->distinct()
-            ->orderBy('period_start', 'desc')
-            ->get();
+                ->orWhere('employee_number', 'like', "%{$search}%")))
+            ->orderBy('employee_id')
+            ->paginate(50)
+            ->withQueryString();
 
         return Inertia::render('Erp/Hrm/Leave/Balances/Index', [
-            'company' => $company,
+            'company' => $this->company(),
             'balances' => $balances,
-            'employees' => $employees,
-            'leaveTypes' => $leaveTypes,
-            'periods' => $periods,
-            'filters' => $request->only(['search', 'leave_type_id', 'period_start', 'period_end']),
+            'filters' => [...$filters, 'year' => $year],
+            'leaveTypes' => LeaveType::query()->orderBy('name')->get(['id', 'name', 'code']),
+            'employees' => $canManage
+                ? Employee::query()->where('status', '!=', 'terminated')->orderBy('last_name')->get(['id', 'employee_number', 'first_name', 'middle_name', 'last_name'])
+                : [],
+            'canManage' => $canManage,
         ]);
     }
 
-    public function store(Request $request)
+    public function store(Request $request): RedirectResponse
     {
-        $company = app(CompanyContext::class)->requireActiveCompany();
-
-        $validated = $request->validate([
-            'employee_id' => 'required|exists:hrm_employees,id',
-            'leave_type_id' => 'required|exists:hrm_leave_types,id',
+        $companyId = $this->company()->id;
+        $data = $request->validate([
+            'employee_id' => ['required', 'integer', Rule::exists('hrm_employees', 'id')->where('company_id', $companyId)],
+            'leave_type_id' => ['required', 'integer', Rule::exists('hrm_leave_types', 'id')->where('company_id', $companyId)],
             'period_start' => 'required|date',
-            'period_end' => 'required|date|after_or_equal:period_start',
-            'entitled_days' => 'nullable|numeric|min:0|max:365',
-            'carried_forward' => 'nullable|numeric|min:0|max:365',
-            'accrued_days' => 'nullable|numeric|min:0|max:365',
+            'period_end' => 'required|date|after:period_start',
+            'brought_forward' => 'nullable|numeric|min:0|max:366',
+            'accrued' => 'nullable|numeric|min:0|max:366',
         ]);
 
-        // Check if balance already exists
-        $existing = LeaveBalance::where('company_id', $company->id)
-            ->where('employee_id', $validated['employee_id'])
-            ->where('leave_type_id', $validated['leave_type_id'])
-            ->where('period_start', $validated['period_start'])
-            ->where('period_end', $validated['period_end'])
-            ->first();
+        $overlaps = LeaveBalance::query()
+            ->where('employee_id', $data['employee_id'])
+            ->where('leave_type_id', $data['leave_type_id'])
+            ->whereDate('period_start', '<=', $data['period_end'])
+            ->whereDate('period_end', '>=', $data['period_start'])
+            ->exists();
 
-        if ($existing) {
-            return back()->withErrors(['leave_type_id' => 'Leave balance already exists for this period.']);
+        if ($overlaps) {
+            throw ValidationException::withMessages(['period_start' => 'This employee already has a balance for this leave type in that period.']);
         }
 
-        $leaveType = LeaveType::findOrFail($validated['leave_type_id']);
-
-        LeaveBalance::create([
-            'company_id' => $company->id,
-            'employee_id' => $validated['employee_id'],
-            'leave_type_id' => $validated['leave_type_id'],
-            'period_start' => $validated['period_start'],
-            'period_end' => $validated['period_end'],
-            'entitled_days' => $validated['entitled_days'] ?? $leaveType->default_entitlement ?? 0,
-            'carried_forward' => $validated['carried_forward'] ?? 0,
-            'accrued_days' => $validated['accrued_days'] ?? 0,
-            'used_days' => 0,
-            'pending_days' => 0,
-            'adjusted_days' => 0,
-            'is_frozen' => false,
+        LeaveBalance::query()->create([
+            ...$data,
+            'brought_forward' => $data['brought_forward'] ?? 0,
+            'accrued' => $data['accrued'] ?? 0,
+            'created_by' => $request->user()->id,
+            'updated_by' => $request->user()->id,
         ]);
 
-        return redirect()->route('erp.hrm.leave.balances.index')
-            ->with('success', 'Leave balance created successfully.');
+        return back()->with('success', 'Leave balance created.');
     }
 
-    public function update(Request $request, LeaveBalance $balance)
+    public function update(Request $request, LeaveBalance $balance): RedirectResponse
     {
-        $company = app(CompanyContext::class)->requireActiveCompany();
-
-        if ((int) $balance->company_id !== (int) $company->id) {
-            abort(403);
-        }
-
-        $validated = $request->validate([
-            'entitled_days' => 'nullable|numeric|min:0|max:365',
-            'carried_forward' => 'nullable|numeric|min:0|max:365',
-            'accrued_days' => 'nullable|numeric|min:0|max:365',
-            'is_frozen' => 'nullable|boolean',
+        $data = $request->validate([
+            'brought_forward' => 'required|numeric|min:0|max:366',
+            'accrued' => 'required|numeric|min:0|max:366',
+            'carried_over' => 'nullable|numeric|min:0|max:366',
         ]);
 
-        $balance->update($validated);
+        $balance->update([...$data, 'carried_over' => $data['carried_over'] ?? $balance->carried_over, 'updated_by' => $request->user()->id]);
 
-        return back()->with('success', 'Leave balance updated successfully.');
+        return back()->with('success', 'Leave balance updated.');
     }
 
-    public function adjust(Request $request, LeaveBalance $balance)
+    public function adjust(Request $request, LeaveBalance $balance): RedirectResponse
     {
-        $company = app(CompanyContext::class)->requireActiveCompany();
-
-        if ((int) $balance->company_id !== (int) $company->id) {
-            abort(403);
-        }
-
-        $validated = $request->validate([
-            'adjustment' => 'required|numeric',
+        $data = $request->validate([
+            'days' => 'required|numeric|between:-366,366|not_in:0',
             'reason' => 'required|string|max:500',
         ]);
 
-        try {
-            app(\App\Modules\Hrm\Services\LeaveService::class)->adjustLeaveBalance(
-                $request->user(),
-                $balance,
-                $validated['adjustment'],
-                $validated['reason']
-            );
+        $this->leaveService->adjustBalance($request->user(), $balance, (float) $data['days'], $data['reason']);
 
-            return back()->with('success', 'Leave balance adjusted successfully.');
-        } catch (\Illuminate\Validation\ValidationException $e) {
-            return back()->withErrors($e->errors());
-        }
+        return back()->with('success', 'Leave balance adjusted.');
     }
 }

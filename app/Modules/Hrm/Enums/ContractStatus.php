@@ -4,6 +4,8 @@ namespace App\Modules\Hrm\Enums;
 
 enum ContractStatus: string
 {
+    use Concerns\HasOptions;
+
     case Draft = 'draft';
     case Active = 'active';
     case Expired = 'expired';

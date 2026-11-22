@@ -2,153 +2,109 @@
 
 namespace App\Modules\Hrm\Http\Controllers;
 
-use App\Http\Controllers\Controller;
-use App\Modules\Core\Services\CompanyContext;
 use App\Modules\Hrm\Models\Department;
 use App\Modules\Hrm\Models\Employee;
 use App\Modules\Hrm\Models\Grade;
 use App\Modules\Hrm\Models\Position;
-use App\Modules\Hrm\Services\PositionService;
+use App\Modules\Hrm\Services\EmployeeService;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Inertia\Inertia;
-use Inertia\Response;
 
-class PositionController extends Controller
+class PositionController extends OrganizationUnitController
 {
-    public function __construct(
-        private PositionService $positionService,
-    ) {}
-
-    public function index(Request $request): Response
+    protected function model(): string
     {
-        $company = app(CompanyContext::class)->requireActiveCompany();
-
-        $filters = $request->only(['search', 'department_id', 'grade_id', 'is_active', 'reports_to_position_id', 'has_vacancy']);
-
-        $positions = $this->positionService->searchPositions($filters, 20);
-
-        $departments = Department::where('company_id', $company->id)
-            ->where('is_active', true)
-            ->orderBy('name')
-            ->get(['id', 'name', 'code']);
-
-        $grades = Grade::where('company_id', $company->id)
-            ->where('is_active', true)
-            ->orderBy('level')
-            ->get(['id', 'name', 'code']);
-
-        $reportingPositions = Position::where('company_id', $company->id)
-            ->where('is_active', true)
-            ->orderBy('name')
-            ->get(['id', 'name', 'code']);
-
-        return Inertia::render('Erp/Hrm/Organization/Positions/Index', [
-            'company' => $company,
-            'positions' => $positions,
-            'departments' => $departments,
-            'grades' => $grades,
-            'reportingPositions' => $reportingPositions,
-            'filters' => $filters,
-        ]);
+        return Position::class;
     }
 
-    public function store(Request $request)
+    protected function page(): string
     {
-        $company = app(CompanyContext::class)->requireActiveCompany();
-
-        $validated = $request->validate([
-            'department_id' => 'required|exists:hrm_departments,id',
-            'name' => 'required|string|max:150',
-            'code' => 'nullable|string|max:20|unique:hrm_positions,code,NULL,id,company_id,' . $company->id,
-            'description' => 'nullable|string',
-            'grade_id' => 'required|exists:hrm_grades,id',
-            'reports_to_position_id' => 'nullable|exists:hrm_positions,id',
-            'headcount_planned' => 'nullable|integer|min:1',
-            'is_active' => 'nullable|boolean',
-            'sort_order' => 'nullable|integer|min:0',
-            'metadata' => 'nullable|array',
-        ]);
-
-        $position = $this->positionService->createPosition($request->user(), $validated);
-
-        return redirect()->route('erp.hrm.organization.positions.index')
-            ->with('success', 'Position created successfully.');
+        return 'Erp/Hrm/Organization/Positions/Index';
     }
 
-    public function update(Request $request, Position $position)
+    protected function indexRoute(): string
     {
-        $company = app(CompanyContext::class)->requireActiveCompany();
-
-        if ((int) $position->company_id !== (int) $company->id) {
-            abort(403);
-        }
-
-        $validated = $request->validate([
-            'department_id' => 'sometimes|required|exists:hrm_departments,id',
-            'name' => 'sometimes|required|string|max:150',
-            'code' => 'sometimes|required|string|max:20|unique:hrm_positions,code,' . $position->id . ',id,company_id,' . $company->id,
-            'description' => 'nullable|string',
-            'grade_id' => 'sometimes|required|exists:hrm_grades,id',
-            'reports_to_position_id' => 'nullable|exists:hrm_positions,id',
-            'headcount_planned' => 'nullable|integer|min:1',
-            'is_active' => 'nullable|boolean',
-            'sort_order' => 'nullable|integer|min:0',
-            'metadata' => 'nullable|array',
-        ]);
-
-        $position = $this->positionService->updatePosition($request->user(), $position, $validated);
-
-        return back()->with('success', 'Position updated successfully.');
+        return 'erp.hrm.organization.positions.index';
     }
 
-    public function destroy(Position $position)
+    protected function permission(): string
     {
-        $company = app(CompanyContext::class)->requireActiveCompany();
-
-        if ((int) $position->company_id !== (int) $company->id) {
-            abort(403);
-        }
-
-        try {
-            $this->positionService->deletePosition($request()->user(), $position);
-            return redirect()->route('erp.hrm.organization.positions.index')
-                ->with('success', 'Position deleted successfully.');
-        } catch (\Illuminate\Validation\ValidationException $e) {
-            return back()->withErrors($e->errors());
-        }
+        return 'erp.hrm.position.manage';
     }
 
-    public function assignEmployee(Request $request, Position $position)
+    protected function with(): array
     {
-        $company = app(CompanyContext::class)->requireActiveCompany();
-
-        if ((int) $position->company_id !== (int) $company->id) {
-            abort(403);
-        }
-
-        $validated = $request->validate([
-            'employee_id' => 'required|exists:hrm_employees,id',
-        ]);
-
-        $employee = $this->positionService->assignEmployee($request->user(), $position, $validated['employee_id']);
-
-        return back()->with('success', 'Employee assigned to position successfully.');
+        return ['department:id,code,name', 'grade:id,code,name', 'reportsTo:id,code,name'];
     }
 
-    public function removeEmployee(Request $request, Position $position, Employee $employee)
+    protected function rules(?Model $record): array
     {
-        $company = app(CompanyContext::class)->requireActiveCompany();
+        return [
+            'department_id' => ['nullable', 'integer', $this->existsInCompany('hrm_departments')],
+            'grade_id' => ['nullable', 'integer', $this->existsInCompany('hrm_grades')],
+            'reports_to_position_id' => ['nullable', 'integer', $this->existsInCompany('hrm_positions')],
+            'headcount_planned' => 'required|integer|min:0|max:100000',
+        ];
+    }
 
-        if ((int) $position->company_id !== (int) $company->id) {
-            abort(403);
-        }
+    protected function validateBusinessRules(array $data, ?Model $record): void
+    {
+        $this->assertNoCycle($record, $data['reports_to_position_id'] ?? null, 'reports_to_position_id');
+    }
 
-        if ($employee->position_id !== $position->id) {
-            abort(404);
-        }
+    protected function options(): array
+    {
+        return [
+            'departmentOptions' => $this->unitOptions(Department::class),
+            'gradeOptions' => $this->unitOptions(Grade::class),
+            'positionOptions' => $this->unitOptions(Position::class),
+        ];
+    }
 
-        $employee = $this->positionService->removeEmployee($request->user(), $position, $employee->id);
+    protected function inUse(Model $record): ?string
+    {
+        return match (true) {
+            Employee::query()->where('position_id', $record->getKey())->exists() => 'Employees hold this position. Reassign them first.',
+            Position::query()->where('reports_to_position_id', $record->getKey())->exists() => 'Other positions report to this one.',
+            default => null,
+        };
+    }
 
-        return back()->with('success', 'Employee removed from position successfully.');
+    public function store(Request $request): RedirectResponse
+    {
+        return $this->storeRecord($request);
+    }
+
+    public function update(Request $request, Position $position): RedirectResponse
+    {
+        return $this->updateRecord($request, $position);
+    }
+
+    public function destroy(Position $position): RedirectResponse
+    {
+        return $this->destroyRecord($position);
+    }
+
+    public function assignEmployee(Request $request, Position $position, EmployeeService $employees): RedirectResponse
+    {
+        $data = $request->validate(['employee_id' => ['required', 'integer', $this->existsInCompany('hrm_employees')]]);
+        $employee = Employee::query()->findOrFail($data['employee_id']);
+
+        $employees->updateEmployee($request->user(), $employee, array_filter([
+            'position_id' => $position->id,
+            'department_id' => $position->department_id ?? $employee->department_id,
+            'grade_id' => $position->grade_id ?? $employee->grade_id,
+        ]));
+
+        return back()->with('success', 'Employee assigned.');
+    }
+
+    public function removeEmployee(Request $request, Position $position, Employee $employee, EmployeeService $employees): RedirectResponse
+    {
+        abort_unless((int) $employee->position_id === (int) $position->id, 404);
+        $employees->updateEmployee($request->user(), $employee, ['position_id' => null]);
+
+        return back()->with('success', 'Employee removed from position.');
     }
 }

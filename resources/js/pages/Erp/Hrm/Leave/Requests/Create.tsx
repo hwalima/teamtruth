@@ -1,199 +1,126 @@
-import { router, useForm } from '@inertiajs/react';
+import { useForm } from '@inertiajs/react';
 import type { FormEvent } from 'react';
 import { route } from 'ziggy-js';
+import { Card, Empty, Field, Page, Select, TextArea, TextInput, idOptions, personName, primaryButton, secondaryButton } from '@/components/hrm/ui';
 
-type LeaveType = {
-    id: number;
-    code: string;
-    name: string;
-    requires_attachment: boolean;
-    requires_approval: boolean;
-    max_consecutive_days: number | null;
-    max_duration_days: number | null;
-    min_duration_days: number | null;
-};
-type Employee = { id: number; employee_number: string; first_name: string; last_name: string; user: { name: string; email: string } | null };
+type Person = { id: number; employee_number: string; first_name: string; middle_name: string | null; last_name: string };
+type LeaveType = { id: number; name: string; code: string; color: string | null; description: string | null; requires_document: boolean; requires_approval: boolean };
+type Balance = { id: number; leave_type: { name: string } | null; available: number; total_entitlement: number };
+
 type Props = {
-    company: { id: number; code: string; name: string; default_currency: string };
-    employee: Employee;
+    company: { name: string };
+    employee: Person | null;
+    employees: Person[];
     leaveTypes: LeaveType[];
+    balances: Balance[];
+    canRequestForOthers: boolean;
 };
+
+/** Monday–Friday count; the server also skips public holidays. */
+function weekdays(start: string, end: string): number {
+    if (!start || !end) return 0;
+    const from = new Date(`${start}T00:00:00`);
+    const to = new Date(`${end}T00:00:00`);
+    let count = 0;
+    for (const day = new Date(from); day <= to; day.setDate(day.getDate() + 1)) {
+        if (day.getDay() !== 0 && day.getDay() !== 6) count++;
+    }
+    return count;
+}
 
 export default function LeaveRequestCreate(props: Props) {
-    const form = useForm({
+    const form = useForm<{ employee_id: string; leave_type_id: string; start_date: string; end_date: string; reason: string; attachment: File | null }>({
         employee_id: '',
-        leave_type_id: '',
+        leave_type_id: props.leaveTypes[0] ? String(props.leaveTypes[0].id) : '',
         start_date: '',
         end_date: '',
         reason: '',
-        attachment_path: '',
-        contact_during_leave: '',
-        handover_notes: '',
+        attachment: null,
     });
-
     const errors = form.errors as Record<string, string>;
+    const selectedType = props.leaveTypes.find((t) => String(t.id) === form.data.leave_type_id);
+    const canSubmit = props.employee !== null || props.canRequestForOthers;
 
-    const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+    const submit = (event: FormEvent) => {
         event.preventDefault();
-        router.post(route('erp.hrm.leave.requests.store'), form.data);
-    };
-
-    const workingDays = form.data.start_date && form.data.end_date && form.data.leave_type_id
-        ? calculateWorkingDays(props.leaveTypes.find(lt => lt.id === Number(form.data.leave_type_id))!)
-        : 0;
-
-    const calculateWorkingDays = (leaveType: LeaveType | undefined): number => {
-        if (!leaveType || !form.data.start_date || !form.data.end_date) return 0;
-        const start = new Date(form.data.start_date);
-        const end = new Date(form.data.end_date);
-        const diffTime = Math.abs(end.getTime() - start.getTime());
-        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
-        // This is a simplified calculation - actual working days would be calculated server-side
-        return diffDays;
+        form.post(route('erp.hrm.leave.requests.store'), { forceFormData: true });
     };
 
     return (
-        <main className="mx-auto max-w-3xl space-y-6 p-6">
-            <header>
-                <p className="text-muted-foreground text-sm">{props.company.code}</p>
-                <h1 className="text-2xl font-semibold">Request Leave</h1>
-                <p className="text-muted-foreground mt-2 text-sm">
-                    Submit a new leave request for {props.employee.first_name} {props.employee.last_name}.
-                </p>
-            </header>
-
-            <form onSubmit={handleSubmit} className="space-y-6">
-                <section className="rounded-xl border bg-card p-6 space-y-6">
-                    <h2 className="text-lg font-semibold">Leave Details</h2>
-                    <div className="grid gap-4 sm:grid-cols-2">
-                        <div>
-                            <label className="grid gap-1.5 text-sm">
-                                <span className="text-foreground/85 font-medium">Leave Type *</span>
-                                <select
-                                    value={form.data.leave_type_id}
-                                    onChange={(e) => form.setData('leave_type_id', e.target.value)}
-                                    className="border-input bg-background/70 text-foreground focus:border-primary/60 focus:ring-primary/10 w-full rounded-xl border px-3 py-2.5 shadow-sm transition outline-none focus:ring-4"
-                                    required
-                                >
-                                    <option value="">Select leave type</option>
-                                    {props.leaveTypes.map((lt) => (
-                                        <option key={lt.id} value={lt.id.toString()}>
-                                            {lt.code} — {lt.name} {lt.requires_attachment && '(attachment required)'}
-                                        </option>
-                                    ))}
-                                </select>
-                                {errors.leave_type_id && <p className="text-destructive text-sm mt-1">{errors.leave_type_id}</p>}
-                            </label>
-                        </div>
-                        <div>
-                            <label className="grid gap-1.5 text-sm">
-                                <span className="text-foreground/85 font-medium">Start Date *</span>
-                                <input
-                                    type="date"
-                                    value={form.data.start_date}
-                                    onChange={(e) => form.setData('start_date', e.target.value)}
-                                    className="border-input bg-background/70 text-foreground focus:border-primary/60 focus:ring-primary/10 w-full rounded-xl border px-3 py-2.5 shadow-sm transition outline-none focus:ring-4"
-                                    required
-                                />
-                                {errors.start_date && <p className="text-destructive text-sm mt-1">{errors.start_date}</p>}
-                            </label>
-                        </div>
-                        <div>
-                            <label className="grid gap-1.5 text-sm">
-                                <span className="text-foreground/85 font-medium">End Date *</span>
-                                <input
-                                    type="date"
-                                    value={form.data.end_date}
-                                    onChange={(e) => form.setData('end_date', e.target.value)}
-                                    className="border-input bg-background/70 text-foreground focus:border-primary/60 focus:ring-primary/10 w-full rounded-xl border px-3 py-2.5 shadow-sm transition outline-none focus:ring-4"
-                                    required
-                                />
-                                {errors.end_date && <p className="text-destructive text-sm mt-1">{errors.end_date}</p>}
-                            </label>
-                        </div>
-                        {form.data.leave_type_id && (
-                            <div className="sm:col-span-2 p-4 bg-muted/50 rounded-lg">
-                                <p className="font-medium">Estimated Working Days: {workingDays}</p>
-                                <p className="text-sm text-muted-foreground">Actual working days will be calculated based on work schedule and public holidays.</p>
-                            </div>
-                        )}
-                        <div className="sm:col-span-2">
-                            <label className="grid gap-1.5 text-sm">
-                                <span className="text-foreground/85 font-medium">Reason</span>
-                                <textarea
-                                    value={form.data.reason}
-                                    onChange={(e) => form.setData('reason', e.target.value)}
-                                    rows={3}
-                                    className="border-input bg-background/70 text-foreground focus:border-primary/60 focus:ring-primary/10 w-full rounded-xl border px-3 py-2.5 shadow-sm transition outline-none focus:ring-4"
-                                />
-                            </label>
-                        </div>
-                        <div className="sm:col-span-2">
-                            <label className="grid gap-1.5 text-sm">
-                                <span className="text-foreground/85 font-medium">Contact During Leave</span>
-                                <input
-                                    type="text"
-                                    value={form.data.contact_during_leave}
-                                    onChange={(e) => form.setData('contact_during_leave', e.target.value)}
-                                    placeholder="Phone/email for emergencies"
-                                    className="border-input bg-background/70 text-foreground focus:border-primary/60 focus:ring-primary/10 w-full rounded-xl border px-3 py-2.5 shadow-sm transition outline-none focus:ring-4"
-                                />
-                            </label>
-                        </div>
-                        <div className="sm:col-span-2">
-                            <label className="grid gap-1.5 text-sm">
-                                <span className="text-foreground/85 font-medium">Handover Notes</span>
-                                <textarea
-                                    value={form.data.handover_notes}
-                                    onChange={(e) => form.setData('handover_notes', e.target.value)}
-                                    rows={3}
-                                    placeholder="Key tasks, contacts, and information for colleagues covering your work"
-                                    className="border-input bg-background/70 text-foreground focus:border-primary/60 focus:ring-primary/10 w-full rounded-xl border px-3 py-2.5 shadow-sm transition outline-none focus:ring-4"
-                                />
-                            </label>
-                        </div>
-                    </div>
-                </section>
-
-                <section className="rounded-xl border bg-card p-6 space-y-6">
-                    <h2 className="text-lg font-semibold">Supporting Document</h2>
-                    <div className="grid gap-4 sm:grid-cols-2">
-                        <div className="sm:col-span-2">
-                            <label className="grid gap-1.5 text-sm">
-                                <span className="text-foreground/85 font-medium">Attachment Path</span>
-                                <input
-                                    type="text"
-                                    value={form.data.attachment_path}
-                                    onChange={(e) => form.setData('attachment_path', e.target.value)}
-                                    placeholder="/path/to/document.pdf"
-                                    className="border-input bg-background/70 text-foreground focus:border-primary/60 focus:ring-primary/10 w-full rounded-xl border px-3 py-2.5 shadow-sm transition outline-none focus:ring-4"
-                                />
-                                {errors.attachment_path && <p className="text-destructive text-sm mt-1">{errors.attachment_path}</p>}
-                                <p className="text-xs text-muted-foreground">
-                                    Enter the file path or URL of the supporting document (medical certificate, etc.)
+        <Page title="Request leave" subtitle={props.employee ? `${personName(props.employee)} · ${props.employee.employee_number}` : props.company.name}>
+            {!canSubmit ? (
+                <Empty>Your user account is not linked to an employee record, so you cannot request leave yet. Ask HR to link your account on your employee profile.</Empty>
+            ) : props.leaveTypes.length === 0 ? (
+                <Empty>
+                    No leave types are set up yet.{' '}
+                    <a href={route('erp.hrm.leave.types.index')} className="text-primary underline">
+                        Create leave types
+                    </a>{' '}
+                    first.
+                </Empty>
+            ) : (
+                <div className="grid gap-6 lg:grid-cols-3">
+                    <Card title="Leave details" className="lg:col-span-2">
+                        <form onSubmit={submit} className="grid gap-4 sm:grid-cols-2">
+                            {props.canRequestForOthers && (
+                                <Field label={props.employee ? 'Employee (leave empty for yourself)' : 'Employee *'} error={errors.employee_id} className="sm:col-span-2">
+                                    <Select
+                                        value={form.data.employee_id}
+                                        onChange={(v) => form.setData('employee_id', v)}
+                                        options={idOptions(props.employees, (e) => `${e.employee_number} — ${personName(e)}`)}
+                                        placeholder={props.employee ? '— Myself —' : '— Select —'}
+                                    />
+                                </Field>
+                            )}
+                            <Field label="Leave type *" error={errors.leave_type_id} className="sm:col-span-2">
+                                <Select value={form.data.leave_type_id} onChange={(v) => form.setData('leave_type_id', v)} options={idOptions(props.leaveTypes, (t) => t.name)} />
+                            </Field>
+                            {selectedType?.description && <p className="text-muted-foreground text-sm sm:col-span-2">{selectedType.description}</p>}
+                            <Field label="First day *" error={errors.start_date}>
+                                <TextInput type="date" value={form.data.start_date} onChange={(v) => form.setData((d) => ({ ...d, start_date: v, end_date: d.end_date && d.end_date >= v ? d.end_date : v }))} />
+                            </Field>
+                            <Field label="Last day *" error={errors.end_date}>
+                                <TextInput type="date" min={form.data.start_date} value={form.data.end_date} onChange={(v) => form.setData('end_date', v)} />
+                            </Field>
+                            {form.data.start_date && form.data.end_date && (
+                                <p className="text-sm sm:col-span-2">
+                                    About <strong>{weekdays(form.data.start_date, form.data.end_date)}</strong> working day(s), before public holidays.
                                 </p>
-                            </label>
-                        </div>
-                    </div>
-                </section>
-
-                <div className="flex flex-wrap justify-end gap-3 border-t pt-6">
-                    <button
-                        type="button"
-                        onClick={() => router.back()}
-                        className="border-border/70 bg-background/40 hover:bg-primary/10 hover:border-primary/30 inline-flex min-h-10 items-center justify-center rounded-xl border px-4 py-2 text-sm font-medium transition-colors"
-                    >
-                        Cancel
-                    </button>
-                    <button
-                        type="submit"
-                        disabled={form.processing}
-                        className="bg-primary text-primary-foreground inline-flex min-h-10 items-center justify-center rounded-xl px-4 py-2 text-sm font-semibold shadow-sm transition hover:-translate-y-0.5 hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                        {form.processing ? 'Submitting...' : 'Submit Request'}
-                    </button>
+                            )}
+                            <Field label="Reason *" error={errors.reason} className="sm:col-span-2">
+                                <TextArea value={form.data.reason} onChange={(v) => form.setData('reason', v)} />
+                            </Field>
+                            <Field label={selectedType?.requires_document ? 'Supporting document *' : 'Supporting document'} error={errors.attachment} className="sm:col-span-2">
+                                <input type="file" onChange={(e) => form.setData('attachment', e.target.files?.[0] ?? null)} className="text-sm" />
+                            </Field>
+                            <div className="flex gap-2 sm:col-span-2">
+                                <button type="submit" disabled={form.processing} className={primaryButton}>
+                                    Submit request
+                                </button>
+                                <a href={route('erp.hrm.leave.requests.index')} className={secondaryButton}>
+                                    Cancel
+                                </a>
+                            </div>
+                        </form>
+                    </Card>
+                    <Card title="Your balances">
+                        {props.balances.length === 0 ? (
+                            <p className="text-muted-foreground text-sm">Balances are set up the first time you request each leave type.</p>
+                        ) : (
+                            <ul className="divide-y">
+                                {props.balances.map((b) => (
+                                    <li key={b.id} className="flex justify-between py-2 text-sm">
+                                        <span>{b.leave_type?.name}</span>
+                                        <span className="font-medium">
+                                            {b.available} / {b.total_entitlement}
+                                        </span>
+                                    </li>
+                                ))}
+                            </ul>
+                        )}
+                    </Card>
                 </div>
-            </form>
-        </main>
+            )}
+        </Page>
     );
 }

@@ -9,6 +9,19 @@ use Illuminate\Auth\Access\AuthorizationException;
 
 class ErpRoleService
 {
+    /**
+     * HRM actions on a person's own record. Every active company member gets
+     * them; the HRM policies make sure they only ever touch their own data.
+     */
+    public const PERSONAL_HRM_PERMISSIONS = [
+        'erp.hrm.leave.view',
+        'erp.hrm.leave.request',
+        'erp.hrm.contract.sign',
+        'erp.hrm.self_service.view',
+        'erp.hrm.self_service.request',
+        'erp.hrm.disciplinary.appeal',
+    ];
+
     private const ADMIN_ONLY_PERMISSIONS = [
         'erp.companies.manage',
         'erp.members.manage',
@@ -63,8 +76,33 @@ class ErpRoleService
                 'erp.settings.manage' => 'Manage company branding, exchange rates and signatories',
             ],
             'Human Resources' => [
-                'erp.hrm.view' => 'Access HRM module',
-                'erp.hrm.manage' => 'Manage HRM records',
+                'erp.hrm.view' => 'Access HRM module (view everything in HRM)',
+                'erp.hrm.manage' => 'Manage HRM records (full HRM access)',
+                'erp.hrm.employee.view' => 'View employees',
+                'erp.hrm.employee.view_salary' => 'View employee salaries',
+                'erp.hrm.employee.manage' => 'Manage employees',
+                'erp.hrm.leave.view' => 'View leave requests and balances',
+                'erp.hrm.leave.request' => 'Request leave',
+                'erp.hrm.leave.approve' => 'Approve or reject leave',
+                'erp.hrm.leave.manage' => 'Manage leave types, balances and holidays',
+                'erp.hrm.contract.view' => 'View contracts',
+                'erp.hrm.contract.sign' => 'Sign contracts',
+                'erp.hrm.contract.manage' => 'Manage contracts and templates',
+                'erp.hrm.organization.view' => 'View organization structure',
+                'erp.hrm.department.view' => 'View departments',
+                'erp.hrm.department.manage' => 'Manage departments',
+                'erp.hrm.position.view' => 'View positions',
+                'erp.hrm.position.manage' => 'Manage positions',
+                'erp.hrm.grade.view' => 'View grades',
+                'erp.hrm.grade.manage' => 'Manage grades',
+                'erp.hrm.cost_center.view' => 'View cost centers',
+                'erp.hrm.cost_center.manage' => 'Manage cost centers',
+                'erp.hrm.disciplinary.view' => 'View disciplinary cases',
+                'erp.hrm.disciplinary.appeal' => 'Submit disciplinary appeals',
+                'erp.hrm.disciplinary.manage' => 'Manage disciplinary cases',
+                'erp.hrm.self_service.view' => 'View self-service requests',
+                'erp.hrm.self_service.request' => 'Submit self-service requests',
+                'erp.hrm.self_service.manage' => 'Process self-service requests',
             ],
         ];
     }
@@ -157,7 +195,25 @@ class ErpRoleService
             $permissions = array_values(array_diff($permissions, self::ADMIN_ONLY_PERMISSIONS));
         }
 
-        return $permissions;
+        return self::expandImpliedPermissions([...$permissions, ...self::PERSONAL_HRM_PERMISSIONS]);
+    }
+
+    /**
+     * erp.hrm.manage grants every HRM permission; erp.hrm.view grants every
+     * HRM view permission. Roles created before the detailed HRM permissions
+     * existed keep working.
+     */
+    public static function expandImpliedPermissions(array $permissions): array
+    {
+        $hrm = array_keys(self::permissionCatalog()['Human Resources']);
+
+        if (in_array('erp.hrm.manage', $permissions, true)) {
+            $permissions = [...$permissions, ...$hrm];
+        } elseif (in_array('erp.hrm.view', $permissions, true)) {
+            $permissions = [...$permissions, ...array_filter($hrm, fn (string $key) => str_ends_with($key, '.view'))];
+        }
+
+        return array_values(array_unique($permissions));
     }
 
     public function allows(Company $company, User $user, string $permission): bool

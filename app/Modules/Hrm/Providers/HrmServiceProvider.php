@@ -3,11 +3,9 @@
 namespace App\Modules\Hrm\Providers;
 
 use App\Modules\Hrm\Services\ContractService;
-use App\Modules\Hrm\Services\DepartmentService;
 use App\Modules\Hrm\Services\DisciplinaryService;
 use App\Modules\Hrm\Services\EmployeeService;
 use App\Modules\Hrm\Services\LeaveService;
-use App\Modules\Hrm\Services\PositionService;
 use App\Modules\Hrm\Services\SelfServiceService;
 use Illuminate\Support\ServiceProvider;
 
@@ -23,8 +21,6 @@ class HrmServiceProvider extends ServiceProvider
         $this->app->singleton(LeaveService::class);
         $this->app->singleton(ContractService::class);
         $this->app->singleton(DisciplinaryService::class);
-        $this->app->singleton(DepartmentService::class);
-        $this->app->singleton(PositionService::class);
         $this->app->singleton(SelfServiceService::class);
     }
 
@@ -33,6 +29,19 @@ class HrmServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // HRM permissions belong to the company's ERP role, not the site-wide
+        // permission tables, so answer every erp.hrm.* ability from ErpRoleService.
+        \Illuminate\Support\Facades\Gate::before(function ($user, string $ability) {
+            if (! str_starts_with($ability, 'erp.hrm.')) {
+                return null;
+            }
+
+            $company = app(\App\Modules\Core\Services\CompanyContext::class)->activeCompany();
+
+            return $company !== null
+                && app(\App\Modules\Core\Services\ErpRoleService::class)->allows($company, $user, $ability);
+        });
+
         // Register policies
         $this->registerPolicies();
 

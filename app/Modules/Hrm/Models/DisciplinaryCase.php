@@ -29,6 +29,8 @@ class DisciplinaryCase extends Model
         'incident_location',
         'witnesses',
         'evidence_attachments',
+        'hearing_at',
+        'hearing_location',
         'status',
         'outcome',
         'outcome_details',
@@ -37,6 +39,7 @@ class DisciplinaryCase extends Model
         'appeal_details',
         'appeal_decision',
         'appeal_date',
+        'timeline',
         'created_by',
         'updated_by',
     ];
@@ -53,6 +56,8 @@ class DisciplinaryCase extends Model
             'outcome_date' => 'date',
             'expiry_date' => 'date',
             'appeal_date' => 'date',
+            'hearing_at' => 'datetime',
+            'timeline' => 'array',
         ];
     }
 

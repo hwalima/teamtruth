@@ -4,6 +4,8 @@ namespace App\Modules\Hrm\Enums;
 
 enum DisciplinaryDocumentType: string
 {
+    use Concerns\HasOptions;
+
     case IncidentReport = 'incident_report';
     case Notice = 'notice';
     case HearingRecord = 'hearing_record';

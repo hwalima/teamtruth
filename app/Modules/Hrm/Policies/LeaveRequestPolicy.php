@@ -17,15 +17,9 @@ class LeaveRequestPolicy
 
     public function view(User $user, LeaveRequest $leaveRequest): bool
     {
-        // Employees can view their own requests
-        if ($leaveRequest->employee->user_id === $user->id) {
-            return true;
-        }
-        // Managers can view their subordinates' requests
-        if ($user->can('erp.hrm.leave.approve')) {
-            return true;
-        }
-        return $user->can('erp.hrm.leave.view');
+        return $this->isOwn($user, $leaveRequest)
+            || $user->can('erp.hrm.leave.approve')
+            || $user->can('erp.hrm.leave.manage');
     }
 
     public function create(User $user): bool
@@ -35,10 +29,6 @@ class LeaveRequestPolicy
 
     public function update(User $user, LeaveRequest $leaveRequest): bool
     {
-        // Employee can update their own pending request
-        if ($leaveRequest->employee->user_id === $user->id) {
-            return $leaveRequest->status === \App\Modules\Hrm\Enums\LeaveStatus::Pending;
-        }
         return $user->can('erp.hrm.leave.manage');
     }
 
@@ -47,25 +37,24 @@ class LeaveRequestPolicy
         return $user->can('erp.hrm.leave.manage');
     }
 
+    /** Nobody approves their own leave. */
     public function approve(User $user, LeaveRequest $leaveRequest): bool
     {
-        return $user->can('erp.hrm.leave.approve');
+        return ! $this->isOwn($user, $leaveRequest) && $user->can('erp.hrm.leave.approve');
     }
 
     public function reject(User $user, LeaveRequest $leaveRequest): bool
     {
-        return $user->can('erp.hrm.leave.approve');
+        return $this->approve($user, $leaveRequest);
     }
 
     public function cancel(User $user, LeaveRequest $leaveRequest): bool
     {
-        // Employee can cancel their own request
-        if ($leaveRequest->employee->user_id === $user->id) {
-            return in_array($leaveRequest->status, [
-                \App\Modules\Hrm\Enums\LeaveStatus::Pending,
-                \App\Modules\Hrm\Enums\LeaveStatus::Approved,
-            ]);
-        }
-        return $user->can('erp.hrm.leave.manage');
+        return $this->isOwn($user, $leaveRequest) || $user->can('erp.hrm.leave.manage');
+    }
+
+    private function isOwn(User $user, LeaveRequest $leaveRequest): bool
+    {
+        return $leaveRequest->employee !== null && (int) $leaveRequest->employee->user_id === (int) $user->id;
     }
 }

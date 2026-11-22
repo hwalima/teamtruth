@@ -2,120 +2,90 @@
 
 namespace App\Modules\Hrm\Http\Controllers;
 
-use App\Http\Controllers\Controller;
-use App\Modules\Core\Services\CompanyContext;
+use App\Modules\Hrm\Enums\ContractType;
 use App\Modules\Hrm\Models\ContractTemplate;
-use App\Modules\Hrm\Models\Grade;
+use App\Modules\Hrm\Services\ContractService;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 
-class ContractTemplateController extends Controller
+class ContractTemplateController extends HrmController
 {
     public function index(Request $request): Response
     {
-        $company = app(CompanyContext::class)->requireActiveCompany();
+        $search = (string) $request->input('search', '');
 
-        $templates = ContractTemplate::where('company_id', $company->id)
-            ->with('grade')
-            ->orderBy('name')
-            ->paginate(20);
+        $templates = ContractTemplate::query()
+            ->withCount('contracts')
+            ->when($search !== '', fn ($q) => $q->where('name', 'like', "%{$search}%"))
+            ->orderBy('contract_type')->orderBy('name')
+            ->paginate(50)
+            ->withQueryString();
 
-        $grades = Grade::where('company_id', $company->id)
-            ->where('is_active', true)
-            ->orderBy('level')
-            ->get(['id', 'name', 'code', 'min_salary', 'max_salary', 'currency_code']);
+        $templates->getCollection()->transform(function (ContractTemplate $template) {
+            $template->setAttribute('body', $template->template_content['body'] ?? '');
+
+            return $template;
+        });
 
         return Inertia::render('Erp/Hrm/Contracts/Templates/Index', [
-            'company' => $company,
+            'company' => $this->company(),
             'templates' => $templates,
-            'grades' => $grades,
-            'typeOptions' => \App\Modules\Hrm\Enums\ContractType::options(),
-            'payFrequencyOptions' => ['weekly' => 'Weekly', 'bi_weekly' => 'Bi-Weekly', 'monthly' => 'Monthly'],
+            'filters' => ['search' => $search],
+            'typeOptions' => ContractType::options(),
+            'mergeFields' => ContractService::MERGE_FIELDS,
+            'canManage' => $this->allowsErpPermission('erp.hrm.contract.manage'),
         ]);
     }
 
-    public function store(Request $request)
+    public function store(Request $request): RedirectResponse
     {
-        $company = app(CompanyContext::class)->requireActiveCompany();
-
-        $validated = $request->validate([
-            'name' => 'required|string|max:150',
-            'code' => 'required|string|max:20|unique:hrm_contract_templates,code,NULL,id,company_id,' . $company->id,
-            'contract_type' => 'required|in:' . implode(',', array_column(\App\Modules\Hrm\Enums\ContractType::cases(), 'value')),
-            'description' => 'nullable|string',
-            'grade_id' => 'nullable|exists:hrm_grades,id',
-            'basic_salary' => 'nullable|numeric|min:0',
-            'pay_frequency' => 'required|in:weekly,bi_weekly,monthly',
-            'working_hours_per_week' => 'nullable|numeric|min:1|max:80',
-            'overtime_eligible' => 'nullable|boolean',
-            'notice_period_days' => 'nullable|integer|min:0',
-            'annual_leave_days' => 'nullable|numeric|min:0|max:365',
-            'sick_leave_days' => 'nullable|numeric|min:0|max:365',
-            'benefits' => 'nullable|array',
-            'allowances' => 'nullable|array',
-            'deductions' => 'nullable|array',
-            'special_conditions' => 'nullable|string',
-            'is_active' => 'nullable|boolean',
+        ContractTemplate::query()->create([
+            ...$this->validated($request),
+            'created_by' => $request->user()->id,
+            'updated_by' => $request->user()->id,
         ]);
 
-        ContractTemplate::create(array_merge($validated, [
-            'company_id' => $company->id,
-        ]));
-
-        return redirect()->route('erp.hrm.contracts.templates.index')
-            ->with('success', 'Contract template created successfully.');
+        return back()->with('success', 'Contract template created.');
     }
 
-    public function update(Request $request, ContractTemplate $template)
+    public function update(Request $request, ContractTemplate $template): RedirectResponse
     {
-        $company = app(CompanyContext::class)->requireActiveCompany();
+        $template->update([...$this->validated($request), 'updated_by' => $request->user()->id]);
 
-        if ((int) $template->company_id !== (int) $company->id) {
-            abort(403);
-        }
-
-        $validated = $request->validate([
-            'name' => 'sometimes|required|string|max:150',
-            'code' => 'sometimes|required|string|max:20|unique:hrm_contract_templates,code,' . $template->id . ',id,company_id,' . $company->id,
-            'contract_type' => 'sometimes|required|in:' . implode(',', array_column(\App\Modules\Hrm\Enums\ContractType::cases(), 'value')),
-            'description' => 'nullable|string',
-            'grade_id' => 'nullable|exists:hrm_grades,id',
-            'basic_salary' => 'nullable|numeric|min:0',
-            'pay_frequency' => 'sometimes|required|in:weekly,bi_weekly,monthly',
-            'working_hours_per_week' => 'nullable|numeric|min:1|max:80',
-            'overtime_eligible' => 'nullable|boolean',
-            'notice_period_days' => 'nullable|integer|min:0',
-            'annual_leave_days' => 'nullable|numeric|min:0|max:365',
-            'sick_leave_days' => 'nullable|numeric|min:0|max:365',
-            'benefits' => 'nullable|array',
-            'allowances' => 'nullable|array',
-            'deductions' => 'nullable|array',
-            'special_conditions' => 'nullable|string',
-            'is_active' => 'nullable|boolean',
-        ]);
-
-        $template->update($validated);
-
-        return back()->with('success', 'Contract template updated successfully.');
+        return back()->with('success', 'Contract template updated.');
     }
 
-    public function destroy(ContractTemplate $template)
+    public function destroy(ContractTemplate $template): RedirectResponse
     {
-        $company = app(CompanyContext::class)->requireActiveCompany();
-
-        if ((int) $template->company_id !== (int) $company->id) {
-            abort(403);
-        }
-
-        // Check if template is used by contracts
         if ($template->contracts()->exists()) {
-            return back()->withErrors(['template' => 'Cannot delete template used by existing contracts.']);
+            throw ValidationException::withMessages(['record' => 'Contracts were created from this template, so it cannot be deleted.']);
         }
 
         $template->delete();
 
-        return redirect()->route('erp.hrm.contracts.templates.index')
-            ->with('success', 'Contract template deleted successfully.');
+        return back()->with('success', 'Contract template deleted.');
+    }
+
+    private function validated(Request $request): array
+    {
+        $data = $request->validate([
+            'name' => 'required|string|max:255',
+            'contract_type' => ['required', Rule::enum(ContractType::class)],
+            'description' => 'nullable|string|max:2000',
+            'body' => 'nullable|string|max:100000',
+            'is_default' => 'boolean',
+        ]);
+
+        return [
+            'name' => $data['name'],
+            'contract_type' => $data['contract_type'],
+            'description' => $data['description'] ?? null,
+            'template_content' => ['body' => $data['body'] ?? ''],
+            'is_default' => $request->boolean('is_default'),
+        ];
     }
 }

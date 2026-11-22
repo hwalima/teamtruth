@@ -4,6 +4,8 @@ namespace App\Modules\Hrm\Enums;
 
 enum SelfServiceRequestStatus: string
 {
+    use Concerns\HasOptions;
+
     case Pending = 'pending';
     case InProgress = 'in_progress';
     case Completed = 'completed';

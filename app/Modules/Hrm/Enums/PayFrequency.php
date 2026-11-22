@@ -4,6 +4,8 @@ namespace App\Modules\Hrm\Enums;
 
 enum PayFrequency: string
 {
+    use Concerns\HasOptions;
+
     case Weekly = 'weekly';
     case Biweekly = 'biweekly';
     case Monthly = 'monthly';

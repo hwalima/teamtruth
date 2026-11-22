@@ -6,6 +6,7 @@ use App\Models\User;
 use App\Modules\Core\Models\Company;
 use App\Modules\Core\Models\Concerns\BelongsToCompany;
 use App\Modules\Core\Models\Scopes\CompanyScope;
+use App\Modules\Hrm\Enums\ContractStatus;
 use App\Modules\Hrm\Enums\EmployeeStatus;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -57,6 +58,8 @@ class Employee extends Model
         'created_by',
         'updated_by',
     ];
+
+    protected $appends = ['full_name'];
 
     protected function casts(): array
     {
@@ -140,11 +143,6 @@ class Employee extends Model
             ->latest('start_date');
     }
 
-    public function jobDescriptions(): HasMany
-    {
-        return $this->hasMany(JobDescription::class);
-    }
-
     public function disciplinaryCases(): HasMany
     {
         return $this->hasMany(DisciplinaryCase::class);
@@ -157,7 +155,12 @@ class Employee extends Model
 
     public function getFullNameAttribute(): string
     {
-        return trim("{$this->first_name} {$this->middle_name} {$this->last_name}");
+        return implode(' ', array_filter([$this->first_name, $this->middle_name, $this->last_name], fn ($part) => filled($part)));
+    }
+
+    public function canBeTerminated(): bool
+    {
+        return $this->status !== EmployeeStatus::Terminated;
     }
 
     public function scopeActive($query)

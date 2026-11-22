@@ -2,125 +2,83 @@
 
 namespace App\Modules\Hrm\Http\Controllers;
 
-use App\Http\Controllers\Controller;
-use App\Modules\Core\Services\CompanyContext;
 use App\Modules\Hrm\Models\CostCenter;
+use App\Modules\Hrm\Models\Department;
 use App\Modules\Hrm\Models\Employee;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Inertia\Inertia;
-use Inertia\Response;
 
-class CostCenterController extends Controller
+class CostCenterController extends OrganizationUnitController
 {
-    public function index(Request $request): Response
+    protected function model(): string
     {
-        $company = app(CompanyContext::class)->requireActiveCompany();
-
-        $costCenters = CostCenter::where('company_id', $company->id)
-            ->with(['budgetOwner.user', 'parent', 'children' => fn ($q) => $q->where('is_active', true)])
-            ->whereNull('parent_id')
-            ->orderBy('code')
-            ->get();
-
-        $budgetOwners = Employee::where('company_id', $company->id)
-            ->where('employment_status', 'active')
-            ->with('user')
-            ->orderBy('last_name')
-            ->orderBy('first_name')
-            ->get(['id', 'employee_number', 'first_name', 'last_name', 'user_id']);
-
-        return Inertia::render('Erp/Hrm/Organization/CostCenters/Index', [
-            'company' => $company,
-            'costCenters' => $costCenters,
-            'budgetOwners' => $budgetOwners,
-        ]);
+        return CostCenter::class;
     }
 
-    public function store(Request $request)
+    protected function page(): string
     {
-        $company = app(CompanyContext::class)->requireActiveCompany();
-
-        $validated = $request->validate([
-            'parent_id' => 'nullable|exists:hrm_cost_centers,id',
-            'name' => 'required|string|max:150',
-            'code' => 'required|string|max:20|unique:hrm_cost_centers,code,NULL,id,company_id,' . $company->id,
-            'description' => 'nullable|string',
-            'budget_owner_id' => 'nullable|exists:hrm_employees,id',
-            'is_active' => 'nullable|boolean',
-        ]);
-
-        CostCenter::create(array_merge($validated, [
-            'company_id' => $company->id,
-        ]));
-
-        return redirect()->route('erp.hrm.organization.cost-centers.index')
-            ->with('success', 'Cost center created successfully.');
+        return 'Erp/Hrm/Organization/CostCenters/Index';
     }
 
-    public function update(Request $request, CostCenter $costCenter)
+    protected function indexRoute(): string
     {
-        $company = app(CompanyContext::class)->requireActiveCompany();
-
-        if ((int) $costCenter->company_id !== (int) $company->id) {
-            abort(403);
-        }
-
-        $validated = $request->validate([
-            'parent_id' => 'nullable|exists:hrm_cost_centers,id',
-            'name' => 'sometimes|required|string|max:150',
-            'code' => 'sometimes|required|string|max:20|unique:hrm_cost_centers,code,' . $costCenter->id . ',id,company_id,' . $company->id,
-            'description' => 'nullable|string',
-            'budget_owner_id' => 'nullable|exists:hrm_employees,id',
-            'is_active' => 'nullable|boolean',
-        ]);
-
-        // Prevent circular reference
-        if ($validated['parent_id'] ?? false) {
-            if ($validated['parent_id'] === $costCenter->id) {
-                return back()->withErrors(['parent_id' => 'A cost center cannot be its own parent.']);
-            }
-            // Check for circular reference in hierarchy
-            $currentId = $validated['parent_id'];
-            while ($currentId) {
-                if ($currentId === $costCenter->id) {
-                    return back()->withErrors(['parent_id' => 'This would create a circular reference.']);
-                }
-                $parent = CostCenter::where('id', $currentId)->value('parent_id');
-                $currentId = $parent ?? 0;
-            }
-        }
-
-        $costCenter->update($validated);
-
-        return back()->with('success', 'Cost center updated successfully.');
+        return 'erp.hrm.organization.cost-centers.index';
     }
 
-    public function destroy(CostCenter $costCenter)
+    protected function permission(): string
     {
-        $company = app(CompanyContext::class)->requireActiveCompany();
+        return 'erp.hrm.cost_center.manage';
+    }
 
-        if ((int) $costCenter->company_id !== (int) $company->id) {
-            abort(403);
-        }
+    protected function with(): array
+    {
+        return ['parent:id,code,name', 'budgetOwner:id,first_name,middle_name,last_name'];
+    }
 
-        // Check for children
-        if ($costCenter->children()->where('is_active', true)->exists()) {
-            return back()->withErrors(['costCenter' => 'Cannot delete cost center with active children.']);
-        }
+    protected function rules(?Model $record): array
+    {
+        return [
+            'parent_id' => ['nullable', 'integer', $this->existsInCompany('hrm_cost_centers')],
+            'budget_owner_id' => ['nullable', 'integer', $this->existsInCompany('hrm_employees')],
+        ];
+    }
 
-        // Check for employees
-        if (\App\Modules\Hrm\Models\Employee::where('cost_center_id', $costCenter->id)->exists()) {
-            return back()->withErrors(['costCenter' => 'Cannot delete cost center assigned to employees.']);
-        }
+    protected function validateBusinessRules(array $data, ?Model $record): void
+    {
+        $this->assertNoCycle($record, $data['parent_id'] ?? null);
+    }
 
-        // Check for departments
-        if (\App\Modules\Hrm\Models\Department::where('cost_center_id', $costCenter->id)->exists()) {
-            return back()->withErrors(['costCenter' => 'Cannot delete cost center assigned to departments.']);
-        }
+    protected function options(): array
+    {
+        return [
+            'parentOptions' => $this->unitOptions(CostCenter::class),
+            'employeeOptions' => $this->employeeOptions(),
+        ];
+    }
 
-        $costCenter->delete();
+    protected function inUse(Model $record): ?string
+    {
+        return match (true) {
+            CostCenter::query()->where('parent_id', $record->getKey())->exists() => 'This cost center has child cost centers.',
+            Department::query()->where('cost_center_id', $record->getKey())->exists() => 'Departments use this cost center.',
+            Employee::query()->where('cost_center_id', $record->getKey())->exists() => 'Employees use this cost center.',
+            default => null,
+        };
+    }
 
-        return redirect()->route('erp.hrm.organization.cost-centers.index')
-            ->with('success', 'Cost center deleted successfully.');
+    public function store(Request $request): RedirectResponse
+    {
+        return $this->storeRecord($request);
+    }
+
+    public function update(Request $request, CostCenter $costCenter): RedirectResponse
+    {
+        return $this->updateRecord($request, $costCenter);
+    }
+
+    public function destroy(CostCenter $costCenter): RedirectResponse
+    {
+        return $this->destroyRecord($costCenter);
     }
 }

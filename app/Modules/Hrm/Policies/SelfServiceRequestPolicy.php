@@ -3,71 +3,36 @@
 namespace App\Modules\Hrm\Policies;
 
 use App\Models\User;
+use App\Modules\Hrm\Enums\SelfServiceRequestStatus as Status;
 use App\Modules\Hrm\Models\SelfServiceRequest;
-use Illuminate\Auth\Access\HandlesAuthorization;
 
 class SelfServiceRequestPolicy
 {
-    use HandlesAuthorization;
-
-    public function viewAny(User $user): bool
-    {
-        return $user->can('erp.hrm.self_service.view');
-    }
-
     public function view(User $user, SelfServiceRequest $request): bool
     {
-        // Employee can view their own requests
-        if ($request->employee->user_id === $user->id) {
-            return true;
-        }
-        // Assigned reviewer can view
-        if ($request->assigned_to === $user->id) {
-            return true;
-        }
-        return $user->can('erp.hrm.self_service.view');
+        return $this->isOwn($user, $request) || $user->can('erp.hrm.self_service.manage');
     }
 
-    public function create(User $user): bool
-    {
-        return $user->can('erp.hrm.self_service.request');
-    }
-
+    /** The employee changes or withdraws their own request until HR starts on it. */
     public function update(User $user, SelfServiceRequest $request): bool
     {
-        // Employee can update their own pending request
-        if ($request->employee->user_id === $user->id) {
-            return in_array($request->status, [
-                \App\Modules\Hrm\Enums\SelfServiceRequestStatus::Pending,
-                \App\Modules\Hrm\Enums\SelfServiceRequestStatus::UnderReview,
-            ]);
-        }
-        return $user->can('erp.hrm.self_service.manage');
+        return $this->isOwn($user, $request) && $request->status === Status::Pending;
     }
 
-    public function delete(User $user, SelfServiceRequest $request): bool
+    public function attach(User $user, SelfServiceRequest $request): bool
     {
-        return $user->can('erp.hrm.self_service.manage');
+        return ($this->isOwn($user, $request) || $user->can('erp.hrm.self_service.manage'))
+            && $request->status !== Status::Rejected;
     }
 
-    public function review(User $user, SelfServiceRequest $request): bool
+    /** HR handles requests, but nobody handles their own. */
+    public function process(User $user, SelfServiceRequest $request): bool
     {
-        // Assigned reviewer or HR can review
-        if ($request->assigned_to === $user->id) {
-            return true;
-        }
-        return $user->can('erp.hrm.self_service.manage');
+        return $user->can('erp.hrm.self_service.manage') && ! $this->isOwn($user, $request);
     }
 
-    public function cancel(User $user, SelfServiceRequest $request): bool
+    private function isOwn(User $user, SelfServiceRequest $request): bool
     {
-        // Employee can cancel their own request
-        if ($request->employee->user_id === $user->id) {
-            return in_array($request->status, [
-                \App\Modules\Hrm\Enums\SelfServiceRequestStatus::Pending,
-                \App\Modules\Hrm\Enums\SelfServiceRequestStatus::UnderReview,
-            ]);
-        }
-        return $user->can('erp.hrm.self_service.manage');
+        return $request->employee !== null && $request->employee->user_id === $user->id;
     }
 }

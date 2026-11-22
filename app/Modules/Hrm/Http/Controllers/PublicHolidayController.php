@@ -2,94 +2,76 @@
 
 namespace App\Modules\Hrm\Http\Controllers;
 
-use App\Http\Controllers\Controller;
-use App\Modules\Core\Services\CompanyContext;
 use App\Modules\Hrm\Models\PublicHoliday;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 
-class PublicHolidayController extends Controller
+class PublicHolidayController extends HrmController
 {
     public function index(Request $request): Response
     {
-        $company = app(CompanyContext::class)->requireActiveCompany();
+        $year = $request->integer('year') ?: (int) now()->year;
 
-        $query = PublicHoliday::where('company_id', $company->id)
-            ->orderBy('date', 'desc');
+        $holidays = PublicHoliday::query()
+            ->where(fn ($q) => $q->whereYear('date', $year)->orWhere('is_recurring', true))
+            ->orderBy('date')
+            ->get();
 
-        if ($request->filled('year')) {
-            $query->whereYear('date', $request->year);
-        }
-
-        $holidays = $query->paginate(20)->withQueryString();
-
-        // Get available years
-        $years = PublicHoliday::where('company_id', $company->id)
-            ->selectRaw('YEAR(date) as year')
-            ->distinct()
-            ->orderBy('year', 'desc')
-            ->pluck('year');
+        $years = PublicHoliday::query()->pluck('date')
+            ->map(fn ($date) => (int) $date->year)
+            ->push($year, (int) now()->year)
+            ->unique()->sortDesc()->values();
 
         return Inertia::render('Erp/Hrm/Leave/Holidays/Index', [
-            'company' => $company,
+            'company' => $this->company(),
             'holidays' => $holidays,
             'years' => $years,
-            'filters' => $request->only(['year']),
+            'year' => $year,
+            'canManage' => $this->allowsErpPermission('erp.hrm.leave.manage'),
         ]);
     }
 
-    public function store(Request $request)
+    public function store(Request $request): RedirectResponse
     {
-        $company = app(CompanyContext::class)->requireActiveCompany();
-
-        $validated = $request->validate([
-            'name' => 'required|string|max:150',
-            'date' => 'required|date',
-            'is_recurring' => 'nullable|boolean',
-            'description' => 'nullable|string',
+        PublicHoliday::query()->create([
+            ...$this->validated($request, null),
+            'created_by' => $request->user()->id,
+            'updated_by' => $request->user()->id,
         ]);
 
-        PublicHoliday::create(array_merge($validated, [
-            'company_id' => $company->id,
-            'is_recurring' => $validated['is_recurring'] ?? false,
-        ]));
-
-        return redirect()->route('erp.hrm.leave.holidays.index')
-            ->with('success', 'Public holiday created successfully.');
+        return back()->with('success', 'Public holiday added.');
     }
 
-    public function update(Request $request, PublicHoliday $holiday)
+    public function update(Request $request, PublicHoliday $holiday): RedirectResponse
     {
-        $company = app(CompanyContext::class)->requireActiveCompany();
+        $holiday->update([...$this->validated($request, $holiday), 'updated_by' => $request->user()->id]);
 
-        if ((int) $holiday->company_id !== (int) $company->id) {
-            abort(403);
-        }
-
-        $validated = $request->validate([
-            'name' => 'sometimes|required|string|max:150',
-            'date' => 'sometimes|required|date',
-            'is_recurring' => 'nullable|boolean',
-            'description' => 'nullable|string',
-        ]);
-
-        $holiday->update($validated);
-
-        return back()->with('success', 'Public holiday updated successfully.');
+        return back()->with('success', 'Public holiday updated.');
     }
 
-    public function destroy(PublicHoliday $holiday)
+    public function destroy(PublicHoliday $holiday): RedirectResponse
     {
-        $company = app(CompanyContext::class)->requireActiveCompany();
-
-        if ((int) $holiday->company_id !== (int) $company->id) {
-            abort(403);
-        }
-
         $holiday->delete();
 
-        return redirect()->route('erp.hrm.leave.holidays.index')
-            ->with('success', 'Public holiday deleted successfully.');
+        return back()->with('success', 'Public holiday deleted.');
+    }
+
+    private function validated(Request $request, ?PublicHoliday $holiday): array
+    {
+        $data = $request->validate([
+            'name' => 'required|string|max:255',
+            'date' => [
+                'required', 'date',
+                Rule::unique('hrm_public_holidays', 'date')->where('company_id', $this->company()->id)->ignore($holiday?->id),
+            ],
+            'is_recurring' => 'boolean',
+            'description' => 'nullable|string|max:2000',
+        ]);
+        $data['is_recurring'] = $request->boolean('is_recurring');
+
+        return $data;
     }
 }

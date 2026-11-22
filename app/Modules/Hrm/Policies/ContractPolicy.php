@@ -3,25 +3,20 @@
 namespace App\Modules\Hrm\Policies;
 
 use App\Models\User;
+use App\Modules\Hrm\Enums\ContractStatus;
 use App\Modules\Hrm\Models\Contract;
-use Illuminate\Auth\Access\HandlesAuthorization;
 
 class ContractPolicy
 {
-    use HandlesAuthorization;
-
     public function viewAny(User $user): bool
     {
         return $user->can('erp.hrm.contract.view');
     }
 
+    /** Employees can always see their own contracts. */
     public function view(User $user, Contract $contract): bool
     {
-        // Employees can view their own contracts
-        if ($contract->employee->user_id === $user->id) {
-            return true;
-        }
-        return $user->can('erp.hrm.contract.view');
+        return $this->isOwn($user, $contract) || $user->can('erp.hrm.contract.view');
     }
 
     public function create(User $user): bool
@@ -34,28 +29,25 @@ class ContractPolicy
         return $user->can('erp.hrm.contract.manage');
     }
 
-    public function delete(User $user, Contract $contract): bool
+    /** Only the employee named on the contract signs as the employee. */
+    public function signAsEmployee(User $user, Contract $contract): bool
     {
-        return $user->can('erp.hrm.contract.manage');
+        return $contract->status === ContractStatus::Draft
+            && $contract->signed_by_employee_at === null
+            && $this->isOwn($user, $contract);
     }
 
-    public function sign(User $user, Contract $contract): bool
+    /** HR signs for the employer, but never on their own contract. */
+    public function signAsEmployer(User $user, Contract $contract): bool
     {
-        // Employee can sign their own contract
-        if ($contract->employee->user_id === $user->id) {
-            return $contract->status === \App\Modules\Hrm\Enums\ContractStatus::PendingSignature;
-        }
-        // Employer representatives can sign
-        return $user->can('erp.hrm.contract.manage');
+        return $contract->status === ContractStatus::Draft
+            && $contract->signed_by_employer_at === null
+            && ! $this->isOwn($user, $contract)
+            && $user->can('erp.hrm.contract.manage');
     }
 
-    public function renew(User $user, Contract $contract): bool
+    private function isOwn(User $user, Contract $contract): bool
     {
-        return $user->can('erp.hrm.contract.manage');
-    }
-
-    public function terminate(User $user, Contract $contract): bool
-    {
-        return $user->can('erp.hrm.contract.manage');
+        return $contract->employee !== null && $contract->employee->user_id === $user->id;
     }
 }

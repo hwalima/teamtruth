@@ -2,133 +2,95 @@
 
 namespace App\Modules\Hrm\Http\Controllers;
 
-use App\Http\Controllers\Controller;
-use App\Modules\Core\Services\CompanyContext;
-use App\Modules\Hrm\Models\Department;
 use App\Modules\Hrm\Models\CostCenter;
+use App\Modules\Hrm\Models\Department;
 use App\Modules\Hrm\Models\Employee;
-use App\Modules\Hrm\Services\DepartmentService;
+use App\Modules\Hrm\Models\Position;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Inertia\Inertia;
-use Inertia\Response;
 
-class DepartmentController extends Controller
+class DepartmentController extends OrganizationUnitController
 {
-    public function __construct(
-        private DepartmentService $departmentService,
-    ) {}
-
-    public function index(Request $request): Response
+    protected function model(): string
     {
-        $company = app(CompanyContext::class)->requireActiveCompany();
-
-        $filters = $request->only(['search', 'parent_id', 'is_active', 'manager_id']);
-
-        $departments = $this->departmentService->searchDepartments($filters, 20);
-
-        $managers = Employee::where('company_id', $company->id)
-            ->where('employment_status', 'active')
-            ->with('user')
-            ->orderBy('last_name')
-            ->orderBy('first_name')
-            ->get(['id', 'employee_number', 'first_name', 'last_name', 'user_id']);
-
-        $costCenters = CostCenter::where('company_id', $company->id)
-            ->where('is_active', true)
-            ->orderBy('name')
-            ->get(['id', 'name', 'code']);
-
-        return Inertia::render('Erp/Hrm/Organization/Departments/Index', [
-            'company' => $company,
-            'departments' => $departments,
-            'managers' => $managers,
-            'costCenters' => $costCenters,
-            'filters' => $filters,
-            'parentOptions' => Department::where('company_id', $company->id)
-                ->where('is_active', true)
-                ->orderBy('name')
-                ->get(['id', 'name', 'code']),
-        ]);
+        return Department::class;
     }
 
-    public function store(Request $request)
+    protected function page(): string
     {
-        $company = app(CompanyContext::class)->requireActiveCompany();
-
-        $validated = $request->validate([
-            'parent_id' => 'nullable|exists:hrm_departments,id',
-            'name' => 'required|string|max:150',
-            'code' => 'nullable|string|max:20|unique:hrm_departments,code,NULL,id,company_id,' . $company->id,
-            'description' => 'nullable|string',
-            'manager_id' => 'nullable|exists:hrm_employees,id',
-            'cost_center_id' => 'nullable|exists:hrm_cost_centers,id',
-            'is_active' => 'nullable|boolean',
-            'sort_order' => 'nullable|integer|min:0',
-            'metadata' => 'nullable|array',
-        ]);
-
-        $department = $this->departmentService->createDepartment($request->user(), $validated);
-
-        return redirect()->route('erp.hrm.organization.departments.index')
-            ->with('success', 'Department created successfully.');
+        return 'Erp/Hrm/Organization/Departments/Index';
     }
 
-    public function update(Request $request, Department $department)
+    protected function indexRoute(): string
     {
-        $company = app(CompanyContext::class)->requireActiveCompany();
-
-        if ((int) $department->company_id !== (int) $company->id) {
-            abort(403);
-        }
-
-        $validated = $request->validate([
-            'parent_id' => 'nullable|exists:hrm_departments,id',
-            'name' => 'sometimes|required|string|max:150',
-            'code' => 'sometimes|required|string|max:20|unique:hrm_departments,code,' . $department->id . ',id,company_id,' . $company->id,
-            'description' => 'nullable|string',
-            'manager_id' => 'nullable|exists:hrm_employees,id',
-            'cost_center_id' => 'nullable|exists:hrm_cost_centers,id',
-            'is_active' => 'nullable|boolean',
-            'sort_order' => 'nullable|integer|min:0',
-            'metadata' => 'nullable|array',
-        ]);
-
-        $department = $this->departmentService->updateDepartment($request->user(), $department, $validated);
-
-        return back()->with('success', 'Department updated successfully.');
+        return 'erp.hrm.organization.departments.index';
     }
 
-    public function destroy(Department $department)
+    protected function permission(): string
     {
-        $company = app(CompanyContext::class)->requireActiveCompany();
-
-        if ((int) $department->company_id !== (int) $company->id) {
-            abort(403);
-        }
-
-        try {
-            $this->departmentService->deleteDepartment($request()->user(), $department);
-            return redirect()->route('erp.hrm.organization.departments.index')
-                ->with('success', 'Department deleted successfully.');
-        } catch (\Illuminate\Validation\ValidationException $e) {
-            return back()->withErrors($e->errors());
-        }
+        return 'erp.hrm.department.manage';
     }
 
-    public function move(Request $request, Department $department)
+    protected function with(): array
     {
-        $company = app(CompanyContext::class)->requireActiveCompany();
+        return ['parent:id,code,name', 'costCenter:id,code,name', 'head:id,first_name,middle_name,last_name'];
+    }
 
-        if ((int) $department->company_id !== (int) $company->id) {
-            abort(403);
-        }
+    protected function rules(?Model $record): array
+    {
+        return [
+            'parent_id' => ['nullable', 'integer', $this->existsInCompany('hrm_departments')],
+            'cost_center_id' => ['nullable', 'integer', $this->existsInCompany('hrm_cost_centers')],
+            'head_id' => ['nullable', 'integer', $this->existsInCompany('hrm_employees')],
+        ];
+    }
 
-        $validated = $request->validate([
-            'parent_id' => 'nullable|exists:hrm_departments,id',
-        ]);
+    protected function validateBusinessRules(array $data, ?Model $record): void
+    {
+        $this->assertNoCycle($record, $data['parent_id'] ?? null);
+    }
 
-        $department = $this->departmentService->moveDepartment($request->user(), $department, $validated['parent_id']);
+    protected function options(): array
+    {
+        return [
+            'parentOptions' => $this->unitOptions(Department::class),
+            'costCenterOptions' => $this->unitOptions(CostCenter::class),
+            'employeeOptions' => $this->employeeOptions(),
+        ];
+    }
 
-        return back()->with('success', 'Department moved successfully.');
+    protected function inUse(Model $record): ?string
+    {
+        return match (true) {
+            Department::query()->where('parent_id', $record->getKey())->exists() => 'This department has sub-departments. Move or delete them first.',
+            Employee::query()->where('department_id', $record->getKey())->exists() => 'Employees are assigned to this department. Reassign them first.',
+            Position::query()->where('department_id', $record->getKey())->exists() => 'Positions belong to this department. Move or delete them first.',
+            default => null,
+        };
+    }
+
+    public function store(Request $request): RedirectResponse
+    {
+        return $this->storeRecord($request);
+    }
+
+    public function update(Request $request, Department $department): RedirectResponse
+    {
+        return $this->updateRecord($request, $department);
+    }
+
+    public function destroy(Department $department): RedirectResponse
+    {
+        return $this->destroyRecord($department);
+    }
+
+    public function move(Request $request, Department $department): RedirectResponse
+    {
+        $data = $request->validate(['parent_id' => ['nullable', 'integer', $this->existsInCompany('hrm_departments')]]);
+        $this->assertNoCycle($department, $data['parent_id'] ?? null);
+        $department->update(['parent_id' => $data['parent_id'] ?? null, 'updated_by' => $request->user()->id]);
+
+        return back()->with('success', 'Department moved.');
     }
 }

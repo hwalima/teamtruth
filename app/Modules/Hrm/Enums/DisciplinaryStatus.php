@@ -4,6 +4,8 @@ namespace App\Modules\Hrm\Enums;
 
 enum DisciplinaryStatus: string
 {
+    use Concerns\HasOptions;
+
     case Open = 'open';
     case UnderInvestigation = 'under_investigation';
     case NoticeIssued = 'notice_issued';

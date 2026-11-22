@@ -383,6 +383,16 @@ class User extends BaseAuthenticatable implements MustVerifyEmail
                     ->withTimestamps();
     }
 
+    /**
+     * ERP companies this user belongs to (inverse of Company::users()).
+     */
+    public function companies()
+    {
+        return $this->belongsToMany(\App\Modules\Core\Models\Company::class)
+            ->withPivot(['role', 'erp_role_id', 'is_active'])
+            ->withTimestamps();
+    }
+
     public function currentWorkspace()
     {
         return $this->belongsTo(Workspace::class, 'current_workspace_id');

@@ -4,6 +4,8 @@ namespace App\Modules\Hrm\Enums;
 
 enum EmployeeDocumentType: string
 {
+    use Concerns\HasOptions;
+
     case Contract = 'contract';
     case IdCopy = 'id_copy';
     case Certificate = 'certificate';

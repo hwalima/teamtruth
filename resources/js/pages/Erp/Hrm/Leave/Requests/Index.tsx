@@ -1,258 +1,131 @@
 import { router, useForm } from '@inertiajs/react';
 import type { FormEvent } from 'react';
 import { route } from 'ziggy-js';
+import { Card, Empty, Field, Page, Pagination, Select, StatusBadge, TextInput, formatDate, idOptions, personName, primaryButton, secondaryButton, type Options, type Paginated } from '@/components/hrm/ui';
 
-type Employee = { id: number; employee_number: string; first_name: string; last_name: string; user: { name: string; email: string } | null };
-type LeaveType = { id: number; code: string; name: string };
 type LeaveRequest = {
     id: number;
-    employee: Employee;
-    leave_type: LeaveType;
+    employee: { id: number; employee_number: string; first_name: string; middle_name: string | null; last_name: string } | null;
+    leave_type: { name: string; color: string | null } | null;
     start_date: string;
     end_date: string;
-    working_days: number;
+    total_days: string;
     status: string;
-    reason: string | null;
-    approved_by: Employee | null;
-    approved_at: string | null;
     created_at: string;
 };
-type Props = {
-    company: { id: number; code: string; name: string; default_currency: string };
-    requests: {
-        data: LeaveRequest[];
-        current_page: number;
-        last_page: number;
-        per_page: number;
-        total: number;
-    };
-    leaveTypes: LeaveType[];
-    employees: Employee[];
-    filters: {
-        search?: string;
-        leave_type_id?: string;
-        status?: string;
-        employee_id?: string;
-        date_from?: string;
-        date_to?: string;
-    };
-    statusOptions: Record<string, string>;
-    canApprove: boolean;
-};
 
-const statusColors: Record<string, string> = {
-    pending: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200',
-    approved: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
-    rejected: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
-    cancelled: 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200',
+type Props = {
+    company: { name: string };
+    requests: Paginated<LeaveRequest>;
+    leaveTypes: { id: number; name: string }[];
+    filters: Record<string, string | undefined>;
+    statusOptions: Options;
+    canApprove: boolean;
+    canRequest: boolean;
+    hasEmployeeRecord: boolean;
 };
 
 export default function LeaveRequestsIndex(props: Props) {
-    const filterForm = useForm({
+    const filters = useForm({
         search: props.filters.search ?? '',
-        leave_type_id: props.filters.leave_type_id ?? '',
         status: props.filters.status ?? '',
-        employee_id: props.filters.employee_id ?? '',
+        leave_type_id: props.filters.leave_type_id ?? '',
         date_from: props.filters.date_from ?? '',
         date_to: props.filters.date_to ?? '',
     });
 
-    const filterErrors = filterForm.errors as Record<string, string>;
-
-    const handleFilterSubmit = (event: FormEvent<HTMLFormElement>) => {
+    const apply = (event: FormEvent) => {
         event.preventDefault();
-        const params: Record<string, string | undefined> = {};
-        Object.entries(filterForm.data).forEach(([key, value]) => {
-            if (value !== '' && value !== undefined) {
-                params[key] = value;
-            }
-        });
-        router.get(route('erp.hrm.leave.requests.index'), params, { preserveState: true, preserveScroll: true });
+        router.get(route('erp.hrm.leave.requests.index'), Object.fromEntries(Object.entries(filters.data).filter(([, v]) => v !== '')), { preserveState: true });
     };
-
-    const clearFilters = () => {
-        filterForm.reset('search', 'leave_type_id', 'status', 'employee_id', 'date_from', 'date_to');
-        router.get(route('erp.hrm.leave.requests.index'), {}, { preserveState: true, preserveScroll: true });
-    };
-
-    const formatDate = (dateStr: string) => new Date(dateStr).toLocaleDateString();
 
     return (
-        <main className="mx-auto max-w-7xl space-y-6 p-6">
-            <header>
-                <p className="text-muted-foreground text-sm">{props.company.code}</p>
-                <h1 className="text-2xl font-semibold">{props.company.name} HRM - Leave Requests</h1>
-                <p className="text-muted-foreground mt-2 text-sm">
-                    Review and manage employee leave requests.
-                </p>
-            </header>
-
-            <section className="space-y-4 rounded-xl border p-4 sm:p-6">
-                <div className="flex flex-wrap justify-between gap-3 items-center">
-                    <h2 className="text-lg font-medium">Leave Requests</h2>
-                    <a
-                        href={route('erp.hrm.leave.requests.create')}
-                        className="bg-primary text-primary-foreground inline-flex min-h-10 items-center justify-center rounded-xl px-4 py-2 text-sm font-semibold shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
-                    >
-                        Request Leave
+        <Page
+            title="Leave requests"
+            subtitle={props.canApprove ? `All leave requests in ${props.company.name}` : 'Your leave requests'}
+            actions={
+                <>
+                    <a href={route('erp.hrm.leave.balances.index')} className={secondaryButton}>
+                        Balances
                     </a>
-                </div>
-
-                <form onSubmit={handleFilterSubmit} className="grid gap-3 sm:grid-cols-2 lg:grid-cols-6">
-                    <div className="sm:col-span-2 lg:col-span-2">
-                        <label className="grid gap-1.5 text-sm">
-                            <span className="text-foreground/85 font-medium">Search Employee</span>
-                            <input
-                                type="text"
-                                value={filterForm.data.search}
-                                onChange={(e) => filterForm.setData('search', e.target.value)}
-                                placeholder="Name, employee #..."
-                                className="border-input bg-background/70 text-foreground focus:border-primary/60 focus:ring-primary/10 w-full rounded-xl border px-3 py-2.5 shadow-sm transition outline-none focus:ring-4"
-                            />
-                        </label>
-                    </div>
-                    <div>
-                        <label className="grid gap-1.5 text-sm">
-                            <span className="text-foreground/85 font-medium">Leave Type</span>
-                            <select
-                                value={filterForm.data.leave_type_id}
-                                onChange={(e) => filterForm.setData('leave_type_id', e.target.value)}
-                                className="border-input bg-background/70 text-foreground focus:border-primary/60 focus:ring-primary/10 w-full rounded-xl border px-3 py-2.5 shadow-sm transition outline-none focus:ring-4"
-                            >
-                                <option value="">All types</option>
-                                {props.leaveTypes.map((lt) => (
-                                    <option key={lt.id} value={lt.id.toString()}>
-                                        {lt.code} — {lt.name}
-                                    </option>
-                                ))}
-                            </select>
-                        </label>
-                    </div>
-                    <div>
-                        <label className="grid gap-1.5 text-sm">
-                            <span className="text-foreground/85 font-medium">Status</span>
-                            <select
-                                value={filterForm.data.status}
-                                onChange={(e) => filterForm.setData('status', e.target.value)}
-                                className="border-input bg-background/70 text-foreground focus:border-primary/60 focus:ring-primary/10 w-full rounded-xl border px-3 py-2.5 shadow-sm transition outline-none focus:ring-4"
-                            >
-                                <option value="">All statuses</option>
-                                {Object.entries(props.statusOptions).map(([value, label]) => (
-                                    <option key={value} value={value}>{label}</option>
-                                ))}
-                            </select>
-                        </label>
-                    </div>
-                    {props.canApprove && (
-                        <div>
-                            <label className="grid gap-1.5 text-sm">
-                                <span className="text-foreground/85 font-medium">Employee</span>
-                                <select
-                                    value={filterForm.data.employee_id}
-                                    onChange={(e) => filterForm.setData('employee_id', e.target.value)}
-                                    className="border-input bg-background/70 text-foreground focus:border-primary/60 focus:ring-primary/10 w-full rounded-xl border px-3 py-2.5 shadow-sm transition outline-none focus:ring-4"
-                                >
-                                    <option value="">All employees</option>
-                                    {props.employees.map((emp) => (
-                                        <option key={emp.id} value={emp.id.toString()}>
-                                            {emp.employee_number} — {emp.first_name} {emp.last_name}
-                                        </option>
-                                    ))}
-                                </select>
-                            </label>
-                        </div>
+                    {props.canRequest && (
+                        <a href={route('erp.hrm.leave.requests.create')} className={primaryButton}>
+                            Request leave
+                        </a>
                     )}
-                    <div>
-                        <label className="grid gap-1.5 text-sm">
-                            <span className="text-foreground/85 font-medium">From</span>
-                            <input
-                                type="date"
-                                value={filterForm.data.date_from}
-                                onChange={(e) => filterForm.setData('date_from', e.target.value)}
-                                className="border-input bg-background/70 text-foreground focus:border-primary/60 focus:ring-primary/10 w-full rounded-xl border px-3 py-2.5 shadow-sm transition outline-none focus:ring-4"
-                            />
-                        </label>
-                    </div>
-                    <div>
-                        <label className="grid gap-1.5 text-sm">
-                            <span className="text-foreground/85 font-medium">To</span>
-                            <input
-                                type="date"
-                                value={filterForm.data.date_to}
-                                onChange={(e) => filterForm.setData('date_to', e.target.value)}
-                                className="border-input bg-background/70 text-foreground focus:border-primary/60 focus:ring-primary/10 w-full rounded-xl border px-3 py-2.5 shadow-sm transition outline-none focus:ring-4"
-                            />
-                        </label>
-                    </div>
-                    <div className="flex flex-wrap gap-2 lg:col-span-6">
-                        <button
-                            type="submit"
-                            className="bg-primary text-primary-foreground inline-flex min-h-10 items-center justify-center rounded-xl px-4 py-2 text-sm font-semibold shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
-                        >
-                            Apply
+                </>
+            }
+        >
+            {!props.hasEmployeeRecord && !props.canApprove && (
+                <p className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                    Your user account is not linked to an employee record yet, so you cannot request leave. Ask HR to link it on your employee profile.
+                </p>
+            )}
+
+            <Card>
+                <form onSubmit={apply} className="grid gap-3 sm:grid-cols-6">
+                    {props.canApprove && (
+                        <Field label="Employee" className="sm:col-span-2">
+                            <TextInput value={filters.data.search} onChange={(v) => filters.setData('search', v)} placeholder="Name or number" />
+                        </Field>
+                    )}
+                    <Field label="Status">
+                        <Select value={filters.data.status} onChange={(v) => filters.setData('status', v)} options={props.statusOptions} placeholder="All" />
+                    </Field>
+                    <Field label="Leave type">
+                        <Select value={filters.data.leave_type_id} onChange={(v) => filters.setData('leave_type_id', v)} options={idOptions(props.leaveTypes, (t) => t.name)} placeholder="All" />
+                    </Field>
+                    <Field label="From">
+                        <TextInput type="date" value={filters.data.date_from} onChange={(v) => filters.setData('date_from', v)} />
+                    </Field>
+                    <Field label="To">
+                        <TextInput type="date" value={filters.data.date_to} onChange={(v) => filters.setData('date_to', v)} />
+                    </Field>
+                    <div className="flex gap-2 sm:col-span-6">
+                        <button type="submit" className={primaryButton}>
+                            Apply filters
                         </button>
-                        <button
-                            type="button"
-                            onClick={clearFilters}
-                            className="border-border/70 bg-background/40 hover:bg-primary/10 hover:border-primary/30 inline-flex min-h-10 items-center justify-center rounded-xl border px-4 py-2 text-sm font-medium transition-colors"
-                        >
+                        <a href={route('erp.hrm.leave.requests.index')} className={secondaryButton}>
                             Clear
-                        </button>
+                        </a>
                     </div>
                 </form>
-            </section>
+            </Card>
 
-            <section className="space-y-4">
-                <div className="overflow-x-auto">
+            {props.requests.data.length === 0 ? (
+                <Empty>No leave requests found.</Empty>
+            ) : (
+                <div className="overflow-x-auto rounded-xl border">
                     <table className="w-full text-sm">
-                        <thead>
-                            <tr className="text-left text-muted-foreground border-b">
-                                <th className="pb-3 font-medium">Employee</th>
-                                <th className="pb-3 font-medium">Leave Type</th>
-                                <th className="pb-3 font-medium">Dates</th>
-                                <th className="pb-3 font-medium text-center">Days</th>
-                                <th className="pb-3 font-medium">Status</th>
-                                <th className="pb-3 font-medium">Approved By</th>
-                                <th className="pb-3 font-medium">Created</th>
-                                <th className="pb-3 font-medium text-right">Actions</th>
+                        <thead className="bg-muted/40 text-left">
+                            <tr>
+                                <th className="px-4 py-3 font-medium">Employee</th>
+                                <th className="px-4 py-3 font-medium">Leave type</th>
+                                <th className="px-4 py-3 font-medium">Dates</th>
+                                <th className="px-4 py-3 text-right font-medium">Days</th>
+                                <th className="px-4 py-3 font-medium">Status</th>
+                                <th className="px-4 py-3" />
                             </tr>
                         </thead>
                         <tbody>
-                            {props.requests.data.map((req) => (
-                                <tr key={req.id} className="border-b border-border/50 hover:bg-muted/30">
-                                    <td className="py-3">
-                                        <p className="font-medium">{req.employee.employee_number}</p>
-                                        <p className="text-xs text-muted-foreground">{req.employee.first_name} {req.employee.last_name}</p>
-                                    </td>
-                                    <td className="py-3">
-                                        <p className="font-medium">{req.leave_type.code}</p>
-                                        <p className="text-xs text-muted-foreground">{req.leave_type.name}</p>
-                                    </td>
-                                    <td className="py-3">
-                                        <p>{formatDate(req.start_date)} – {formatDate(req.end_date)}</p>
-                                    </td>
-                                    <td className="py-3 text-center font-medium">{req.working_days}</td>
-                                    <td className="py-3">
-                                        <span className={`px-2 py-1 rounded text-xs ${statusColors[req.status] ?? 'bg-gray-100 text-gray-800'}`}>
-                                            {props.statusOptions[req.status] ?? req.status}
+                            {props.requests.data.map((request) => (
+                                <tr key={request.id} className="border-t">
+                                    <td className="px-4 py-3">{personName(request.employee)}</td>
+                                    <td className="px-4 py-3">
+                                        <span className="flex items-center gap-2">
+                                            <span className="inline-block size-2.5 rounded-full" style={{ backgroundColor: request.leave_type?.color ?? '#94a3b8' }} />
+                                            {request.leave_type?.name ?? '—'}
                                         </span>
                                     </td>
-                                    <td className="py-3">
-                                        {req.approved_by ? (
-                                            <>
-                                                <p className="font-medium">{req.approved_by.employee_number}</p>
-                                                <p className="text-xs text-muted-foreground">{req.approved_by.first_name} {req.approved_by.last_name}</p>
-                                            </>
-                                        ) : (
-                                            <span className="text-muted-foreground text-sm">—</span>
-                                        )}
+                                    <td className="px-4 py-3">
+                                        {formatDate(request.start_date)} – {formatDate(request.end_date)}
                                     </td>
-                                    <td className="py-3 text-muted-foreground text-sm">{formatDate(req.created_at)}</td>
-                                    <td className="py-3 text-right">
-                                        <a
-                                            href={route('erp.hrm.leave.requests.show', req.id)}
-                                            className="text-primary underline text-sm"
-                                        >
+                                    <td className="px-4 py-3 text-right">{Number(request.total_days)}</td>
+                                    <td className="px-4 py-3">
+                                        <StatusBadge value={request.status} label={props.statusOptions[request.status]} />
+                                    </td>
+                                    <td className="px-4 py-3 text-right">
+                                        <a href={route('erp.hrm.leave.requests.show', request.id)} className="text-primary underline">
                                             View
                                         </a>
                                     </td>
@@ -261,38 +134,8 @@ export default function LeaveRequestsIndex(props: Props) {
                         </tbody>
                     </table>
                 </div>
-
-                {props.requests.data.length === 0 && (
-                    <div className="border-border/80 bg-muted/20 text-muted-foreground rounded-xl border border-dashed px-4 py-10 text-center text-sm leading-6">
-                        No leave requests found.
-                    </div>
-                )}
-
-                {/* Pagination */}
-                {props.requests.last_page > 1 && (
-                    <nav className="flex flex-wrap items-center justify-center gap-2" aria-label="Pagination">
-                        {props.requests.current_page > 1 && (
-                            <a
-                                href={route('erp.hrm.leave.requests.index', { ...props.filters, page: props.requests.current_page - 1 })}
-                                className="border-border/70 bg-background/40 hover:bg-primary/10 hover:border-primary/30 inline-flex min-h-9 items-center gap-2 rounded-xl border px-3 text-sm font-medium transition-colors"
-                            >
-                                Previous
-                            </a>
-                        )}
-                        <span className="text-sm text-muted-foreground">
-                            Page {props.requests.current_page} of {props.requests.last_page}
-                        </span>
-                        {props.requests.current_page < props.requests.last_page && (
-                            <a
-                                href={route('erp.hrm.leave.requests.index', { ...props.filters, page: props.requests.current_page + 1 })}
-                                className="border-border/70 bg-background/40 hover:bg-primary/10 hover:border-primary/30 inline-flex min-h-9 items-center gap-2 rounded-xl border px-3 text-sm font-medium transition-colors"
-                            >
-                                Next
-                            </a>
-                        )}
-                    </nav>
-                )}
-            </section>
-        </main>
+            )}
+            <Pagination page={props.requests} />
+        </Page>
     );
 }

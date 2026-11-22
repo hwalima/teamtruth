@@ -4,6 +4,8 @@ namespace App\Modules\Hrm\Enums;
 
 enum LeaveLedgerType: string
 {
+    use Concerns\HasOptions;
+
     case Accrual = 'accrual';
     case Taken = 'taken';
     case CarryOver = 'carry_over';

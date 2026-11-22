@@ -4,6 +4,8 @@ namespace App\Modules\Hrm\Enums;
 
 enum ContractType: string
 {
+    use Concerns\HasOptions;
+
     case Permanent = 'permanent';
     case FixedTerm = 'fixed_term';
     case Probation = 'probation';

@@ -31,6 +31,8 @@ class LeaveBalance extends Model
         'updated_by',
     ];
 
+    protected $appends = ['available', 'total_entitlement'];
+
     protected function casts(): array
     {
         return [
@@ -59,11 +61,6 @@ class LeaveBalance extends Model
         return $this->belongsTo(LeaveType::class);
     }
 
-    public function ledgerEntries(): HasMany
-    {
-        return $this->hasMany(LeaveLedger::class);
-    }
-
     public function creator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');
@@ -71,11 +68,11 @@ class LeaveBalance extends Model
 
     public function getAvailableAttribute(): float
     {
-        return $this->brought_forward + $this->accrued + $this->carried_over + $this->adjusted - $this->taken;
+        return round((float) $this->brought_forward + (float) $this->accrued + (float) $this->carried_over + (float) $this->adjusted - (float) $this->taken, 2);
     }
 
     public function getTotalEntitlementAttribute(): float
     {
-        return $this->brought_forward + $this->accrued + $this->carried_over + $this->adjusted;
+        return round((float) $this->brought_forward + (float) $this->accrued + (float) $this->carried_over + (float) $this->adjusted, 2);
     }
 }

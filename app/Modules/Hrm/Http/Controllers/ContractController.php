@@ -2,206 +2,185 @@
 
 namespace App\Modules\Hrm\Http\Controllers;
 
-use App\Http\Controllers\Controller;
-use App\Modules\Core\Services\CompanyContext;
+use App\Modules\Hrm\Enums\ContractStatus;
+use App\Modules\Hrm\Enums\ContractType;
+use App\Modules\Hrm\Enums\EmployeeStatus;
+use App\Modules\Hrm\Enums\PayFrequency;
 use App\Modules\Hrm\Models\Contract;
 use App\Modules\Hrm\Models\ContractTemplate;
 use App\Modules\Hrm\Models\Employee;
 use App\Modules\Hrm\Services\ContractService;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 
-class ContractController extends Controller
+class ContractController extends HrmController
 {
-    public function __construct(
-        private ContractService $contractService,
-    ) {}
+    public function __construct(private ContractService $contracts) {}
 
     public function index(Request $request): Response
     {
-        $company = app(CompanyContext::class)->requireActiveCompany();
+        $this->contracts->expireEndedContracts();
+        $filters = $request->only(['search', 'status', 'contract_type', 'expiring']);
 
-        $filters = $request->only(['search', 'employee_id', 'status', 'contract_type', 'template_id', 'start_date_from', 'start_date_to', 'end_date_from', 'end_date_to']);
+        $contracts = Contract::query()
+            ->with(['employee:id,employee_number,first_name,middle_name,last_name', 'template:id,name'])
+            ->when($filters['search'] ?? null, fn ($q, $search) => $q->whereHas('employee', fn ($e) => $e
+                ->where('first_name', 'like', "%{$search}%")
+                ->orWhere('last_name', 'like', "%{$search}%")
+                ->orWhere('employee_number', 'like', "%{$search}%")))
+            ->when($filters['status'] ?? null, fn ($q, $status) => $q->where('status', $status))
+            ->when($filters['contract_type'] ?? null, fn ($q, $type) => $q->where('contract_type', $type))
+            ->when($filters['expiring'] ?? null, fn ($q) => $q->where('status', ContractStatus::Active)
+                ->whereNotNull('end_date')->whereDate('end_date', '<=', today()->addDays(60)))
+            ->latest('start_date')
+            ->paginate(20)
+            ->withQueryString();
 
-        $contracts = $this->contractService->searchContracts($filters, 20);
-
-        $employees = Employee::where('company_id', $company->id)
-            ->where('employment_status', 'active')
-            ->with('user')
-            ->orderBy('last_name')
-            ->orderBy('first_name')
-            ->get(['id', 'employee_number', 'first_name', 'last_name', 'user_id']);
-
-        $templates = ContractTemplate::where('company_id', $company->id)
-            ->where('is_active', true)
-            ->orderBy('name')
-            ->get(['id', 'name', 'code']);
+        if (! $this->allowsErpPermission('erp.hrm.employee.view_salary')) {
+            $contracts->getCollection()->each->makeHidden('basic_salary');
+        }
 
         return Inertia::render('Erp/Hrm/Contracts/Index', [
-            'company' => $company,
+            'company' => $this->company(),
             'contracts' => $contracts,
-            'employees' => $employees,
-            'templates' => $templates,
             'filters' => $filters,
-            'statusOptions' => \App\Modules\Hrm\Enums\ContractStatus::options(),
-            'typeOptions' => \App\Modules\Hrm\Enums\ContractType::options(),
+            'statusOptions' => ContractStatus::options(),
+            'typeOptions' => ContractType::options(),
+            'expiringCount' => Contract::query()->where('status', ContractStatus::Active)->whereNotNull('end_date')
+                ->whereDate('end_date', '<=', today()->addDays(60))->count(),
+            'canManage' => $this->allowsErpPermission('erp.hrm.contract.manage'),
         ]);
     }
 
-    public function create(): Response
+    public function create(Request $request): Response
     {
-        $company = app(CompanyContext::class)->requireActiveCompany();
-
-        $employees = Employee::where('company_id', $company->id)
-            ->where('employment_status', 'active')
-            ->with('user', 'position', 'grade')
-            ->orderBy('last_name')
-            ->orderBy('first_name')
-            ->get(['id', 'employee_number', 'first_name', 'last_name', 'user_id', 'position_id', 'grade_id', 'employment_type']);
-
-        $templates = ContractTemplate::where('company_id', $company->id)
-            ->where('is_active', true)
-            ->with('grade')
-            ->orderBy('name')
-            ->get(['id', 'name', 'code', 'contract_type', 'basic_salary', 'pay_frequency', 'working_hours_per_week', 'overtime_eligible', 'notice_period_days', 'annual_leave_days', 'sick_leave_days', 'grade_id']);
+        $company = $this->company();
 
         return Inertia::render('Erp/Hrm/Contracts/Create', [
             'company' => $company,
-            'employees' => $employees,
-            'templates' => $templates,
-            'typeOptions' => \App\Modules\Hrm\Enums\ContractType::options(),
-            'statusOptions' => \App\Modules\Hrm\Enums\ContractStatus::options(),
-            'payFrequencyOptions' => ['weekly' => 'Weekly', 'bi_weekly' => 'Bi-Weekly', 'monthly' => 'Monthly'],
+            'employees' => Employee::query()
+                ->where('status', '!=', EmployeeStatus::Terminated)
+                ->orderBy('first_name')->orderBy('last_name')
+                ->get(['id', 'employee_number', 'first_name', 'middle_name', 'last_name']),
+            'templates' => ContractTemplate::query()->orderBy('name')->get(['id', 'name', 'contract_type', 'is_default']),
+            'typeOptions' => ContractType::options(),
+            'payFrequencyOptions' => PayFrequency::options(),
+            'defaultCurrency' => $company->default_currency ?? 'USD',
+            'employeeId' => $request->integer('employee_id') ?: null,
         ]);
     }
 
-    public function store(Request $request)
+    public function store(Request $request): RedirectResponse
     {
-        $validated = $request->validate([
-            'employee_id' => 'required|exists:hrm_employees,id',
-            'template_id' => 'nullable|exists:hrm_contract_templates,id',
-            'contract_type' => 'required|in:' . implode(',', array_column(\App\Modules\Hrm\Enums\ContractType::cases(), 'value')),
-            'status' => 'required|in:' . implode(',', array_column(\App\Modules\Hrm\Enums\ContractStatus::cases(), 'value')),
-            'start_date' => 'required|date',
-            'end_date' => 'nullable|date|after_or_equal:start_date',
-            'probation_end_date' => 'nullable|date|after_or_equal:start_date',
-            'basic_salary' => 'nullable|numeric|min:0',
-            'currency_code' => 'required|string|size:3|exists:currencies,code',
-            'pay_frequency' => 'required|in:weekly,bi_weekly,monthly',
-            'working_hours_per_week' => 'nullable|numeric|min:1|max:80',
-            'overtime_eligible' => 'nullable|boolean',
-            'notice_period_days' => 'nullable|integer|min:0',
-            'annual_leave_days' => 'nullable|numeric|min:0|max:365',
-            'sick_leave_days' => 'nullable|numeric|min:0|max:365',
-            'benefits' => 'nullable|array',
-            'allowances' => 'nullable|array',
-            'deductions' => 'nullable|array',
-            'special_conditions' => 'nullable|string',
-        ]);
+        $contract = $this->contracts->createContract($request->user(), $this->validated($request, true));
 
-        $contract = $this->contractService->createContract($request->user(), $validated);
-
-        return redirect()->route('erp.hrm.contracts.show', $contract)
-            ->with('success', 'Contract created successfully.');
+        return redirect()->route('erp.hrm.contracts.show', $contract)->with('success', 'Contract drafted. It becomes active once both sides sign.');
     }
 
     public function show(Contract $contract): Response
     {
         $this->authorize('view', $contract);
+        $contract->load(['employee.position:id,name', 'employee.department:id,name', 'template', 'creator:id,name', 'company']);
 
-        $company = app(CompanyContext::class)->requireActiveCompany();
+        $canManage = $this->allows('update', $contract);
+        if (! $canManage && ! $this->allowsErpPermission('erp.hrm.employee.view_salary') && $contract->employee?->user_id !== auth()->id()) {
+            $contract->makeHidden('basic_salary');
+        }
 
-        $contract->load(['employee.user', 'template', 'employee.position', 'employee.grade']);
+        $history = Contract::query()
+            ->where('employee_id', $contract->employee_id)
+            ->where('id', '!=', $contract->id)
+            ->latest('start_date')
+            ->get(['id', 'contract_type', 'start_date', 'end_date', 'status']);
 
         return Inertia::render('Erp/Hrm/Contracts/Show', [
-            'company' => $company,
-            'contract' => $contract,
-            'canUpdate' => $this->allows('update', $contract),
-            'canSign' => $this->allows('sign', $contract),
-            'canRenew' => $this->allows('renew', $contract),
-            'canTerminate' => $this->allows('terminate', $contract),
+            'company' => $this->company(),
+            'contract' => $contract->makeHidden('company'),
+            'document' => $this->contracts->renderDocument($contract),
+            'history' => $history,
+            'templates' => ContractTemplate::query()->orderBy('name')->get(['id', 'name', 'contract_type']),
+            'typeOptions' => ContractType::options(),
+            'statusOptions' => ContractStatus::options(),
+            'payFrequencyOptions' => PayFrequency::options(),
+            'canManage' => $canManage,
+            'canSignAsEmployee' => $this->allows('signAsEmployee', $contract),
+            'canSignAsEmployer' => $this->allows('signAsEmployer', $contract),
         ]);
     }
 
-    public function update(Request $request, Contract $contract)
+    public function update(Request $request, Contract $contract): RedirectResponse
+    {
+        $this->authorize('update', $contract);
+        $this->contracts->updateContract($request->user(), $contract, $this->validated($request, false));
+
+        return back()->with('success', 'Contract updated.');
+    }
+
+    public function signByEmployee(Request $request, Contract $contract): RedirectResponse
+    {
+        $this->authorize('signAsEmployee', $contract);
+        $contract = $this->contracts->signByEmployee($request->user(), $contract);
+
+        return back()->with('success', $contract->status === ContractStatus::Active ? 'Contract signed and now active.' : 'Contract signed. Waiting for the employer to sign.');
+    }
+
+    public function signByEmployer(Request $request, Contract $contract): RedirectResponse
+    {
+        $this->authorize('signAsEmployer', $contract);
+        $contract = $this->contracts->signByEmployer($request->user(), $contract);
+
+        return back()->with('success', $contract->status === ContractStatus::Active ? 'Contract signed and now active.' : 'Contract signed. Waiting for the employee to sign.');
+    }
+
+    public function renew(Request $request, Contract $contract): RedirectResponse
     {
         $this->authorize('update', $contract);
 
         $validated = $request->validate([
-            'contract_type' => 'sometimes|required|in:' . implode(',', array_column(\App\Modules\Hrm\Enums\ContractType::cases(), 'value')),
-            'status' => 'sometimes|required|in:' . implode(',', array_column(\App\Modules\Hrm\Enums\ContractStatus::cases(), 'value')),
-            'start_date' => 'sometimes|required|date',
-            'end_date' => 'nullable|date',
-            'probation_end_date' => 'nullable|date',
-            'basic_salary' => 'nullable|numeric|min:0',
-            'currency_code' => 'sometimes|required|string|size:3|exists:currencies,code',
-            'pay_frequency' => 'sometimes|required|in:weekly,bi_weekly,monthly',
-            'working_hours_per_week' => 'nullable|numeric|min:1|max:80',
-            'overtime_eligible' => 'nullable|boolean',
-            'notice_period_days' => 'nullable|integer|min:0',
-            'annual_leave_days' => 'nullable|numeric|min:0|max:365',
-            'sick_leave_days' => 'nullable|numeric|min:0|max:365',
-            'benefits' => 'nullable|array',
-            'allowances' => 'nullable|array',
-            'deductions' => 'nullable|array',
-            'special_conditions' => 'nullable|string',
-            'document_path' => 'nullable|string|max:500',
-        ]);
-
-        $contract = $this->contractService->updateContract($request->user(), $contract, $validated);
-
-        return back()->with('success', 'Contract updated successfully.');
-    }
-
-    public function signByEmployee(Request $request, Contract $contract)
-    {
-        $this->authorize('sign', $contract);
-
-        $contract = $this->contractService->signByEmployee($request->user(), $contract, $request->ip());
-
-        return back()->with('success', 'Contract signed successfully.');
-    }
-
-    public function signByEmployer(Request $request, Contract $contract)
-    {
-        $this->authorize('sign', $contract);
-
-        $contract = $this->contractService->signByEmployer($request->user(), $contract, $request->ip());
-
-        return back()->with('success', 'Contract signed by employer successfully.');
-    }
-
-    public function renew(Request $request, Contract $contract)
-    {
-        $this->authorize('renew', $contract);
-
-        $validated = $request->validate([
             'start_date' => 'required|date',
             'end_date' => 'nullable|date|after_or_equal:start_date',
-            'probation_end_date' => 'nullable|date|after_or_equal:start_date',
-            'contract_type' => 'nullable|in:' . implode(',', array_column(\App\Modules\Hrm\Enums\ContractType::cases(), 'value')),
-            'status' => 'nullable|in:' . implode(',', array_column(\App\Modules\Hrm\Enums\ContractStatus::cases(), 'value')),
+            'contract_type' => ['nullable', Rule::enum(ContractType::class)],
             'basic_salary' => 'nullable|numeric|min:0',
         ]);
 
-        $newContract = $this->contractService->renewContract($request->user(), $contract, $validated);
+        $successor = $this->contracts->renewContract($request->user(), $contract, $validated);
 
-        return redirect()->route('erp.hrm.contracts.show', $newContract)
-            ->with('success', 'Contract renewed successfully.');
+        return redirect()->route('erp.hrm.contracts.show', $successor)->with('success', 'Renewal drafted. Both sides need to sign it.');
     }
 
-    public function terminate(Request $request, Contract $contract)
+    public function terminate(Request $request, Contract $contract): RedirectResponse
     {
-        $this->authorize('terminate', $contract);
+        $this->authorize('update', $contract);
+        $validated = $request->validate(['termination_date' => 'required|date']);
+        $this->contracts->terminateContract($request->user(), $contract, $validated);
 
-        $validated = $request->validate([
-            'termination_date' => 'required|date',
-            'termination_reason' => 'nullable|string|max:500',
+        return back()->with('success', 'Contract terminated.');
+    }
+
+    private function validated(Request $request, bool $creating): array
+    {
+        $companyId = $this->company()->id;
+
+        $data = $request->validate([
+            'employee_id' => [$creating ? 'required' : 'prohibited', 'integer', Rule::exists('hrm_employees', 'id')->where('company_id', $companyId)->whereNull('deleted_at')],
+            'template_id' => ['nullable', 'integer', Rule::exists('hrm_contract_templates', 'id')->where('company_id', $companyId)],
+            'contract_type' => ['required', Rule::enum(ContractType::class)],
+            'start_date' => 'required|date',
+            'end_date' => [Rule::requiredIf(fn () => $request->input('contract_type') === ContractType::FixedTerm->value), 'nullable', 'date', 'after_or_equal:start_date'],
+            'probation_end_date' => 'nullable|date|after_or_equal:start_date',
+            'basic_salary' => 'nullable|numeric|min:0',
+            'currency_code' => 'required|string|size:3',
+            'pay_frequency' => ['required', Rule::enum(PayFrequency::class)],
+            'working_hours_per_week' => 'nullable|numeric|min:1|max:100',
+        ], [
+            'end_date.required' => 'A fixed-term contract needs an end date.',
         ]);
 
-        $contract = $this->contractService->terminateContract($request->user(), $contract, $validated);
+        $data['currency_code'] = strtoupper($data['currency_code']);
 
-        return back()->with('success', 'Contract terminated successfully.');
+        return $data;
     }
 }

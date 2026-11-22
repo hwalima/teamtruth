@@ -3,505 +3,179 @@
 namespace App\Modules\Hrm\Services;
 
 use App\Models\User;
+use App\Modules\Core\Models\Company;
 use App\Modules\Core\Services\CompanyContext;
-use App\Modules\Hrm\Enums\ContractType;
-use App\Modules\Hrm\Enums\EmploymentStatus;
-use App\Modules\Hrm\Enums\Gender;
-use App\Modules\Hrm\Models\Department;
+use App\Modules\Hrm\Enums\EmployeeStatus;
 use App\Modules\Hrm\Models\Employee;
 use App\Modules\Hrm\Models\EmployeeDocument;
-use App\Modules\Hrm\Models\Grade;
 use App\Modules\Hrm\Models\Position;
-use Carbon\CarbonImmutable;
-use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 class EmployeeService
 {
+    /** Columns a form may write on hrm_employees. */
+    public const FIELDS = [
+        'user_id', 'first_name', 'middle_name', 'last_name', 'gender', 'date_of_birth',
+        'marital_status', 'nationality', 'national_id', 'passport_number',
+        'personal_email', 'personal_phone',
+        'emergency_contact_name', 'emergency_contact_phone', 'emergency_contact_relation',
+        'bank_name', 'bank_account_name', 'bank_account_number', 'bank_branch',
+        'tax_number', 'nssa_number', 'status', 'hire_date',
+        'line_manager_id', 'department_id', 'position_id', 'grade_id', 'cost_center_id',
+    ];
+
     public function __construct(
         private CompanyContext $companyContext,
     ) {}
 
-    /**
-     * Create a new employee
-     */
     public function createEmployee(User $actor, array $data): Employee
     {
         $company = $this->companyContext->requireActiveCompany();
+        $data = array_intersect_key($data, array_flip(self::FIELDS));
+
+        $this->assertUserIsFree($company, $data['user_id'] ?? null, null);
 
         return DB::transaction(function () use ($company, $actor, $data) {
-            // Validate department
-            if (! empty($data['department_id'])) {
-                Department::where('company_id', $company->id)
-                    ->where('id', $data['department_id'])
-                    ->firstOrFail();
-            }
-
-            // Validate position
-            if (! empty($data['position_id'])) {
-                $position = Position::where('company_id', $company->id)
-                    ->where('id', $data['position_id'])
-                    ->firstOrFail();
-
-                // Validate grade matches position if provided
-                if (! empty($data['grade_id'])) {
-                    $grade = Grade::where('company_id', $company->id)
-                        ->where('id', $data['grade_id'])
-                        ->firstOrFail();
-
-                    if ($position->grade_id && $position->grade_id !== $grade->id) {
-                        throw ValidationException::withMessages([
-                            'grade_id' => 'The selected grade does not match the position grade.',
-                        ]);
-                    }
-                }
-            }
-
-            // Validate grade
-            if (! empty($data['grade_id'])) {
-                Grade::where('company_id', $company->id)
-                    ->where('id', $data['grade_id'])
-                    ->firstOrFail();
-            }
-
-            // Validate cost center
-            if (! empty($data['cost_center_id'])) {
-                \App\Modules\Hrm\Models\CostCenter::where('company_id', $company->id)
-                    ->where('id', $data['cost_center_id'])
-                    ->firstOrFail();
-            }
-
-            // Validate manager
-            if (! empty($data['manager_id'])) {
-                $manager = Employee::where('company_id', $company->id)
-                    ->where('id', $data['manager_id'])
-                    ->firstOrFail();
-
-                if ($manager->user_id && $manager->user_id === $data['user_id']) {
-                    throw ValidationException::withMessages([
-                        'manager_id' => 'An employee cannot be their own manager.',
-                    ]);
-                }
-            }
-
-            // Validate user if provided
-            if (! empty($data['user_id'])) {
-                $user = User::whereHas('companies', fn ($q) => $q->where('company_id', $company->id))
-                    ->where('id', $data['user_id'])
-                    ->firstOrFail();
-
-                // Check if user already has an employee record
-                $existing = Employee::where('company_id', $company->id)
-                    ->where('user_id', $user->id)
-                    ->first();
-
-                if ($existing) {
-                    throw ValidationException::withMessages([
-                        'user_id' => 'This user already has an employee record.',
-                    ]);
-                }
-            }
-
-            // Generate employee number
-            $employeeNumber = $this->generateEmployeeNumber($company);
-
             $employee = Employee::query()->create([
-                'company_id' => $company->id,
-                'employee_number' => $employeeNumber,
-                'user_id' => $data['user_id'] ?? null,
-                'first_name' => $data['first_name'],
-                'last_name' => $data['last_name'],
-                'gender' => $data['gender'] ?? Gender::Male,
-                'date_of_birth' => $data['date_of_birth'] ?? null,
-                'national_id' => $data['national_id'] ?? null,
-                'passport_number' => $data['passport_number'] ?? null,
-                'phone' => $data['phone'] ?? null,
-                'personal_email' => $data['personal_email'] ?? null,
-                'work_email' => $data['work_email'] ?? null,
-                'address' => $data['address'] ?? null,
-                'emergency_contact_name' => $data['emergency_contact_name'] ?? null,
-                'emergency_contact_phone' => $data['emergency_contact_phone'] ?? null,
-                'emergency_contact_relationship' => $data['emergency_contact_relationship'] ?? null,
-                'bank_name' => $data['bank_name'] ?? null,
-                'bank_account_name' => $data['bank_account_name'] ?? null,
-                'bank_account_number' => $data['bank_account_number'] ?? null,
-                'bank_branch' => $data['bank_branch'] ?? null,
-                'bank_swift_code' => $data['bank_swift_code'] ?? null,
-                'tax_number' => $data['tax_number'] ?? null,
-                'social_security_number' => $data['social_security_number'] ?? null,
-                'pension_number' => $data['pension_number'] ?? null,
-                'department_id' => $data['department_id'] ?? null,
-                'position_id' => $data['position_id'] ?? null,
-                'grade_id' => $data['grade_id'] ?? null,
-                'cost_center_id' => $data['cost_center_id'] ?? null,
-                'manager_id' => $data['manager_id'] ?? null,
-                'employment_status' => $data['employment_status'] ?? EmploymentStatus::Active,
-                'employment_type' => $data['employment_type'] ?? ContractType::Permanent,
-                'hire_date' => $data['hire_date'] ?? now()->toDateString(),
-                'probation_end_date' => $data['probation_end_date'] ?? null,
-                'confirmation_date' => $data['confirmation_date'] ?? null,
-                'termination_date' => null,
-                'termination_reason' => null,
-                'notice_period_days' => $data['notice_period_days'] ?? 30,
-                'annual_leave_entitlement' => $data['annual_leave_entitlement'] ?? 21,
-                'work_schedule' => $data['work_schedule'] ?? ['monday' => true, 'tuesday' => true, 'wednesday' => true, 'thursday' => true, 'friday' => true, 'saturday' => false, 'sunday' => false],
-                'overtime_eligible' => $data['overtime_eligible'] ?? true,
-                'metadata' => $data['metadata'] ?? null,
+                ...$data,
+                'employee_number' => $this->generateEmployeeNumber($company),
+                'status' => $data['status'] ?? EmployeeStatus::Active->value,
                 'created_by' => $actor->id,
                 'updated_by' => $actor->id,
             ]);
 
-            // Update position headcount
             if ($employee->position_id) {
-                $position = Position::find($employee->position_id);
-                if ($position) {
-                    $position->increment('headcount_current');
-                }
+                Position::whereKey($employee->position_id)->increment('headcount_current');
             }
 
-            return $employee->load(['department', 'position', 'grade', 'costCenter', 'manager', 'user']);
+            return $employee;
         });
     }
 
-    /**
-     * Update an employee
-     */
     public function updateEmployee(User $actor, Employee $employee, array $data): Employee
     {
         $company = $this->companyContext->requireActiveCompany();
+        $data = array_intersect_key($data, array_flip(self::FIELDS));
 
-        if ((int) $employee->company_id !== (int) $company->id) {
-            throw new AuthorizationException('Employee belongs to a different company.');
-        }
+        $this->assertUserIsFree($company, $data['user_id'] ?? null, $employee->id);
 
-        return DB::transaction(function () use ($company, $actor, $employee, $data) {
-            // Validate department
-            if (isset($data['department_id'])) {
-                if ($data['department_id']) {
-                    Department::where('company_id', $company->id)
-                        ->where('id', $data['department_id'])
-                        ->firstOrFail();
-                }
-            }
-
-            // Validate position
-            $oldPositionId = $employee->position_id;
-            if (isset($data['position_id'])) {
-                if ($data['position_id']) {
-                    $position = Position::where('company_id', $company->id)
-                        ->where('id', $data['position_id'])
-                        ->firstOrFail();
-
-                    // Validate grade matches position if provided
-                    $gradeId = $data['grade_id'] ?? $employee->grade_id;
-                    if ($gradeId) {
-                        $grade = Grade::where('company_id', $company->id)
-                            ->where('id', $gradeId)
-                            ->firstOrFail();
-
-                        if ($position->grade_id && $position->grade_id !== $grade->id) {
-                            throw ValidationException::withMessages([
-                                'grade_id' => 'The selected grade does not match the position grade.',
-                            ]);
-                        }
-                    }
-                }
-            }
-
-            // Validate grade
-            if (isset($data['grade_id']) && $data['grade_id']) {
-                Grade::where('company_id', $company->id)
-                    ->where('id', $data['grade_id'])
-                    ->firstOrFail();
-            }
-
-            // Validate cost center
-            if (isset($data['cost_center_id']) && $data['cost_center_id']) {
-                \App\Modules\Hrm\Models\CostCenter::where('company_id', $company->id)
-                    ->where('id', $data['cost_center_id'])
-                    ->firstOrFail();
-            }
-
-            // Validate manager
-            if (isset($data['manager_id'])) {
-                if ($data['manager_id']) {
-                    $manager = Employee::where('company_id', $company->id)
-                        ->where('id', $data['manager_id'])
-                        ->firstOrFail();
-
-                    if ($manager->user_id && $manager->user_id === ($data['user_id'] ?? $employee->user_id)) {
-                        throw ValidationException::withMessages([
-                            'manager_id' => 'An employee cannot be their own manager.',
-                        ]);
-                    }
-
-                    // Prevent circular reporting
-                    if ($this->wouldCreateCircularReporting($employee->id, $manager->id)) {
-                        throw ValidationException::withMessages([
-                            'manager_id' => 'This would create a circular reporting structure.',
-                        ]);
-                    }
-                }
-            }
-
-            // Validate user
-            if (isset($data['user_id']) && $data['user_id']) {
-                $user = User::whereHas('companies', fn ($q) => $q->where('company_id', $company->id))
-                    ->where('id', $data['user_id'])
-                    ->firstOrFail();
-
-                $existing = Employee::where('company_id', $company->id)
-                    ->where('user_id', $user->id)
-                    ->where('id', '!=', $employee->id)
-                    ->first();
-
-                if ($existing) {
-                    throw ValidationException::withMessages([
-                        'user_id' => 'This user already has an employee record.',
-                    ]);
-                }
-            }
-
-            // Handle position change
-            $newPositionId = $data['position_id'] ?? $employee->position_id;
-            if ($oldPositionId !== $newPositionId) {
-                if ($oldPositionId) {
-                    Position::where('id', $oldPositionId)->decrement('headcount_current');
-                }
-                if ($newPositionId) {
-                    Position::where('id', $newPositionId)->increment('headcount_current');
-                }
-            }
-
-            $employee->update(array_merge($data, [
-                'updated_by' => $actor->id,
-            ]));
-
-            return $employee->fresh()->load(['department', 'position', 'grade', 'costCenter', 'manager', 'user']);
-        });
-    }
-
-    /**
-     * Terminate an employee
-     */
-    public function terminateEmployee(User $actor, Employee $employee, array $data): Employee
-    {
-        $company = $this->companyContext->requireActiveCompany();
-
-        if ((int) $employee->company_id !== (int) $company->id) {
-            throw new AuthorizationException('Employee belongs to a different company.');
-        }
-
-        if (! $employee->canBeTerminated()) {
+        if (! empty($data['line_manager_id']) && $this->wouldCreateCircularReporting($employee->id, (int) $data['line_manager_id'])) {
             throw ValidationException::withMessages([
-                'employee' => 'This employee cannot be terminated.',
+                'line_manager_id' => 'This would create a circular reporting line.',
             ]);
         }
 
         return DB::transaction(function () use ($actor, $employee, $data) {
+            $oldPositionId = $employee->position_id;
+
+            $employee->update([...$data, 'updated_by' => $actor->id]);
+
+            if ((int) $oldPositionId !== (int) $employee->position_id) {
+                if ($oldPositionId) {
+                    Position::whereKey($oldPositionId)->where('headcount_current', '>', 0)->decrement('headcount_current');
+                }
+                if ($employee->position_id) {
+                    Position::whereKey($employee->position_id)->increment('headcount_current');
+                }
+            }
+
+            return $employee->fresh();
+        });
+    }
+
+    public function terminateEmployee(User $actor, Employee $employee, array $data): Employee
+    {
+        if (! $employee->canBeTerminated()) {
+            throw ValidationException::withMessages(['employee' => 'This employee is already terminated.']);
+        }
+
+        return DB::transaction(function () use ($actor, $employee, $data) {
             $employee->update([
-                'employment_status' => EmploymentStatus::Terminated,
+                'status' => EmployeeStatus::Terminated,
                 'termination_date' => $data['termination_date'] ?? now()->toDateString(),
                 'termination_reason' => $data['termination_reason'] ?? null,
                 'updated_by' => $actor->id,
             ]);
 
-            // Decrement position headcount
             if ($employee->position_id) {
-                Position::where('id', $employee->position_id)->decrement('headcount_current');
+                Position::whereKey($employee->position_id)->where('headcount_current', '>', 0)->decrement('headcount_current');
             }
 
             return $employee->fresh();
         });
     }
 
-    /**
-     * Rehire a terminated employee
-     */
     public function rehireEmployee(User $actor, Employee $employee, array $data): Employee
     {
-        $company = $this->companyContext->requireActiveCompany();
-
-        if ((int) $employee->company_id !== (int) $company->id) {
-            throw new AuthorizationException('Employee belongs to a different company.');
-        }
-
-        if ($employee->employment_status !== EmploymentStatus::Terminated) {
-            throw ValidationException::withMessages([
-                'employee' => 'Only terminated employees can be rehired.',
-            ]);
+        if ($employee->status !== EmployeeStatus::Terminated) {
+            throw ValidationException::withMessages(['employee' => 'Only terminated employees can be rehired.']);
         }
 
         return DB::transaction(function () use ($actor, $employee, $data) {
             $employee->update([
-                'employment_status' => EmploymentStatus::Active,
+                'status' => EmployeeStatus::Active,
+                'hire_date' => $data['rehire_date'] ?? now()->toDateString(),
                 'termination_date' => null,
                 'termination_reason' => null,
-                'rehire_date' => $data['rehire_date'] ?? now()->toDateString(),
                 'updated_by' => $actor->id,
             ]);
 
-            // Increment position headcount
             if ($employee->position_id) {
-                Position::where('id', $employee->position_id)->increment('headcount_current');
+                Position::whereKey($employee->position_id)->increment('headcount_current');
             }
 
             return $employee->fresh();
         });
     }
 
-    /**
-     * Upload employee document
-     */
     public function uploadDocument(User $actor, Employee $employee, array $data): EmployeeDocument
     {
-        $company = $this->companyContext->requireActiveCompany();
-
-        if ((int) $employee->company_id !== (int) $company->id) {
-            throw new AuthorizationException('Employee belongs to a different company.');
-        }
-
-        return DB::transaction(function () use ($actor, $employee, $data) {
-            $document = EmployeeDocument::query()->create([
-                'company_id' => $company->id,
-                'employee_id' => $employee->id,
-                'document_type' => $data['document_type'],
-                'name' => $data['name'],
-                'file_path' => $data['file_path'],
-                'file_size' => $data['file_size'] ?? null,
-                'mime_type' => $data['mime_type'] ?? null,
-                'issued_at' => $data['issued_at'] ?? null,
-                'expires_at' => $data['expires_at'] ?? null,
-                'is_verified' => $data['is_verified'] ?? false,
-                'verified_by' => $data['is_verified'] ? $actor->id : null,
-                'verified_at' => $data['is_verified'] ? now() : null,
-                'notes' => $data['notes'] ?? null,
-                'created_by' => $actor->id,
-                'updated_by' => $actor->id,
-            ]);
-
-            return $document;
-        });
-    }
-
-    /**
-     * Update employee document
-     */
-    public function updateDocument(User $actor, EmployeeDocument $document, array $data): EmployeeDocument
-    {
-        $company = $this->companyContext->requireActiveCompany();
-
-        if ((int) $document->company_id !== (int) $company->id) {
-            throw new AuthorizationException('Document belongs to a different company.');
-        }
-
-        $document->update(array_merge($data, [
+        return EmployeeDocument::query()->create([
+            'employee_id' => $employee->id,
+            'document_type' => $data['document_type'],
+            'document_number' => $data['document_number'] ?? null,
+            'title' => $data['title'],
+            'description' => $data['description'] ?? null,
+            'file_path' => $data['file_path'],
+            'file_mime' => $data['file_mime'] ?? null,
+            'file_size' => $data['file_size'] ?? null,
+            'issued_date' => $data['issued_date'] ?? null,
+            'expiry_date' => $data['expiry_date'] ?? null,
+            'created_by' => $actor->id,
             'updated_by' => $actor->id,
-            'verified_by' => ($data['is_verified'] ?? false) ? $actor->id : ($document->is_verified ? $document->verified_by : null),
-            'verified_at' => ($data['is_verified'] ?? false) ? now() : ($document->is_verified ? $document->verified_at : null),
-        ]));
-
-        return $document->fresh();
+        ]);
     }
 
-    /**
-     * Delete employee document
-     */
     public function deleteDocument(User $actor, EmployeeDocument $document): void
     {
-        $company = $this->companyContext->requireActiveCompany();
-
-        if ((int) $document->company_id !== (int) $company->id) {
-            throw new AuthorizationException('Document belongs to a different company.');
-        }
-
         $document->delete();
     }
 
-    /**
-     * Generate unique employee number
-     */
-    private function generateEmployeeNumber(\App\Modules\Core\Models\Company $company): string
-    {
-        $prefix = strtoupper(substr($company->name, 0, 3));
-        $prefix = preg_replace('/[^A-Z]/', '', $prefix) ?? 'EMP';
-
-        $lastNumber = Employee::where('company_id', $company->id)
-            ->where('employee_number', 'like', $prefix . '-%')
-            ->latest('employee_number')
-            ->value('employee_number');
-
-        if ($lastNumber) {
-            $num = (int) substr($lastNumber, strlen($prefix) + 1) + 1;
-        } else {
-            $num = 1;
-        }
-
-        return sprintf('%s-%04d', $prefix, $num);
-    }
-
-    /**
-     * Check for circular reporting
-     */
-    private function wouldCreateCircularReporting(int $employeeId, int $managerId): bool
-    {
-        $visited = [];
-        $currentId = $managerId;
-
-        while ($currentId) {
-            if ($currentId === $employeeId) {
-                return true;
-            }
-
-            if (in_array($currentId, $visited)) {
-                return true; // Existing circular reference
-            }
-
-            $visited[] = $currentId;
-
-            $manager = Employee::where('id', $currentId)->value('manager_id');
-            $currentId = $manager ?? 0;
-        }
-
-        return false;
-    }
-
-    /**
-     * Get employee with all relations
-     */
     public function getEmployeeWithRelations(int $employeeId): ?Employee
     {
-        $company = $this->companyContext->requireActiveCompany();
-
-        return Employee::where('company_id', $company->id)
+        return Employee::query()
             ->with([
-                'department',
-                'position',
-                'grade',
-                'costCenter',
-                'manager',
-                'user',
-                'documents',
-                'contracts' => fn ($q) => $q->latest(),
-                'leaveBalances.leaveType',
-                'leaveRequests' => fn ($q) => $q->latest()->limit(10),
+                'department:id,name,code',
+                'position:id,name,code',
+                'grade:id,name,code',
+                'costCenter:id,name,code',
+                'lineManager:id,employee_number,first_name,last_name,middle_name',
+                'user:id,name,email',
+                'documents' => fn ($q) => $q->latest(),
+                'contracts' => fn ($q) => $q->latest('start_date'),
+                'leaveBalances' => fn ($q) => $q->with('leaveType:id,name,code,color')->latest('period_start'),
+                'leaveRequests' => fn ($q) => $q->with('leaveType:id,name,code,color')->latest()->limit(10),
                 'disciplinaryCases' => fn ($q) => $q->latest()->limit(5),
                 'selfServiceRequests' => fn ($q) => $q->latest()->limit(10),
-                'transfers' => fn ($q) => $q->latest()->limit(5),
             ])
             ->find($employeeId);
     }
 
-    /**
-     * Search employees
-     */
-    public function searchEmployees(array $filters, int $perPage = 15)
+    public function searchEmployees(array $filters, int $perPage = 20)
     {
-        $company = $this->companyContext->requireActiveCompany();
-
-        $query = Employee::where('company_id', $company->id)
-            ->with(['department', 'position', 'grade', 'manager', 'user']);
+        $query = Employee::query()
+            ->with(['department:id,name', 'position:id,name', 'grade:id,name', 'lineManager:id,first_name,last_name,middle_name', 'user:id,name,email']);
 
         if (! empty($filters['search'])) {
             $search = $filters['search'];
@@ -509,35 +183,63 @@ class EmployeeService
                 $q->where('first_name', 'like', "%{$search}%")
                     ->orWhere('last_name', 'like', "%{$search}%")
                     ->orWhere('employee_number', 'like', "%{$search}%")
-                    ->orWhere('work_email', 'like', "%{$search}%")
+                    ->orWhere('personal_email', 'like', "%{$search}%")
                     ->orWhere('national_id', 'like', "%{$search}%");
             });
         }
 
-        if (! empty($filters['department_id'])) {
-            $query->where('department_id', $filters['department_id']);
+        foreach (['department_id', 'position_id', 'grade_id', 'cost_center_id', 'status'] as $column) {
+            if (! empty($filters[$column])) {
+                $query->where($column, $filters[$column]);
+            }
         }
 
-        if (! empty($filters['position_id'])) {
-            $query->where('position_id', $filters['position_id']);
+        return $query->orderBy('last_name')->orderBy('first_name')->paginate($perPage)->withQueryString();
+    }
+
+    private function assertUserIsFree(Company $company, mixed $userId, ?int $ignoreEmployeeId): void
+    {
+        if (empty($userId)) {
+            return;
         }
 
-        if (! empty($filters['employment_status'])) {
-            $query->where('employment_status', $filters['employment_status']);
+        $taken = Employee::query()
+            ->where('user_id', $userId)
+            ->when($ignoreEmployeeId, fn ($q) => $q->whereKeyNot($ignoreEmployeeId))
+            ->exists();
+
+        if ($taken) {
+            throw ValidationException::withMessages(['user_id' => 'This user already has an employee record.']);
+        }
+    }
+
+    private function generateEmployeeNumber(Company $company): string
+    {
+        $prefix = preg_replace('/[^A-Z]/', '', strtoupper((string) ($company->code ?: $company->name))) ?: 'EMP';
+        $prefix = substr($prefix, 0, 6);
+
+        $numbers = Employee::withTrashed()
+            ->where('employee_number', 'like', $prefix.'-%')
+            ->pluck('employee_number')
+            ->map(fn (string $number) => (int) substr($number, strlen($prefix) + 1));
+
+        return sprintf('%s-%04d', $prefix, ($numbers->max() ?? 0) + 1);
+    }
+
+    private function wouldCreateCircularReporting(int $employeeId, int $managerId): bool
+    {
+        $visited = [];
+        $currentId = $managerId;
+
+        while ($currentId) {
+            if ($currentId === $employeeId || in_array($currentId, $visited, true)) {
+                return true;
+            }
+
+            $visited[] = $currentId;
+            $currentId = (int) Employee::query()->whereKey($currentId)->value('line_manager_id');
         }
 
-        if (! empty($filters['employment_type'])) {
-            $query->where('employment_type', $filters['employment_type']);
-        }
-
-        if (! empty($filters['grade_id'])) {
-            $query->where('grade_id', $filters['grade_id']);
-        }
-
-        if (! empty($filters['cost_center_id'])) {
-            $query->where('cost_center_id', $filters['cost_center_id']);
-        }
-
-        return $query->orderBy('last_name')->orderBy('first_name')->paginate($perPage);
+        return false;
     }
 }

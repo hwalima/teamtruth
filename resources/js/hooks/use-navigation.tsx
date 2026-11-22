@@ -392,13 +392,27 @@ export function useNavigation() {
             if (canUseErp('erp.sales.view')) {
                 items.push({ title: t('Sales'), href: route('erp.sales.index'), icon: TrendingUp, group: t('Modules') });
             }
-            if (canUseErp('erp.hrm.view')) {
+            {
+                // Every member sees their own leave and self-service requests; the rest follows their HRM permissions.
                 const hrmItems: NavItem[] = [];
                 if (canUseErp('erp.hrm.employee.view')) {
                     hrmItems.push({ title: t('Employees'), href: route('erp.hrm.employees.index'), icon: Users });
                 }
                 if (canUseErp('erp.hrm.leave.view')) {
-                    hrmItems.push({ title: t('Leave Management'), href: route('erp.hrm.leave.requests.index'), icon: CalendarDays });
+                    hrmItems.push({
+                        title: t('Leave Management'),
+                        icon: CalendarDays,
+                        children: [
+                            { title: t('Leave Requests'), href: route('erp.hrm.leave.requests.index') },
+                            { title: t('Leave Balances'), href: route('erp.hrm.leave.balances.index') },
+                            ...(canUseErp('erp.hrm.leave.manage')
+                                ? [
+                                      { title: t('Leave Types'), href: route('erp.hrm.leave.types.index') },
+                                      { title: t('Public Holidays'), href: route('erp.hrm.leave.holidays.index') },
+                                  ]
+                                : []),
+                        ],
+                    });
                 }
                 if (canUseErp('erp.hrm.contract.view')) {
                     hrmItems.push({ title: t('Contracts'), href: route('erp.hrm.contracts.index'), icon: FileSignature });
@@ -410,6 +424,8 @@ export function useNavigation() {
                         children: [
                             { title: t('Departments'), href: route('erp.hrm.organization.departments.index') },
                             { title: t('Positions'), href: route('erp.hrm.organization.positions.index') },
+                            { title: t('Grades'), href: route('erp.hrm.organization.grades.index') },
+                            { title: t('Cost Centers'), href: route('erp.hrm.organization.cost-centers.index') },
                         ],
                     });
                 }

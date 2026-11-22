@@ -4,6 +4,8 @@ namespace App\Modules\Hrm\Enums;
 
 enum SelfServiceRequestType: string
 {
+    use Concerns\HasOptions;
+
     case ProfileUpdate = 'profile_update';
     case DocumentUpload = 'document_upload';
     case LeaveBalanceEnquiry = 'leave_balance_enquiry';

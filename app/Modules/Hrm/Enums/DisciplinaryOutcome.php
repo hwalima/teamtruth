@@ -4,6 +4,8 @@ namespace App\Modules\Hrm\Enums;
 
 enum DisciplinaryOutcome: string
 {
+    use Concerns\HasOptions;
+
     case VerbalWarning = 'verbal_warning';
     case WrittenWarning = 'written_warning';
     case FinalWarning = 'final_warning';

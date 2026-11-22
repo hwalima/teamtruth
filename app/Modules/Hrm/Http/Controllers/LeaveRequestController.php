@@ -2,18 +2,19 @@
 
 namespace App\Modules\Hrm\Http\Controllers;
 
-use App\Http\Controllers\Controller;
-use App\Models\User;
-use App\Modules\Core\Services\CompanyContext;
+use App\Modules\Hrm\Enums\LeaveRequestStatus;
 use App\Modules\Hrm\Models\Employee;
 use App\Modules\Hrm\Models\LeaveRequest;
 use App\Modules\Hrm\Models\LeaveType;
 use App\Modules\Hrm\Services\LeaveService;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 
-class LeaveRequestController extends Controller
+class LeaveRequestController extends HrmController
 {
     public function __construct(
         private LeaveService $leaveService,
@@ -21,177 +22,147 @@ class LeaveRequestController extends Controller
 
     public function index(Request $request): Response
     {
-        $company = app(CompanyContext::class)->requireActiveCompany();
+        $filters = $request->only(['search', 'leave_type_id', 'status', 'date_from', 'date_to']);
+        $canSeeAll = $this->allowsErpPermission('erp.hrm.leave.approve') || $this->allowsErpPermission('erp.hrm.leave.manage');
+        $ownEmployee = $this->ownEmployee($request);
 
-        $query = LeaveRequest::where('company_id', $company->id)
-            ->with(['employee.user', 'leaveType', 'approvedBy'])
-            ->orderBy('created_at', 'desc');
-
-        // Filter by employee if not admin
-        $employee = Employee::where('company_id', $company->id)->where('user_id', $request->user()->id)->first();
-        if ($employee && ! $request->user()->can('erp.hrm.leave.approve')) {
-            $query->where('employee_id', $employee->id);
-        }
-
-        if ($request->filled('search')) {
-            $search = $request->search;
-            $query->where(function ($q) use ($search) {
-                $q->whereHas('employee', fn ($q2) => $q2->where('first_name', 'like', "%{$search}%")
-                    ->orWhere('last_name', 'like', "%{$search}%")
-                    ->orWhere('employee_number', 'like', "%{$search}%"));
-            });
-        }
-
-        if ($request->filled('leave_type_id')) {
-            $query->where('leave_type_id', $request->leave_type_id);
-        }
-
-        if ($request->filled('status')) {
-            $query->where('status', $request->status);
-        }
-
-        if ($request->filled('employee_id') && $request->user()->can('erp.hrm.leave.approve')) {
-            $query->where('employee_id', $request->employee_id);
-        }
-
-        if ($request->filled('date_from')) {
-            $query->whereDate('start_date', '>=', $request->date_from);
-        }
-
-        if ($request->filled('date_to')) {
-            $query->whereDate('end_date', '<=', $request->date_to);
-        }
-
-        $requests = $query->paginate(20)->withQueryString();
-
-        $leaveTypes = LeaveType::where('company_id', $company->id)
-            ->where('is_active', true)
-            ->orderBy('name')
-            ->get(['id', 'name', 'code']);
-
-        $employees = Employee::where('company_id', $company->id)
-            ->where('employment_status', 'active')
-            ->with('user')
-            ->orderBy('last_name')
-            ->orderBy('first_name')
-            ->get(['id', 'employee_number', 'first_name', 'last_name', 'user_id']);
+        $requests = LeaveRequest::query()
+            ->with(['employee:id,employee_number,first_name,middle_name,last_name', 'leaveType:id,name,code,color', 'approvedBy:id,name'])
+            ->when(! $canSeeAll, fn ($q) => $q->where('employee_id', $ownEmployee?->id ?? 0))
+            ->when($filters['search'] ?? null, fn ($q, $search) => $q->whereHas('employee', fn ($e) => $e
+                ->where('first_name', 'like', "%{$search}%")
+                ->orWhere('last_name', 'like', "%{$search}%")
+                ->orWhere('employee_number', 'like', "%{$search}%")))
+            ->when($filters['leave_type_id'] ?? null, fn ($q, $id) => $q->where('leave_type_id', $id))
+            ->when($filters['status'] ?? null, fn ($q, $status) => $q->where('status', $status))
+            ->when($filters['date_from'] ?? null, fn ($q, $date) => $q->whereDate('end_date', '>=', $date))
+            ->when($filters['date_to'] ?? null, fn ($q, $date) => $q->whereDate('start_date', '<=', $date))
+            ->latest()
+            ->paginate(20)
+            ->withQueryString();
 
         return Inertia::render('Erp/Hrm/Leave/Requests/Index', [
-            'company' => $company,
+            'company' => $this->company(),
             'requests' => $requests,
-            'leaveTypes' => $leaveTypes,
-            'employees' => $employees,
-            'filters' => $request->only(['search', 'leave_type_id', 'status', 'employee_id', 'date_from', 'date_to']),
-            'statusOptions' => \App\Modules\Hrm\Enums\LeaveStatus::options(),
-            'canApprove' => $request->user()->can('erp.hrm.leave.approve'),
+            'leaveTypes' => LeaveType::query()->orderBy('name')->get(['id', 'name', 'code']),
+            'filters' => $filters,
+            'statusOptions' => LeaveRequestStatus::options(),
+            'canApprove' => $this->allowsErpPermission('erp.hrm.leave.approve'),
+            'canRequest' => $this->allowsErpPermission('erp.hrm.leave.request'),
+            'hasEmployeeRecord' => $ownEmployee !== null,
         ]);
     }
 
-    public function create(): Response
+    public function create(Request $request): Response
     {
-        $company = app(CompanyContext::class)->requireActiveCompany();
-
-        $employee = Employee::where('company_id', $company->id)->where('user_id', $request()->user()->id)->firstOrFail();
-
-        $leaveTypes = LeaveType::where('company_id', $company->id)
-            ->where('is_active', true)
-            ->where(function ($q) use ($employee) {
-                // Filter by gender
-                if ($employee->gender) {
-                    $q->where(function ($q2) use ($employee) {
-                        $q2->whereNull('gender_restriction')
-                            ->orWhere('gender_restriction', $employee->gender->value);
-                    });
-                }
-
-                // Filter by employment type
-                $q->where(function ($q2) use ($employee) {
-                    $q2->whereNull('employment_types')
-                        ->orWhereJsonContains('employment_types', $employee->employment_type->value);
-                });
-            })
-            ->orderBy('name')
-            ->get();
+        $canManage = $this->allowsErpPermission('erp.hrm.leave.manage');
+        $ownEmployee = $this->ownEmployee($request);
 
         return Inertia::render('Erp/Hrm/Leave/Requests/Create', [
-            'company' => $company,
-            'employee' => $employee,
-            'leaveTypes' => $leaveTypes,
+            'company' => $this->company(),
+            'employee' => $ownEmployee?->only(['id', 'employee_number', 'first_name', 'middle_name', 'last_name']),
+            'employees' => $canManage
+                ? Employee::query()->where('status', '!=', 'terminated')->orderBy('last_name')->get(['id', 'employee_number', 'first_name', 'middle_name', 'last_name'])
+                : [],
+            'leaveTypes' => LeaveType::query()->where('is_active', true)->orderBy('name')
+                ->get(['id', 'name', 'code', 'color', 'description', 'requires_document', 'requires_approval']),
+            'balances' => $ownEmployee
+                ? $ownEmployee->leaveBalances()->with('leaveType:id,name')->whereDate('period_end', '>=', now()->toDateString())->get()
+                : [],
+            'canRequestForOthers' => $canManage,
         ]);
     }
 
-    public function store(Request $request)
+    public function store(Request $request): RedirectResponse
     {
-        $validated = $request->validate([
-            'employee_id' => 'nullable|exists:hrm_employees,id',
-            'leave_type_id' => 'required|exists:hrm_leave_types,id',
+        $companyId = $this->company()->id;
+        $data = $request->validate([
+            'employee_id' => ['nullable', 'integer', Rule::exists('hrm_employees', 'id')->where('company_id', $companyId)],
+            'leave_type_id' => ['required', 'integer', Rule::exists('hrm_leave_types', 'id')->where('company_id', $companyId)],
             'start_date' => 'required|date',
             'end_date' => 'required|date|after_or_equal:start_date',
-            'reason' => 'nullable|string|max:1000',
-            'attachment_path' => 'nullable|string|max:500',
-            'contact_during_leave' => 'nullable|string|max:200',
-            'handover_notes' => 'nullable|string|max:1000',
+            'reason' => 'required|string|max:2000',
+            'attachment' => 'nullable|file|max:10240',
         ]);
 
-        $leaveRequest = $this->leaveService->createLeaveRequest($request->user(), $validated);
+        $employee = $this->resolveEmployee($request, $data['employee_id'] ?? null);
 
-        return redirect()->route('erp.hrm.leave.requests.index')
-            ->with('success', 'Leave request submitted successfully.');
+        if ($request->hasFile('attachment')) {
+            $data['attachment_path'] = $request->file('attachment')->store("hrm/{$companyId}/leave", 'local');
+        }
+
+        $leaveRequest = $this->leaveService->createLeaveRequest($request->user(), $employee, $data);
+
+        return redirect()->route('erp.hrm.leave.requests.show', $leaveRequest)
+            ->with('success', 'Leave request submitted.');
     }
 
     public function show(LeaveRequest $leaveRequest): Response
     {
         $this->authorize('view', $leaveRequest);
 
-        $company = app(CompanyContext::class)->requireActiveCompany();
+        $leaveRequest->load([
+            'employee:id,employee_number,first_name,middle_name,last_name,user_id',
+            'leaveType:id,name,code,color,requires_approval',
+            'approvedBy:id,name',
+            'ledgerEntries' => fn ($q) => $q->latest(),
+        ]);
 
-        $leaveRequest->load(['employee.user', 'leaveType', 'approvedBy', 'ledgerEntries.leaveBalance']);
+        $balance = $leaveRequest->employee
+            ? $this->leaveService->balanceFor($leaveRequest->employee, $leaveRequest->leaveType, $leaveRequest->start_date->toDateString())
+            : null;
+
+        $open = in_array($leaveRequest->status, [LeaveRequestStatus::Submitted, LeaveRequestStatus::InApproval], true);
 
         return Inertia::render('Erp/Hrm/Leave/Requests/Show', [
-            'company' => $company,
+            'company' => $this->company(),
             'leaveRequest' => $leaveRequest,
-            'canApprove' => $this->allows('approve', $leaveRequest),
-            'canReject' => $this->allows('reject', $leaveRequest),
-            'canCancel' => $this->allows('cancel', $leaveRequest),
+            'balance' => $balance,
+            'canApprove' => $open && $this->allows('approve', $leaveRequest),
+            'canCancel' => in_array($leaveRequest->status, LeaveService::OPEN_STATUSES, true) && $this->allows('cancel', $leaveRequest),
         ]);
     }
 
-    public function approve(Request $request, LeaveRequest $leaveRequest)
+    public function approve(Request $request, LeaveRequest $leaveRequest): RedirectResponse
     {
         $this->authorize('approve', $leaveRequest);
+        $this->leaveService->approveLeaveRequest($request->user(), $leaveRequest);
 
-        $validated = $request->validate([
-            'notes' => 'nullable|string|max:500',
-        ]);
-
-        $leaveRequest = $this->leaveService->approveLeaveRequest($request->user(), $leaveRequest, $validated['notes'] ?? null);
-
-        return back()->with('success', 'Leave request approved successfully.');
+        return back()->with('success', 'Leave request approved.');
     }
 
-    public function reject(Request $request, LeaveRequest $leaveRequest)
+    public function reject(Request $request, LeaveRequest $leaveRequest): RedirectResponse
     {
         $this->authorize('reject', $leaveRequest);
-
-        $validated = $request->validate([
-            'reason' => 'required|string|max:500',
-        ]);
-
-        $leaveRequest = $this->leaveService->rejectLeaveRequest($request->user(), $leaveRequest, $validated['reason']);
+        $data = $request->validate(['reason' => 'required|string|max:1000']);
+        $this->leaveService->rejectLeaveRequest($request->user(), $leaveRequest, $data['reason']);
 
         return back()->with('success', 'Leave request rejected.');
     }
 
-    public function cancel(Request $request, LeaveRequest $leaveRequest)
+    public function cancel(Request $request, LeaveRequest $leaveRequest): RedirectResponse
     {
         $this->authorize('cancel', $leaveRequest);
-
-        $validated = $request->validate([
-            'reason' => 'required|string|max:500',
-        ]);
-
-        $leaveRequest = $this->leaveService->cancelLeaveRequest($request->user(), $leaveRequest, $validated['reason']);
+        $data = $request->validate(['reason' => 'nullable|string|max:1000']);
+        $this->leaveService->cancelLeaveRequest($request->user(), $leaveRequest, $data['reason'] ?? null);
 
         return back()->with('success', 'Leave request cancelled.');
+    }
+
+    private function ownEmployee(Request $request): ?Employee
+    {
+        return Employee::query()->where('user_id', $request->user()->id)->first();
+    }
+
+    /** Managers may file leave for anyone; everyone else files for themselves. */
+    private function resolveEmployee(Request $request, ?int $employeeId): Employee
+    {
+        if ($employeeId && $this->allowsErpPermission('erp.hrm.leave.manage')) {
+            return Employee::query()->findOrFail($employeeId);
+        }
+
+        return $this->ownEmployee($request) ?? throw ValidationException::withMessages([
+            'employee_id' => 'Your user account is not linked to an employee record. Ask HR to link it first.',
+        ]);
     }
 }

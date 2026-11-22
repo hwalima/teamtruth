@@ -4,6 +4,8 @@ namespace App\Modules\Hrm\Enums;
 
 enum EmployeeStatus: string
 {
+    use Concerns\HasOptions;
+
     case Active = 'active';
     case Inactive = 'inactive';
     case Terminated = 'terminated';

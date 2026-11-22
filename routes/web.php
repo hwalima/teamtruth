@@ -485,7 +485,7 @@ Route::middleware(['auth', 'verified'])->prefix('erp')->name('erp.')->group(func
     });
 
     // HRM Routes
-    Route::prefix('hrm')->name('hrm.')->group(function () {
+    Route::prefix('hrm')->name('hrm.')->middleware('erp.company')->group(function () {
         // Employees
         Route::get('employees', [\App\Modules\Hrm\Http\Controllers\EmployeeController::class, 'index'])
             ->middleware('erp.permission:erp.hrm.employee.view')
@@ -607,7 +607,7 @@ Route::middleware(['auth', 'verified'])->prefix('erp')->name('erp.')->group(func
                 ->middleware('erp.permission:erp.hrm.contract.manage')
                 ->name('store');
             Route::get('{contract}', [\App\Modules\Hrm\Http\Controllers\ContractController::class, 'show'])
-                ->middleware('erp.permission:erp.hrm.contract.view')
+                // Access is decided by ContractPolicy::view so employees can open their own contract to sign it.
                 ->name('show');
             Route::put('{contract}', [\App\Modules\Hrm\Http\Controllers\ContractController::class, 'update'])
                 ->middleware('erp.permission:erp.hrm.contract.manage')
@@ -629,7 +629,7 @@ Route::middleware(['auth', 'verified'])->prefix('erp')->name('erp.')->group(func
         // Disciplinary
         Route::prefix('disciplinary')->name('disciplinary.')->group(function () {
             Route::get('/', [\App\Modules\Hrm\Http\Controllers\DisciplinaryCaseController::class, 'index'])
-                ->middleware('erp.permission:erp.hrm.disciplinary.view')
+                // Without disciplinary.view people see only their own cases.
                 ->name('index');
             Route::get('create', [\App\Modules\Hrm\Http\Controllers\DisciplinaryCaseController::class, 'create'])
                 ->middleware('erp.permission:erp.hrm.disciplinary.manage')
@@ -638,8 +638,11 @@ Route::middleware(['auth', 'verified'])->prefix('erp')->name('erp.')->group(func
                 ->middleware('erp.permission:erp.hrm.disciplinary.manage')
                 ->name('store');
             Route::get('{case}', [\App\Modules\Hrm\Http\Controllers\DisciplinaryCaseController::class, 'show'])
-                ->middleware('erp.permission:erp.hrm.disciplinary.view')
+                // DisciplinaryCasePolicy::view lets the employee open their own case.
                 ->name('show');
+            Route::put('{case}', [\App\Modules\Hrm\Http\Controllers\DisciplinaryCaseController::class, 'update'])
+                ->middleware('erp.permission:erp.hrm.disciplinary.manage')
+                ->name('update');
             Route::post('{case}/investigate', [\App\Modules\Hrm\Http\Controllers\DisciplinaryCaseController::class, 'startInvestigation'])
                 ->middleware('erp.permission:erp.hrm.disciplinary.manage')
                 ->name('investigate');
@@ -670,6 +673,8 @@ Route::middleware(['auth', 'verified'])->prefix('erp')->name('erp.')->group(func
             Route::delete('{case}/documents/{document}', [\App\Modules\Hrm\Http\Controllers\DisciplinaryCaseController::class, 'destroyDocument'])
                 ->middleware('erp.permission:erp.hrm.disciplinary.manage')
                 ->name('documents.destroy');
+            Route::get('{case}/documents/{document}', [\App\Modules\Hrm\Http\Controllers\DisciplinaryCaseController::class, 'downloadDocument'])
+                ->name('documents.download');
         });
 
         // Organization
@@ -736,7 +741,7 @@ Route::middleware(['auth', 'verified'])->prefix('erp')->name('erp.')->group(func
                 ->name('cost-centers.destroy');
         });
 
-        // Self Service
+        // Self service: everyone sees their own requests; self_service.manage sees and handles all.
         Route::prefix('self-service')->name('self-service.')->group(function () {
             Route::get('/', [\App\Modules\Hrm\Http\Controllers\SelfServiceController::class, 'index'])
                 ->middleware('erp.permission:erp.hrm.self_service.view')
@@ -747,24 +752,25 @@ Route::middleware(['auth', 'verified'])->prefix('erp')->name('erp.')->group(func
             Route::post('/', [\App\Modules\Hrm\Http\Controllers\SelfServiceController::class, 'store'])
                 ->middleware('erp.permission:erp.hrm.self_service.request')
                 ->name('store');
-            Route::get('{request}', [\App\Modules\Hrm\Http\Controllers\SelfServiceController::class, 'show'])
-                ->middleware('erp.permission:erp.hrm.self_service.view')
+            Route::get('{selfServiceRequest}', [\App\Modules\Hrm\Http\Controllers\SelfServiceController::class, 'show'])
                 ->name('show');
-            Route::put('{request}', [\App\Modules\Hrm\Http\Controllers\SelfServiceController::class, 'update'])
+            Route::put('{selfServiceRequest}', [\App\Modules\Hrm\Http\Controllers\SelfServiceController::class, 'update'])
                 ->middleware('erp.permission:erp.hrm.self_service.request')
                 ->name('update');
-            Route::post('{request}/assign', [\App\Modules\Hrm\Http\Controllers\SelfServiceController::class, 'assign'])
+            Route::post('{selfServiceRequest}/assign', [\App\Modules\Hrm\Http\Controllers\SelfServiceController::class, 'assign'])
                 ->middleware('erp.permission:erp.hrm.self_service.manage')
                 ->name('assign');
-            Route::post('{request}/review', [\App\Modules\Hrm\Http\Controllers\SelfServiceController::class, 'review'])
+            Route::post('{selfServiceRequest}/review', [\App\Modules\Hrm\Http\Controllers\SelfServiceController::class, 'review'])
                 ->middleware('erp.permission:erp.hrm.self_service.manage')
                 ->name('review');
-            Route::post('{request}/cancel', [\App\Modules\Hrm\Http\Controllers\SelfServiceController::class, 'cancel'])
+            Route::post('{selfServiceRequest}/cancel', [\App\Modules\Hrm\Http\Controllers\SelfServiceController::class, 'cancel'])
                 ->middleware('erp.permission:erp.hrm.self_service.request')
                 ->name('cancel');
-            Route::post('{request}/documents', [\App\Modules\Hrm\Http\Controllers\SelfServiceController::class, 'storeDocument'])
-                ->middleware('erp.permission:erp.hrm.self_service.request')
+            Route::post('{selfServiceRequest}/documents', [\App\Modules\Hrm\Http\Controllers\SelfServiceController::class, 'storeDocument'])
                 ->name('documents.store');
+            Route::get('{selfServiceRequest}/documents/{index}', [\App\Modules\Hrm\Http\Controllers\SelfServiceController::class, 'downloadDocument'])
+                ->whereNumber('index')
+                ->name('documents.download');
         });
     });
 
