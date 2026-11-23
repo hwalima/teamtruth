@@ -21,7 +21,9 @@ class StatementService
             ?? $account->transactions()->min('transaction_date');
         $last = $account->transactions()->max('transaction_date');
         $from = $from ?: ($first ? CarbonImmutable::parse($first)->toDateString() : now()->toDateString());
-        $to = $to ?: ($last ? CarbonImmutable::parse($last)->toDateString() : now()->toDateString());
+        // Up to today by default; later only when lines are dated in the future.
+        $today = now()->toDateString();
+        $to = $to ?: max($today, $last ? CarbonImmutable::parse($last)->toDateString() : $today);
         if ($to < $from) {
             [$from, $to] = [$to, $from];
         }

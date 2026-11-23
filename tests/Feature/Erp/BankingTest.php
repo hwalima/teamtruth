@@ -165,7 +165,9 @@ test('importing creates the missing companies and keeps every line as written', 
         ->and($statement['debits'])->toBe(3000)
         ->and($statement['closing'])->toBe(7500)
         ->and(array_column($statement['lines'], 'balance'))->toBe([9000, 10000, 7000, 7500])
-        ->and(count($statement['differences']))->toBe(3);
+        ->and(count($statement['differences']))->toBe(3)
+        // With no dates chosen the statement runs up to today, not to the last line.
+        ->and($statement['to'])->toBe(now()->toDateString());
 
     $this->get(route('erp.banking.index'))->assertOk();
 });

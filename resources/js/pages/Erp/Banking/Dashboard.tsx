@@ -265,7 +265,7 @@ export default function BankingDashboard({ companies, accounts, range, buckets, 
                             One month
                             <input
                                 type="month"
-                                value={range.month ?? ''}
+                                value={range.month ?? range.to.slice(0, 7)}
                                 min={range.earliest.slice(0, 7)}
                                 onChange={(e) => {
                                     if (!e.target.value) return;
