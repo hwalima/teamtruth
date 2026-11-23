@@ -421,31 +421,7 @@ class HandleInertiaRequests extends Middleware
      */
     private function getUserPermissions(Request $request): array
     {
-        $user = $request->user();
-        if (!$user) {
-            return [];
-        }
-
-        // If user is superadmin, give all permissions
-        if ($user->type === 'superadmin') {
-            return $user->getAllPermissions()->pluck('name')->toArray();
-        }
-
-        if ($user->current_workspace_id) {
-            $workspace = $user->currentWorkspace;
-            if ($workspace && $workspace->owner_id == $user->id) {
-                return $user->getAllPermissions()->pluck('name')->toArray();
-            } else {
-                $workspaceMember = \App\Models\WorkspaceMember::where('user_id', $user->id)
-                    ->where('workspace_id', $user->current_workspace_id)
-                    ->first();
-                if ($workspaceMember) {
-                    $role = Role::findByName($workspaceMember->role);
-                    return $role->permissions->pluck('name')->values()->toArray();
-                }
-            }
-        }
-        return [];
+        return \App\Support\WorkspacePermissions::for($request->user());
     }
 
     /**

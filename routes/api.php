@@ -19,7 +19,6 @@ use App\Http\Controllers\InvoiceController;
 use App\Http\Controllers\InvoicePaymentController;
 use App\Http\Controllers\MediaController;
 use App\Http\Controllers\MediaFolderController;
-use App\Http\Controllers\MzitshwaController;
 use App\Http\Controllers\NewsletterController;
 use App\Http\Controllers\PermissionController;
 use App\Http\Controllers\PlanController;
@@ -59,18 +58,6 @@ use Illuminate\Support\Facades\Route;
 // API routes for Inertia partial reloads and AJAX requests
 // These routes return JSON and should NOT have Inertia middleware
 
-// Mzitshwa AI routes
-Route::prefix('api/mzitshwa')->group(function () {
-    Route::post('chat', [MzitshwaController::class, 'chat'])->name('mzitshwa.chat');
-    Route::post('complete', [MzitshwaController::class, 'complete'])->name('mzitshwa.complete');
-    Route::post('analyze', [MzitshwaController::class, 'analyze'])->name('mzitshwa.analyze');
-    Route::post('action', [MzitshwaController::class, 'executeAction'])->name('mzitshwa.action');
-    Route::post('parse-action', [MzitshwaController::class, 'parseAction'])->name('mzitshwa.parseAction');
-    Route::get('insights', [MzitshwaController::class, 'insights'])->name('mzitshwa.insights');
-    Route::get('conversations', [MzitshwaController::class, 'conversations'])->name('mzitshwa.conversations');
-    Route::get('conversations/{conversation}', [MzitshwaController::class, 'conversationMessages'])->name('mzitshwa.conversation.messages');
-    Route::delete('conversations/{conversation}', [MzitshwaController::class, 'deleteConversation'])->name('mzitshwa.conversation.delete');
-});
 
 // In-app notifications
 Route::prefix('api/notifications')->group(function () {

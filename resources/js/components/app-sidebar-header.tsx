@@ -1,5 +1,6 @@
 import { Breadcrumbs } from '@/components/breadcrumbs';
 import { LanguageSwitcher } from '@/components/language-switcher';
+import { MzitshwaLauncher } from '@/components/Mzitshwa';
 import { ProfileMenu } from '@/components/profile-menu';
 import NavigationTimer from '@/components/timesheets/NavigationTimer';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -169,6 +170,7 @@ export function AppSidebarHeader({ breadcrumbs = [] }: { breadcrumbs?: Breadcrum
                                 <WorkspaceSwitcher />
                             </div>
                         )}
+                        <MzitshwaLauncher />
                         {/* Dark/Light Mode Toggle */}
                         <button
                             onClick={handleToggle}

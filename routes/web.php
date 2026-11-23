@@ -1246,6 +1246,16 @@ Route::get('/initial-locale', [TranslationController::class, 'getInitialLocale']
 Route::get('invoice-preview', [InvoicePreviewController::class, 'preview'])->name('invoice.preview');
 
 Route::middleware(['auth', 'verified'])->group(function () {
+    // Mzitshwa AI assistant: every signed-in user; what it can see follows their roles.
+    Route::prefix('mzitshwa')->name('mzitshwa.')->controller(\App\Http\Controllers\MzitshwaController::class)->group(function () {
+        Route::get('status', 'status')->name('status');
+        Route::post('chat', 'chat')->middleware('throttle:20,1')->name('chat');
+        Route::post('action', 'action')->middleware('throttle:20,1')->name('action');
+        Route::get('conversations', 'conversations')->name('conversations');
+        Route::get('conversations/{conversation}', 'show')->name('conversations.show');
+        Route::delete('conversations/{conversation}', 'destroy')->name('conversations.destroy');
+    });
+
     // API route for getting invoice payment methods (accessible to authenticated users)
     Route::get('api/invoices/{invoice}/payment-methods', [InvoicePaymentController::class, 'getPaymentMethods'])->name('api.invoices.payment-methods');
     Route::post('benefit/create-invoice-payment', [BenefitPaymentController::class, 'createInvoicePayment'])->name('benefit.create-invoice-payment');

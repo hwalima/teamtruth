@@ -4,7 +4,6 @@ import { type BreadcrumbItem } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { ReactNode } from 'react';
-import { FloatingChatGpt } from '@/components/FloatingChatGpt';
 
 export interface PageAction {
   label: string;
@@ -95,7 +94,6 @@ export function PageTemplate({
           {children}
         </div>
       </div>
-      <FloatingChatGpt />
     </AppLayout>
   );
 }

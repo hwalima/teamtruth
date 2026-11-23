@@ -1,4 +1,3 @@
-import { MzitshwaPanel } from '@/components/Mzitshwa';
 import { NavMain } from '@/components/nav-main';
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarTrigger } from '@/components/ui/sidebar';
 import { useBrand } from '@/contexts/BrandContext';
@@ -19,7 +18,6 @@ export function AppSidebar() {
     const [currentLang, setCurrentLang] = useState(i18n.language);
     const [forceUpdate, setForceUpdate] = useState(0);
     const [isDarkTheme, setIsDarkTheme] = useState(() => document.documentElement.classList.contains('dark'));
-    const [mzitshwaOpen, setMzitshwaOpen] = useState(false);
 
     // Listen for language changes to force re-render
     useEffect(() => {
@@ -359,19 +357,6 @@ export function AppSidebar() {
                         })()}
                 </SidebarFooter>
             </Sidebar>
-
-            {/* Mzitshwa panel — intercept #mzitshwa nav clicks */}
-            <div
-                onClick={(e) => {
-                    const anchor = (e.target as HTMLElement).closest('a[href="#mzitshwa"]');
-                    if (anchor) {
-                        e.preventDefault();
-                        setMzitshwaOpen(true);
-                    }
-                }}
-            >
-                <MzitshwaPanel isOpen={mzitshwaOpen} onClose={() => setMzitshwaOpen(false)} />
-            </div>
         </>
     );
 }

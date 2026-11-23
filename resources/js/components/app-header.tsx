@@ -8,6 +8,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { UserMenuContent } from '@/components/user-menu-content';
 import { NotificationDropdown } from '@/components/notification-dropdown';
 import NavigationTimer from '@/components/timesheets/NavigationTimer';
+import { MzitshwaLauncher } from '@/components/Mzitshwa';
 import { useInitials } from '@/hooks/use-initials';
 import { useNavigation } from '@/hooks/use-navigation';
 import { cn } from '@/lib/utils';
@@ -101,6 +102,7 @@ export function AppHeader({ breadcrumbs = [], sidebarDrawerOpen, setSidebarDrawe
 
                     <div className="ml-auto flex items-center space-x-2">
                         <NavigationTimer />
+                        <MzitshwaLauncher />
                         <div className="relative flex items-center space-x-1">
                             <div className="hidden lg:flex">
                                 {rightNavItems.map((item) => (

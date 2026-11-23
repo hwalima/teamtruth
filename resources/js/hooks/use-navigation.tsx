@@ -8,7 +8,6 @@ import {
     Activity,
     BarChart,
     Bell,
-    Bot,
     Boxes,
     Building2,
     Calendar,
@@ -223,8 +222,6 @@ export function useNavigation() {
             if (hasPermission(permissions, 'media_view_any') || hasPermission(permissions, 'media_view')) {
                 items.push({ title: t('Media Library'), href: route('media-library'), icon: Image, group: t('Communications & Content') });
             }
-            // Mzitshwa AI assistant — always visible for logged-in users
-            items.push({ title: t('Mzitshwa AI'), href: '#mzitshwa', icon: Bot, group: t('Communications & Content') });
 
             // ICT Ticketing System
             items.push({ title: t('Group Issue Reporting'), href: route('ict-tickets.index'), icon: HelpCircle, group: t('ICT Support') });

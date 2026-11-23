@@ -1,6 +1,6 @@
 import { SidebarProvider } from '@/components/ui/sidebar';
 import { useLayout } from '@/contexts/LayoutContext';
-import { FloatingChatGpt } from '@/components/FloatingChatGpt';
+import { MzitshwaHost } from '@/components/Mzitshwa';
 import CookieConsentBanner from '@/components/cookie-consent-banner';
 import { cn } from '@/lib/utils';
 import { useState } from 'react';
@@ -53,7 +53,7 @@ export function AppShell({
                             </SheetContent>
                         </Sheet>
                     )}
-                    <FloatingChatGpt />
+                    <MzitshwaHost />
                     <CookieConsentBanner />
                 </div>
             </SidebarProvider>
@@ -64,7 +64,7 @@ export function AppShell({
         <SidebarProvider defaultOpen={isOpen} open={isOpen} onOpenChange={handleSidebarChange}>
             <div className={cn('flex w-full overflow-x-hidden', position === 'right' ? 'flex-row-reverse' : 'flex-row')}>
                 {children}
-                <FloatingChatGpt />
+                <MzitshwaHost />
                 <CookieConsentBanner />
             </div>
         </SidebarProvider>
