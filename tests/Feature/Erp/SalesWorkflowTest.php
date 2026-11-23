@@ -48,7 +48,7 @@ test('sales lead converts once and quotation totals include discount and tax', f
         ->and($quotation->document_number)->toContain('SALESTEST/SALES_QUOTATION/');
 });
 
-test('approved sales orders create one linked invoice with matching line totals', function () {
+test('approved sales orders invoice their service lines once, with matching line totals', function () {
     [$user, $company, $customer] = salesFixture('SALESINV');
     $order = SalesOrder::create([
         'document_number' => 'SO-1', 'customer_id' => $customer->id, 'status' => 'approved',
@@ -61,9 +61,11 @@ test('approved sales orders create one linked invoice with matching line totals'
     ]);
 
     $invoice = app(SalesService::class)->createInvoiceFromSalesOrder($order, $user);
-    $again = app(SalesService::class)->createInvoiceFromSalesOrder($order->fresh(), $user);
 
-    expect($invoice->id)->toBe($again->id)
+    // A second run has nothing left to bill, so no duplicate invoice is made.
+    expect(fn () => app(SalesService::class)->createInvoiceFromSalesOrder($order->fresh(), $user))
+        ->toThrow(\Illuminate\Validation\ValidationException::class)
+        ->and(\App\Modules\Invoicing\Models\Invoice::query()->count())->toBe(1)
         ->and($invoice->subtotal)->toBe('90.0000')
         ->and($invoice->tax_amount)->toBe('13.5000')
         ->and($invoice->total_amount)->toBe('103.5000')

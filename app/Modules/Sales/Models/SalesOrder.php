@@ -5,12 +5,14 @@ namespace App\Modules\Sales\Models;
 use App\Modules\Core\Enums\ApprovalStatus;
 use App\Modules\Core\Models\Concerns\BelongsToCompany;
 use App\Modules\Core\Models\Concerns\HasApprovals;
+use App\Models\User;
 use App\Modules\Core\Models\Company;
 use App\Modules\Invoicing\Models\Customer;
 use App\Modules\Invoicing\Models\Invoice;
 use App\Modules\Sales\Enums\SalesOrderStatus;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Facades\DB;
 
@@ -36,6 +38,8 @@ class SalesOrder extends Model
         'created_by',
         'submitted_at',
         'approved_at',
+        'customer_reference',
+        'notes',
     ];
 
     protected function casts(): array
@@ -74,6 +78,23 @@ class SalesOrder extends Model
     public function lines(): HasMany
     {
         return $this->hasMany(SalesOrderLine::class)->orderBy('sort_order');
+    }
+
+    public function creator(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function deliveries(): HasMany
+    {
+        return $this->hasMany(Delivery::class)->latest('id');
+    }
+
+    /** Every invoice raised from this order (one per invoicing run). */
+    public function invoices(): BelongsToMany
+    {
+        return $this->belongsToMany(Invoice::class, 'sal_sales_order_invoices', 'sales_order_id', 'invoice_id')
+            ->withPivot('company_id')->withTimestamps();
     }
 
     public function syncApprovalStatus(ApprovalStatus $status): void

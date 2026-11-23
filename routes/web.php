@@ -404,9 +404,17 @@ Route::middleware(['auth', 'verified'])->prefix('erp')->name('erp.')->group(func
         // Sales Routes
         Route::prefix('sales')->name('sales.')->middleware('erp.permission:erp.sales.view')->group(function () {
             Route::get('/', [\App\Modules\Sales\Http\Controllers\SalesController::class, 'index'])->name('index');
-            Route::post('leads', [\App\Modules\Sales\Http\Controllers\SalesController::class, 'storeLead'])->middleware('erp.permission:erp.sales.manage')->name('leads.store');
-            Route::post('leads/{lead}/convert', [\App\Modules\Sales\Http\Controllers\SalesController::class, 'convertLead'])->middleware('erp.permission:erp.sales.manage')->name('leads.convert');
-            Route::post('opportunities', [\App\Modules\Sales\Http\Controllers\SalesController::class, 'storeOpportunity'])->middleware('erp.permission:erp.sales.manage')->name('opportunities.store');
+            Route::get('leads', [\App\Modules\Sales\Http\Controllers\LeadController::class, 'index'])->name('leads.index');
+            Route::post('leads', [\App\Modules\Sales\Http\Controllers\LeadController::class, 'store'])->middleware('erp.permission:erp.sales.manage')->name('leads.store');
+            Route::put('leads/{lead}', [\App\Modules\Sales\Http\Controllers\LeadController::class, 'update'])->middleware('erp.permission:erp.sales.manage')->name('leads.update');
+            Route::post('leads/{lead}/status', [\App\Modules\Sales\Http\Controllers\LeadController::class, 'status'])->middleware('erp.permission:erp.sales.manage')->name('leads.status');
+            Route::post('leads/{lead}/convert', [\App\Modules\Sales\Http\Controllers\LeadController::class, 'convert'])->middleware('erp.permission:erp.sales.manage')->name('leads.convert');
+            Route::delete('leads/{lead}', [\App\Modules\Sales\Http\Controllers\LeadController::class, 'destroy'])->middleware('erp.permission:erp.sales.manage')->name('leads.destroy');
+            Route::get('opportunities', [\App\Modules\Sales\Http\Controllers\OpportunityController::class, 'index'])->name('opportunities.index');
+            Route::post('opportunities', [\App\Modules\Sales\Http\Controllers\OpportunityController::class, 'store'])->middleware('erp.permission:erp.sales.manage')->name('opportunities.store');
+            Route::put('opportunities/{opportunity}', [\App\Modules\Sales\Http\Controllers\OpportunityController::class, 'update'])->middleware('erp.permission:erp.sales.manage')->name('opportunities.update');
+            Route::post('opportunities/{opportunity}/status', [\App\Modules\Sales\Http\Controllers\OpportunityController::class, 'status'])->middleware('erp.permission:erp.sales.manage')->name('opportunities.status');
+            Route::delete('opportunities/{opportunity}', [\App\Modules\Sales\Http\Controllers\OpportunityController::class, 'destroy'])->middleware('erp.permission:erp.sales.manage')->name('opportunities.destroy');
             Route::get('quotations', [\App\Modules\Sales\Http\Controllers\QuotationController::class, 'index'])->name('quotations.index');
             Route::get('quotations/create', [\App\Modules\Sales\Http\Controllers\QuotationController::class, 'create'])->middleware('erp.permission:erp.sales.manage')->name('quotations.create');
             Route::post('quotations', [\App\Modules\Sales\Http\Controllers\QuotationController::class, 'store'])->middleware('erp.permission:erp.sales.manage')->name('quotations.store');
@@ -422,7 +430,12 @@ Route::middleware(['auth', 'verified'])->prefix('erp')->name('erp.')->group(func
             Route::post('quotations/{quotation}/orders', [\App\Modules\Sales\Http\Controllers\SalesController::class, 'convertQuotation'])->middleware('erp.permission:erp.sales.manage')->name('quotations.orders.store');
             Route::post('orders/{salesOrder}/submit', [\App\Modules\Sales\Http\Controllers\SalesController::class, 'submitSalesOrder'])->middleware('erp.permission:erp.sales.manage')->name('orders.submit');
             Route::post('orders/{salesOrder}/confirm', [\App\Modules\Sales\Http\Controllers\SalesController::class, 'confirmSalesOrder'])->middleware('erp.permission:erp.sales.manage')->name('orders.confirm');
-            Route::post('orders/{salesOrder}/invoice', [\App\Modules\Sales\Http\Controllers\SalesController::class, 'createInvoice'])->middleware('erp.permission:erp.sales.manage')->name('orders.invoice');
+            Route::get('orders', [\App\Modules\Sales\Http\Controllers\SalesOrderController::class, 'index'])->name('orders.index');
+            Route::get('orders/{salesOrder}', [\App\Modules\Sales\Http\Controllers\SalesOrderController::class, 'show'])->name('orders.show');
+            Route::post('orders/{salesOrder}/deliveries', [\App\Modules\Sales\Http\Controllers\SalesOrderController::class, 'deliver'])->middleware('erp.permission:erp.sales.manage')->name('orders.deliver');
+            Route::post('orders/{salesOrder}/invoice', [\App\Modules\Sales\Http\Controllers\SalesOrderController::class, 'invoice'])->middleware('erp.permission:erp.sales.manage')->name('orders.invoice');
+            Route::post('orders/{salesOrder}/cancel', [\App\Modules\Sales\Http\Controllers\SalesOrderController::class, 'cancel'])->middleware('erp.permission:erp.sales.manage')->name('orders.cancel');
+            Route::delete('orders/{salesOrder}', [\App\Modules\Sales\Http\Controllers\SalesOrderController::class, 'destroy'])->middleware('erp.permission:erp.sales.manage')->name('orders.destroy');
             Route::post('teams', [\App\Modules\Sales\Http\Controllers\SalesController::class, 'storeTeam'])->middleware('erp.permission:erp.sales.manage')->name('teams.store');
         });
 

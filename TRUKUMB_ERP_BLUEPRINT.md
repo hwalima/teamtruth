@@ -517,7 +517,7 @@ For each subsidiary, collect before go-live:
 
 ## 14. Progress Tracker
 
-_Last reviewed: 22 November 2026. 215 automated tests pass._
+_Last reviewed: 23 November 2026. 233 automated tests pass._
 
 Legend: `[x]` done and in use · `[~]` partly built (see the note) · `[ ]` not started
 
@@ -547,10 +547,14 @@ Legend: `[x]` done and in use · `[~]` partly built (see the note) · `[ ]` not 
   - [x] Invoicing: invoices, credit notes, payments, recurring invoices, payment terms, customer statements, payment reminders, branded PDFs, fiscal-device hook
   - [x] Invoices, credit notes and payments post to the ledger; vendor bills and payments post to the ledger
   - [x] Banking: bank accounts, statement import (with undo), statements, inter-company transfers, fund requests with approval, dashboard
-  - [~] Sales: leads, opportunities, quotations with approval, sales orders, invoice from order
+  - [x] Sales: leads, opportunities, quotations with approval, sales orders, delivery from stock, invoice from what was delivered
     - [x] Quotations: list with search and status tabs, multi-line quotation form with live totals, quotation page, branded PDF, email to the customer
     - [x] Quotation actions: edit a draft, duplicate, cancel (withdraws a pending approval), delete (only quotations with no approval or order history), with buttons on the list and the quotation page
-    - [ ] Sales order pages, delivery from stock, and invoice from what was delivered; leads and opportunities pages
+    - [x] Sales orders: list with search, status tabs and delivered/invoiced progress; order page with lines, deliveries and invoices; cancel and delete untouched orders
+    - [x] Delivery from stock: deliver all or part of each goods line from a chosen store (and lot), stock is issued to the Customers location, the order shows part delivered or delivered
+    - [x] Invoice from the order: bills goods up to what was delivered plus service lines, minus what is already invoiced; several invoices per order are linked to it
+    - [x] Leads and opportunities pages: search, status tabs, add and edit in a dialog, qualify / lost / reopen, make an opportunity from a lead, won / lost with pipeline totals, quote from an opportunity
+    - [ ] Cancelling an invoice does not yet give its quantities back to the order (so they could be invoiced again)
   - [x] Balance sheet, aged receivables and aged payables (Financial Reports page, CSV and branded PDF)
   - [ ] Cash flow statement
   - [x] Bank reconciliation (match statement lines to customer receipts and vendor payments, explain bank charges, auto-match)
@@ -582,7 +586,8 @@ These are ordered so each step builds on the one before it and finishes work tha
 3. **Sales screen rebuild.** Bring Sales up to the standard of Invoicing and Purchase: list pages with search, multi-line quotations, a quotation PDF, send to customer, and order → delivery → invoice.
    - ~~Part 1: quotations.~~ Done (22 Nov 2026): Sales → Quotations lists every quotation with search and status tabs; New quotation takes any number of lines (product, description, quantity, price, discount, tax) with live totals, notes and terms; each quotation has its own page with Submit for approval, Create sales order, View PDF and Email to customer.
    - ~~Quotation actions.~~ Done (22 Nov 2026): Edit (drafts only), Duplicate (a new draft with the same lines), Cancel (also withdraws an approval that is still waiting) and Delete (only quotations with no approval or order history; the rest are cancelled and kept). Buttons on every list row and on the quotation page.
-   - Part 2, still to do: sales order list and page, delivery from stock (partial deliveries), invoice from what was delivered, and leads and opportunities pages.
+   - ~~Part 2: orders, delivery, invoicing, leads and opportunities.~~ Done (23 Nov 2026): Sales → Sales Orders lists every order with what has been delivered and invoiced; each order has its own page with Submit for approval, Deliver (all or part, from a chosen store, stock taken out), Create invoice (goods up to what was delivered, plus services) and Cancel / Delete for untouched orders. Sales → Leads and Sales → Opportunities are list pages with search, status tabs and actions; the Sales overview shows what needs attention at each step.
+   - Still open: cancelling an invoice should give its quantities back to the order; a delivery note PDF; returns from the customer.
 4. ~~**Purchase order PDF and email to the vendor.**~~ Done (22 Nov 2026): each approved order has View PDF and Email to vendor on the Purchase page. The email goes to the vendor's address (it can be changed before sending), carries the PDF, and replies go to the buyer who sent it.
 5. **Stock valuation.** Average cost on receipts, with journals for stock, goods received not invoiced and cost of sales. Needed before POS and before the balance sheet shows stock correctly.
 6. **Finish HRM core.** Job descriptions screen, leave calendar, and expiry alerts for documents and contracts (a daily scheduled job).
@@ -607,7 +612,7 @@ Found while reviewing the code on 22 November 2026, most valuable first.
 
 **Usability**
 - **Consistent list pages.** Search as you type is now on every list. Next, give every list the same pieces the vendor list has: tabs for status, icon actions, a PDF and Excel export, and readable dates.
-- **Sales and Accounting screens.** Both are long single pages of forms. Split them into list, view and edit pages like Invoicing.
+- **Accounting screens.** A long single page of forms. Split it into list, view and edit pages like Invoicing. (Sales was done on 23 Nov 2026.)
 - **Dashboard.** One landing page per company: cash in the bank, owed by customers, owed to vendors, pending approvals, low stock.
 - **Clean-up of imported data.** A merge tool for duplicate vendors and customers, and a review list of records with odd names or shared emails.
 
@@ -634,6 +639,8 @@ Found while reviewing the code on 22 November 2026, most valuable first.
 ---
 
 ## 18. Change log
+
+- **23 Nov 2026:** Sales orders get a list and their own page. Goods are delivered from stock in parts (stock goes out to the Customers location), and invoices bill what was delivered plus services, with several invoices per order. Leads and opportunities get list pages with search, status tabs, edit, qualify / won / lost and delete; the Sales page becomes an overview. New tables: sal_deliveries, sal_delivery_lines, sal_sales_order_invoices; sales orders gain customer reference and notes.
 
 - **22 Nov 2026:** Quotations get full actions: edit a draft, duplicate, cancel (withdraws a pending approval) and delete, from the list and the quotation page. Each is recorded in the audit log.
 - **22 Nov 2026:** Sales quotations rebuilt: list with search and status tabs, multi-line quotation form, quotation page, branded quotation PDF emailed to the customer. Saving leads, opportunities and quotations now checks the ERP sales role (it was refused before), and a missing approval workflow shows a clear message.

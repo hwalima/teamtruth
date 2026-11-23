@@ -423,7 +423,18 @@ export function useNavigation() {
                 });
             }
             if (canUseErp('erp.sales.view')) {
-                items.push({ title: t('Sales'), href: route('erp.sales.index'), icon: TrendingUp, group: t('Modules') });
+                items.push({
+                    title: t('Sales'),
+                    icon: TrendingUp,
+                    group: t('Modules'),
+                    children: [
+                        { title: t('Overview'), href: route('erp.sales.index') },
+                        { title: t('Leads'), href: route('erp.sales.leads.index') },
+                        { title: t('Opportunities'), href: route('erp.sales.opportunities.index') },
+                        { title: t('Quotations'), href: route('erp.sales.quotations.index') },
+                        { title: t('Sales Orders'), href: route('erp.sales.orders.index') },
+                    ],
+                });
             }
             {
                 // Every member sees their own leave and self-service requests; the rest follows their HRM permissions.

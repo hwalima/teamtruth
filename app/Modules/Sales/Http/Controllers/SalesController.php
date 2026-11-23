@@ -4,9 +4,6 @@ namespace App\Modules\Sales\Http\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Modules\Core\Services\CompanyContext;
-use App\Modules\Invoicing\Models\Customer;
-use App\Modules\Sales\Http\Requests\StoreLeadRequest;
-use App\Modules\Sales\Http\Requests\StoreOpportunityRequest;
 use App\Modules\Sales\Http\Requests\StoreSalesTeamRequest;
 use App\Modules\Sales\Models\Lead;
 use App\Modules\Sales\Models\Opportunity;
@@ -24,56 +21,31 @@ class SalesController extends Controller
     {
     }
 
-    public function index(Request $request): Response
+    /** The Sales overview: what needs attention at each step, and the latest documents. */
+    public function index(): Response
     {
         $company = app(CompanyContext::class)->requireActiveCompany();
-        $search = trim((string) $request->query('search', ''));
+        $count = fn (string $model, array $statuses) => $model::query()->where('company_id', $company->id)->whereIn('status', $statuses)->count();
 
         return Inertia::render('Erp/Sales/Index', [
-            'leads' => Lead::query()->where('company_id', $company->id)
-                ->when($search !== '', fn ($query) => $query->where('name', 'like', "%{$search}%"))
-                ->with('assignedTo:id,name')->latest()->paginate(15)->withQueryString(),
-            'opportunities' => Opportunity::query()->where('company_id', $company->id)
-                ->with(['customer:id,name', 'assignedTo:id,name'])->latest()->limit(50)->get(),
+            'company' => $company->only(['id', 'code', 'name', 'default_currency']),
+            'stats' => [
+                'leads_open' => $count(Lead::class, ['new', 'qualified']),
+                'opportunities_open' => $count(Opportunity::class, ['open']),
+                'pipeline_value' => (string) Opportunity::query()->where('company_id', $company->id)->where('status', 'open')->sum('expected_value'),
+                'quotations_pending' => $count(Quotation::class, ['pending_approval']),
+                'quotations_approved' => $count(Quotation::class, ['approved']),
+                'orders_to_deliver' => $count(SalesOrder::class, ['approved', 'partially_delivered']),
+                'orders_pending' => $count(SalesOrder::class, ['draft', 'pending_approval']),
+            ],
             'quotations' => Quotation::query()->where('company_id', $company->id)
-                ->with('customer:id,name')->latest()->limit(50)->get(),
+                ->with('customer:id,name')->latest('id')->limit(6)
+                ->get(['id', 'customer_id', 'document_number', 'status', 'currency_code', 'total', 'created_at']),
             'orders' => SalesOrder::query()->where('company_id', $company->id)
-                ->with('customer:id,name')->latest()->limit(50)->get(),
-            'customers' => Customer::query()->where('company_id', $company->id)->where('is_active', true)->orderBy('name')->get(['id', 'name', 'currency_code']),
-            'products' => \App\Modules\Inventory\Models\InventoryProduct::query()->where('company_id', $company->id)->where('is_active', true)->orderBy('name')->get(['id', 'name', 'sku']),
-            'currencies' => \App\Models\Currency::query()->orderBy('code')->get(['code', 'name']),
-            'filters' => ['search' => $search],
+                ->with('customer:id,name')->latest('id')->limit(6)
+                ->get(['id', 'customer_id', 'document_number', 'status', 'currency_code', 'total', 'created_at']),
             'canManage' => $this->allowsErpPermission('erp.sales.manage'),
         ]);
-    }
-
-    public function storeLead(StoreLeadRequest $request)
-    {
-        $lead = $this->salesService->createLead($request->validated());
-
-        return back()->with('success', __('Lead created.'));
-    }
-
-    public function convertLead(Request $request, Lead $lead)
-    {
-        $this->authorizeErpPermission('erp.sales.manage');
-        $data = $request->validate([
-            'title' => ['required', 'string', 'max:255'],
-            'customer_id' => ['nullable', 'integer'],
-            'expected_value' => ['nullable', 'numeric', 'min:0'],
-            'probability' => ['nullable', 'integer', 'between:0,100'],
-            'close_date' => ['nullable', 'date'],
-        ]);
-        $this->salesService->convertLeadToOpportunity($lead, $data);
-
-        return back()->with('success', __('Lead converted to opportunity.'));
-    }
-
-    public function storeOpportunity(StoreOpportunityRequest $request)
-    {
-        $this->salesService->createOpportunity($request->validated());
-
-        return back()->with('success', __('Opportunity created.'));
     }
 
     public function submitQuotation(Request $request, Quotation $quotation)
@@ -89,7 +61,8 @@ class SalesController extends Controller
         $this->authorizeErpPermission('erp.sales.manage');
         $order = $this->salesService->convertQuotationToSalesOrder($quotation);
 
-        return back()->with('success', __('Sales order :number created.', ['number' => $order->document_number]));
+        return redirect()->route('erp.sales.orders.show', $order)
+            ->with('success', __('Sales order :number created. Submit it for approval, then deliver and invoice it from here.', ['number' => $order->document_number]));
     }
 
     public function submitSalesOrder(Request $request, SalesOrder $salesOrder)
@@ -98,14 +71,6 @@ class SalesController extends Controller
         $this->salesService->submitSalesOrder($salesOrder, $request->user());
 
         return back()->with('success', __('Sales order submitted for approval.'));
-    }
-
-    public function createInvoice(Request $request, SalesOrder $salesOrder)
-    {
-        $this->authorizeErpPermission('erp.sales.manage');
-        $invoice = $this->salesService->createInvoiceFromSalesOrder($salesOrder, $request->user());
-
-        return redirect()->route('erp.invoicing.show', $invoice)->with('success', __('Invoice created from sales order.'));
     }
 
     public function confirmSalesOrder(Request $request, SalesOrder $salesOrder)

@@ -1,1 +1,0 @@
-const i={draft:"Draft",pending_approval:"Awaiting approval",approved:"Approved",converted:"Ordered",cancelled:"Cancelled"},o=(a,e)=>`${a} ${Number(e).toLocaleString(void 0,{minimumFractionDigits:2,maximumFractionDigits:2})}`;export{i as Q,o as m};

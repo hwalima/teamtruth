@@ -1,42 +1,164 @@
-import { Link, useForm } from '@inertiajs/react';
-import type { FormEvent } from 'react';
+import { ORDER_STATUS_LABELS, QUOTATION_STATUS_LABELS, money, type OrderStatus, type QuotationStatus } from '@/components/erp/sales';
+import { StatusBadge, formatDate, primaryButton, secondaryButton } from '@/components/hrm/ui';
+import { Link } from '@inertiajs/react';
+import { ArrowRight, FileText, Handshake, Package, UserPlus } from 'lucide-react';
+import type { ReactNode } from 'react';
 import { route } from 'ziggy-js';
 
-type Customer = { id: number; name: string; currency_code: string };
-type Product = { id: number; name: string; sku: string };
-type Lead = { id: number; name: string; contact_person: string | null; email: string | null; status: string; assigned_to: { name: string } | null };
-type Opportunity = { id: number; title: string; status: string; expected_value: string; customer: Customer | null; assigned_to: { name: string } | null };
-type Quote = { id: number; document_number: string; status: string; currency_code: string; total: string; customer: Customer };
-type Order = { id: number; document_number: string; status: string; currency_code: string; total: string; invoice_id: number | null; customer: Customer };
-type Props = { leads: { data: Lead[]; links: { url: string | null; label: string; active: boolean }[] }; opportunities: Opportunity[]; quotations: Quote[]; orders: Order[]; customers: Customer[]; products: Product[]; currencies: { code: string; name: string }[]; canManage: boolean };
+type Doc<S extends string> = {
+    id: number;
+    document_number: string;
+    status: S;
+    currency_code: string;
+    total: string;
+    created_at: string | null;
+    customer: { id: number; name: string } | null;
+};
+type Props = {
+    company: { id: number; code: string; name: string; default_currency: string };
+    stats: {
+        leads_open: number;
+        opportunities_open: number;
+        pipeline_value: string;
+        quotations_pending: number;
+        quotations_approved: number;
+        orders_to_deliver: number;
+        orders_pending: number;
+    };
+    quotations: Doc<QuotationStatus>[];
+    orders: Doc<OrderStatus>[];
+    canManage: boolean;
+};
 
-const card = 'rounded-xl border bg-card p-4';
-const field = 'min-h-10 rounded-lg border bg-background px-3 py-2 text-sm';
-const button = 'min-h-10 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50';
+/** Sales overview: one card per step, from lead to order, then the latest documents. */
+export default function SalesIndex({ company, stats, quotations, orders, canManage }: Props) {
+    return (
+        <main className="mx-auto max-w-7xl space-y-6 p-4 sm:p-6">
+            <header className="flex flex-wrap items-end justify-between gap-4">
+                <div>
+                    <p className="text-muted-foreground text-sm">ERP · {company.name}</p>
+                    <h1 className="text-2xl font-semibold">Sales</h1>
+                    <p className="text-muted-foreground mt-1 text-sm">From first contact to delivered and invoiced: leads, opportunities, quotations and orders.</p>
+                </div>
+                {canManage && (
+                    <Link href={route('erp.sales.quotations.create')} className={primaryButton}>
+                        New quotation
+                    </Link>
+                )}
+            </header>
 
-export default function SalesIndex({ leads, opportunities, quotations, orders, canManage }: Props) {
-    const lead = useForm({ name: '', contact_person: '', email: '', phone: '', source: '' });
-    const createLead = (event: FormEvent) => { event.preventDefault(); lead.post(route('erp.sales.leads.store'), { onSuccess: () => lead.reset() }); };
+            <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                <StepCard
+                    icon={<UserPlus className="size-5" />}
+                    title="Leads"
+                    href={route('erp.sales.leads.index')}
+                    value={stats.leads_open}
+                    note="new or qualified, not yet an opportunity"
+                />
+                <StepCard
+                    icon={<Handshake className="size-5" />}
+                    title="Opportunities"
+                    href={route('erp.sales.opportunities.index')}
+                    value={stats.opportunities_open}
+                    note={`open, worth ${money(company.default_currency, stats.pipeline_value)}`}
+                />
+                <StepCard
+                    icon={<FileText className="size-5" />}
+                    title="Quotations"
+                    href={route('erp.sales.quotations.index', stats.quotations_approved > 0 ? { status: 'approved' } : {})}
+                    value={stats.quotations_approved}
+                    note={`approved and ready to order · ${stats.quotations_pending} awaiting approval`}
+                />
+                <StepCard
+                    icon={<Package className="size-5" />}
+                    title="Sales orders"
+                    href={route('erp.sales.orders.index', stats.orders_to_deliver > 0 ? { status: 'approved' } : {})}
+                    value={stats.orders_to_deliver}
+                    note={`to deliver or invoice · ${stats.orders_pending} not yet approved`}
+                />
+            </section>
 
-    return <main className="mx-auto max-w-7xl space-y-6 p-6">
-        <header><p className="text-sm text-muted-foreground">ERP / Modules</p><h1 className="text-2xl font-semibold">Sales</h1><p className="mt-1 text-sm text-muted-foreground">Manage your leads, opportunities, quotations, and sales orders.</p></header>
-        {canManage && <div className="grid gap-6 lg:grid-cols-2">
-            <form className={`${card} space-y-3`} onSubmit={createLead}><h2 className="font-semibold">New lead</h2><div className="grid gap-3 sm:grid-cols-2">
-                <input className={field} placeholder="Organisation / lead name" value={lead.data.name} onChange={e => lead.setData('name', e.target.value)} required />
-                <input className={field} placeholder="Contact person" value={lead.data.contact_person} onChange={e => lead.setData('contact_person', e.target.value)} />
-                <input className={field} type="email" placeholder="Email" value={lead.data.email} onChange={e => lead.setData('email', e.target.value)} />
-                <input className={field} placeholder="Phone" value={lead.data.phone} onChange={e => lead.setData('phone', e.target.value)} />
-                <input className={field} placeholder="Source" value={lead.data.source} onChange={e => lead.setData('source', e.target.value)} />
-            </div><button className={button} disabled={lead.processing}>Create lead</button></form>
-            <section className={`${card} space-y-3`}><h2 className="font-semibold">Quotations</h2><p className="text-sm text-muted-foreground">Build a quotation with as many lines as you need, send it for approval, then email the PDF to the customer.</p><div className="flex flex-wrap gap-2"><Link href={route('erp.sales.quotations.create')} className={button}>New quotation</Link><Link href={route('erp.sales.quotations.index')} className="min-h-10 rounded-lg border px-4 py-2 text-sm font-medium hover:bg-primary/10">All quotations</Link></div></section>
-        </div>}
-        <section className={card}><h2 className="mb-3 font-semibold">Leads</h2><div className="overflow-x-auto"><table className="w-full text-left text-sm"><thead><tr className="border-b text-muted-foreground"><th className="p-2">Name</th><th className="p-2">Contact</th><th className="p-2">Status</th><th className="p-2">Assigned to</th>{canManage && <th className="p-2">Action</th>}</tr></thead><tbody>{leads.data.map(item => <tr key={item.id} className="border-b"><td className="p-2 font-medium">{item.name}</td><td className="p-2">{item.contact_person ?? item.email ?? '—'}</td><td className="p-2 capitalize">{item.status.replace('_', ' ')}</td><td className="p-2">{item.assigned_to?.name ?? '—'}</td>{canManage && <td className="p-2">{item.status !== 'converted' && <form method="post" action={route('erp.sales.leads.convert', item.id)}><input type="hidden" name="_token" value={(document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement)?.content ?? ''} /><input type="hidden" name="title" value={`${item.name} opportunity`} /><button className="text-primary underline">Convert</button></form>}</td>}</tr>)}</tbody></table>{leads.data.length === 0 && <p className="p-4 text-sm text-muted-foreground">No leads yet.</p>}</div><div className="mt-3 flex gap-3 text-sm">{leads.links.map((link, index) => link.url ? <a key={index} className={link.active ? 'font-semibold text-primary' : 'text-muted-foreground'} href={link.url} dangerouslySetInnerHTML={{ __html: link.label }} /> : null)}</div></section>
-        <div className="grid gap-6 lg:grid-cols-2"><section className={card}><h2 className="mb-3 font-semibold">Opportunities</h2><Rows items={opportunities.map(x => ({ id: x.id, number: x.title, customer: x.customer?.name ?? '—', status: x.status, currency: '', total: x.expected_value }))} /></section>
-        <section className={card}><div className="mb-3 flex items-center justify-between gap-3"><h2 className="font-semibold">Recent quotations</h2><Link href={route('erp.sales.quotations.index')} className="text-sm text-primary hover:underline">View all</Link></div><Rows items={quotations.map(x => ({ id: x.id, number: x.document_number, customer: x.customer?.name ?? '—', status: x.status, currency: x.currency_code, total: x.total, href: route('erp.sales.quotations.show', x.id) }))} /></section>
-        <section className={`${card} lg:col-span-2`}><h2 className="mb-3 font-semibold">Sales orders</h2><Rows items={orders.map(x => ({ id: x.id, number: x.document_number, customer: x.customer?.name ?? '—', status: x.status, currency: x.currency_code, total: x.total }))} />{canManage && orders.filter(x => x.status === 'approved' && !x.invoice_id).map(x => <form key={x.id} className="mt-2 inline-block pr-3" method="post" action={route('erp.sales.orders.invoice', x.id)}><input type="hidden" name="_token" value={(document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement)?.content ?? ''} /><button className="text-primary underline">Create invoice for {x.document_number}</button></form>)}</section></div>
-    </main>;
+            <div className="grid gap-6 lg:grid-cols-2">
+                <Recent
+                    title="Latest quotations"
+                    href={route('erp.sales.quotations.index')}
+                    empty="No quotations yet."
+                    rows={quotations.map((doc) => ({
+                        ...doc,
+                        href: route('erp.sales.quotations.show', doc.id),
+                        badge: <StatusBadge value={doc.status} label={QUOTATION_STATUS_LABELS[doc.status]} />,
+                    }))}
+                />
+                <Recent
+                    title="Latest sales orders"
+                    href={route('erp.sales.orders.index')}
+                    empty="No sales orders yet. They are made from approved quotations."
+                    rows={orders.map((doc) => ({
+                        ...doc,
+                        href: route('erp.sales.orders.show', doc.id),
+                        badge: <StatusBadge value={doc.status} label={ORDER_STATUS_LABELS[doc.status]} />,
+                    }))}
+                />
+            </div>
+        </main>
+    );
 }
 
-function Rows({ items }: { items: { id: number; number: string; customer: string; status: string; currency: string; total: string; href?: string }[] }) {
-    return <div className="overflow-x-auto"><table className="w-full text-left text-sm"><thead><tr className="border-b text-muted-foreground"><th className="p-2">Reference</th><th className="p-2">Customer</th><th className="p-2">Status</th><th className="p-2 text-right">Amount</th></tr></thead><tbody>{items.map(item => <tr key={item.id} className="border-b"><td className="p-2">{item.href ? <Link href={item.href} className="font-medium hover:underline">{item.number}</Link> : item.number}</td><td className="p-2">{item.customer}</td><td className="p-2 capitalize">{item.status.replace('_', ' ')}</td><td className="p-2 text-right">{item.currency} {item.total}</td></tr>)}</tbody></table>{items.length === 0 && <p className="p-4 text-sm text-muted-foreground">Nothing to show yet.</p>}</div>;
+function StepCard({ icon, title, href, value, note }: { icon: ReactNode; title: string; href: string; value: number; note: string }) {
+    return (
+        <Link href={href} className="bg-card/70 hover:border-primary/40 group rounded-xl border p-4 transition hover:-translate-y-0.5 hover:shadow-sm">
+            <div className="flex items-center justify-between gap-2">
+                <span className="text-primary">{icon}</span>
+                <ArrowRight className="text-muted-foreground size-4 transition group-hover:translate-x-0.5" />
+            </div>
+            <p className="mt-3 text-sm font-medium">{title}</p>
+            <p className="mt-1 text-2xl font-semibold tabular-nums">{value}</p>
+            <p className="text-muted-foreground mt-1 text-xs">{note}</p>
+        </Link>
+    );
+}
+
+function Recent({
+    title,
+    href,
+    empty,
+    rows,
+}: {
+    title: string;
+    href: string;
+    empty: string;
+    rows: (Doc<string> & { href: string; badge: ReactNode })[];
+}) {
+    return (
+        <section className="bg-card/70 rounded-xl border">
+            <div className="flex items-center justify-between gap-3 border-b px-4 py-3">
+                <h2 className="font-semibold">{title}</h2>
+                <Link href={href} className={`${secondaryButton} min-h-8 px-3 py-1 text-xs`}>
+                    View all
+                </Link>
+            </div>
+            {rows.length === 0 ? (
+                <p className="text-muted-foreground p-4 text-sm">{empty}</p>
+            ) : (
+                <ul className="divide-y">
+                    {rows.map((row) => (
+                        <li key={row.id}>
+                            <Link href={row.href} className="hover:bg-muted/30 flex items-center justify-between gap-3 px-4 py-3">
+                                <div className="min-w-0">
+                                    <div className="truncate font-medium">{row.document_number}</div>
+                                    <div className="text-muted-foreground truncate text-xs">
+                                        {row.customer?.name ?? '—'} · {formatDate(row.created_at)}
+                                    </div>
+                                </div>
+                                <div className="flex shrink-0 flex-col items-end gap-1">
+                                    <span className="text-sm font-medium tabular-nums">{money(row.currency_code, row.total)}</span>
+                                    {row.badge}
+                                </div>
+                            </Link>
+                        </li>
+                    ))}
+                </ul>
+            )}
+        </section>
+    );
 }

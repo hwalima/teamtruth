@@ -16,6 +16,9 @@ use App\Modules\Sales\Enums\OpportunityStatus;
 use App\Modules\Sales\Enums\QuotationStatus;
 use App\Modules\Sales\Enums\SalesOrderStatus;
 use App\Modules\Sales\Events\SalesOrderConfirmed;
+use App\Modules\Inventory\Models\StockLocation;
+use App\Modules\Inventory\Services\InventoryStockService;
+use App\Modules\Sales\Models\Delivery;
 use App\Modules\Sales\Models\Lead;
 use App\Modules\Sales\Models\Opportunity;
 use App\Modules\Sales\Models\Quotation;
@@ -110,6 +113,7 @@ class SalesService
             $lead = ! empty($data['lead_id']) ? Lead::query()->findOrFail($data['lead_id']) : null;
             $customer = ! empty($data['customer_id']) ? Customer::query()->findOrFail($data['customer_id']) : null;
             $this->assertSameCompany($company->id, $lead, $customer);
+            $this->assertActiveMember($company, $data['assigned_to'] ?? null);
             return Opportunity::query()->create([
                 'company_id' => $company->id, 'lead_id' => $lead?->id, 'customer_id' => $customer?->id,
                 'title' => $data['title'], 'expected_value' => $data['expected_value'] ?? 0,
@@ -301,6 +305,132 @@ class SalesService
         }
     }
 
+    /** Edit a lead's details. Converted leads are history and stay as they were. */
+    public function updateLead(Lead $lead, array $data): Lead
+    {
+        $company = $this->requireOwn($lead);
+        if ($lead->status === LeadStatus::Converted->value) {
+            throw ValidationException::withMessages(['lead' => 'This lead is already an opportunity, so it can no longer be changed.']);
+        }
+        $this->assertActiveMember($company, $data['assigned_to'] ?? null);
+
+        $before = $lead->only(['name', 'contact_person', 'email', 'phone', 'source', 'assigned_to']);
+        $lead->update([
+            'name' => $data['name'],
+            'contact_person' => $data['contact_person'] ?? null,
+            'email' => $data['email'] ?? null,
+            'phone' => $data['phone'] ?? null,
+            'source' => $data['source'] ?? null,
+            'assigned_to' => $data['assigned_to'] ?? null,
+        ]);
+        app(AuditLogService::class)->record($company, 'sales.lead.updated', $lead, changes: ['before' => $before, 'after' => $lead->only(array_keys($before))]);
+
+        return $lead;
+    }
+
+    /** Move a lead between new, qualified and lost. Conversion has its own step. */
+    public function setLeadStatus(Lead $lead, string $status): Lead
+    {
+        $company = $this->requireOwn($lead);
+        if (! in_array($status, [LeadStatus::New->value, LeadStatus::Qualified->value, LeadStatus::Lost->value], true)) {
+            throw ValidationException::withMessages(['status' => 'Choose new, qualified or lost.']);
+        }
+        if ($lead->status === LeadStatus::Converted->value) {
+            throw ValidationException::withMessages(['lead' => 'This lead is already an opportunity.']);
+        }
+        $before = $lead->status;
+        $lead->update(['status' => $status]);
+        app(AuditLogService::class)->record($company, 'sales.lead.status_changed', $lead, changes: ['before' => ['status' => $before], 'after' => ['status' => $status]]);
+
+        return $lead;
+    }
+
+    /** Leads that never became an opportunity can be removed. */
+    public function deleteLead(Lead $lead): void
+    {
+        $company = $this->requireOwn($lead);
+        if ($lead->status === LeadStatus::Converted->value || $lead->opportunities()->exists()) {
+            throw ValidationException::withMessages(['lead' => 'This lead became an opportunity, so it is kept.']);
+        }
+        app(AuditLogService::class)->record($company, 'sales.lead.deleted', $lead, changes: ['before' => $lead->only(['name', 'status'])]);
+        $lead->delete();
+    }
+
+    /** Edit an open opportunity. Won and lost ones are reopened first. */
+    public function updateOpportunity(Opportunity $opportunity, array $data): Opportunity
+    {
+        $company = $this->requireOwn($opportunity);
+        if ($opportunity->status !== OpportunityStatus::Open->value) {
+            throw ValidationException::withMessages(['opportunity' => 'Reopen this opportunity before changing it.']);
+        }
+        $customer = ! empty($data['customer_id']) ? Customer::query()->findOrFail($data['customer_id']) : null;
+        $this->assertSameCompany($company->id, $customer);
+        $this->assertActiveMember($company, $data['assigned_to'] ?? null);
+
+        $fields = ['customer_id', 'title', 'expected_value', 'probability', 'close_date', 'assigned_to'];
+        $before = $opportunity->only($fields);
+        $opportunity->update([
+            'customer_id' => $customer?->id,
+            'title' => $data['title'],
+            'expected_value' => $data['expected_value'] ?? 0,
+            'probability' => $data['probability'] ?? 0,
+            'close_date' => $data['close_date'] ?? null,
+            'assigned_to' => $data['assigned_to'] ?? null,
+        ]);
+        app(AuditLogService::class)->record($company, 'sales.opportunity.updated', $opportunity, changes: ['before' => $before, 'after' => $opportunity->only($fields)]);
+
+        return $opportunity;
+    }
+
+    /** Mark an opportunity won or lost, or reopen it. Won sets the chance to 100, lost to 0. */
+    public function setOpportunityStatus(Opportunity $opportunity, string $status): Opportunity
+    {
+        $company = $this->requireOwn($opportunity);
+        if (OpportunityStatus::tryFrom($status) === null) {
+            throw ValidationException::withMessages(['status' => 'Choose open, won or lost.']);
+        }
+        $before = $opportunity->only(['status', 'probability']);
+        $opportunity->update([
+            'status' => $status,
+            'probability' => match ($status) {
+                OpportunityStatus::Won->value => 100,
+                OpportunityStatus::Lost->value => 0,
+                default => $opportunity->probability,
+            },
+        ]);
+        app(AuditLogService::class)->record($company, 'sales.opportunity.status_changed', $opportunity, changes: ['before' => $before, 'after' => $opportunity->only(['status', 'probability'])]);
+
+        return $opportunity;
+    }
+
+    /** Opportunities without quotations can be removed. */
+    public function deleteOpportunity(Opportunity $opportunity): void
+    {
+        $company = $this->requireOwn($opportunity);
+        if ($opportunity->quotations()->exists()) {
+            throw ValidationException::withMessages(['opportunity' => 'This opportunity has quotations, so it is kept. Mark it lost instead.']);
+        }
+        app(AuditLogService::class)->record($company, 'sales.opportunity.deleted', $opportunity, changes: ['before' => $opportunity->only(['title', 'status', 'expected_value'])]);
+        $opportunity->delete();
+    }
+
+    private function requireOwn(Lead|Opportunity $record): \App\Modules\Core\Models\Company
+    {
+        $company = $this->companyContext->requireActiveCompany();
+        if ((int) $record->company_id !== (int) $company->id) {
+            throw new AuthorizationException('This sales record does not belong to the active company.');
+        }
+
+        return $company;
+    }
+
+    private function assertActiveMember(\App\Modules\Core\Models\Company $company, mixed $userId): void
+    {
+        if ($userId !== null && $userId !== '' && ! $company->activeUsers()->whereKey($userId)->exists()) {
+            throw ValidationException::withMessages(['assigned_to' => 'The assignee must be an active member of the current company.']);
+        }
+    }
+
     private function requireOwnQuotation(Quotation $quotation): \App\Modules\Core\Models\Company
     {
         $company = $this->companyContext->requireActiveCompany();
@@ -411,32 +541,226 @@ class SalesService
             throw new AuthorizationException('Sales order does not belong to the active company.');
         }
         return DB::transaction(function () use ($company, $salesOrder, $actor): \App\Modules\Invoicing\Models\Invoice {
-            $order = SalesOrder::query()->with('lines')->lockForUpdate()->findOrFail($salesOrder->id);
-            if ($order->status !== SalesOrderStatus::Approved->value) {
+            $order = SalesOrder::query()->lockForUpdate()->findOrFail($salesOrder->id);
+            $order->load('lines.product');
+            if (! in_array($order->status, self::OPEN_ORDER_STATUSES, true)) {
                 throw ValidationException::withMessages(['sales_order' => 'Only approved sales orders can be invoiced.']);
             }
-            if ($order->invoice_id !== null) {
-                return \App\Modules\Invoicing\Models\Invoice::query()->findOrFail($order->invoice_id);
+            // Bill what has gone out (goods) or was ordered (services), less what earlier invoices already covered.
+            $toInvoice = $order->lines
+                ->map(fn (SalesOrderLine $line): array => [$line, self::invoiceableQuantity($line)])
+                ->filter(fn (array $pair): bool => bccomp($pair[1], '0', 4) > 0)
+                ->values();
+            if ($toInvoice->isEmpty()) {
+                throw ValidationException::withMessages(['sales_order' => 'There is nothing to invoice yet. Deliver the goods first; anything already delivered has been invoiced.']);
             }
             $invoice = app(InvoicingService::class)->createInvoice($actor, [
                 'customer_id' => $order->customer_id,
                 'type' => 'invoice',
                 'invoice_date' => now()->toDateString(),
                 'currency_code' => $order->currency_code,
-                'notes' => 'Created from sales order '.$order->document_number,
-            ], $order->lines->map(fn (SalesOrderLine $line): array => [
-                'product_id' => $line->product_id,
-                'name' => $line->description,
-                'description' => $line->notes,
-                'quantity' => $line->quantity,
-                'unit_price' => $line->unit_price,
-                'discount_percent' => $line->discount,
-                'tax_rate' => $line->tax_rate,
+                'notes' => trim('Sales order '.$order->document_number.($order->customer_reference ? ' · your reference '.$order->customer_reference : '')),
+            ], $toInvoice->map(fn (array $pair): array => [
+                'product_id' => $pair[0]->product_id,
+                'name' => $pair[0]->description,
+                'description' => $pair[0]->notes,
+                'quantity' => $pair[1],
+                'unit_price' => $pair[0]->unit_price,
+                'discount_percent' => $pair[0]->discount,
+                'tax_rate' => $pair[0]->tax_rate,
             ])->all());
-            $order->update(['invoice_id' => $invoice->id]);
-            app(AuditLogService::class)->record($company, 'sales.order.invoiced', $order, changes: ['invoice_id' => ['new' => $invoice->id]], actor: $actor);
+            foreach ($toInvoice as [$line, $quantity]) {
+                $line->update(['invoiced_quantity' => bcadd((string) $line->invoiced_quantity, $quantity, 4)]);
+            }
+            $order->invoices()->attach($invoice->id, ['company_id' => $company->id]);
+            if ($order->invoice_id === null) {
+                $order->update(['invoice_id' => $invoice->id]);
+            }
+            app(AuditLogService::class)->record($company, 'sales.order.invoiced', $order, changes: [
+                'invoice_id' => ['new' => $invoice->id],
+                'lines' => $toInvoice->map(fn (array $pair): array => ['line_id' => $pair[0]->id, 'quantity' => $pair[1]])->all(),
+            ], actor: $actor);
+
             return $invoice;
         });
+    }
+
+    /** Order statuses that can still be delivered and invoiced. */
+    public const OPEN_ORDER_STATUSES = ['approved', 'partially_delivered', 'delivered'];
+
+    /** How much of a line can go on the next invoice. */
+    public static function invoiceableQuantity(SalesOrderLine $line): string
+    {
+        $ceiling = $line->needsDelivery() ? (string) $line->delivered_quantity : (string) $line->quantity;
+        $left = bcsub($ceiling, (string) $line->invoiced_quantity, 4);
+
+        return bccomp($left, '0', 4) > 0 ? $left : '0.0000';
+    }
+
+    /**
+     * Send goods to the customer: one delivery, any number of order lines, each from a store location.
+     * Stock leaves that location for the customer location, and the order becomes partly or fully delivered.
+     *
+     * @param  array<int, array{sales_order_line_id: int, quantity: string|float|int, location_id?: int|null, lot_code?: string|null}>  $lines
+     */
+    public function deliverSalesOrder(SalesOrder $salesOrder, User $actor, array $lines, ?string $notes = null): Delivery
+    {
+        $company = $this->companyContext->requireActiveCompany();
+        if ((int) $salesOrder->company_id !== (int) $company->id) {
+            throw new AuthorizationException('Sales order does not belong to the active company.');
+        }
+
+        return DB::transaction(function () use ($company, $salesOrder, $actor, $lines, $notes): Delivery {
+            $order = SalesOrder::query()->lockForUpdate()->findOrFail($salesOrder->id);
+            if (! in_array($order->status, ['approved', 'partially_delivered'], true)) {
+                throw ValidationException::withMessages(['sales_order' => 'Only approved sales orders that still have goods to send can be delivered.']);
+            }
+            $orderLines = $order->lines()->with('product')->lockForUpdate()->get()->keyBy('id');
+            $wanted = collect($lines)->filter(fn (array $line): bool => bccomp((string) ($line['quantity'] ?? '0'), '0', 4) > 0)->values();
+            if ($wanted->isEmpty()) {
+                throw ValidationException::withMessages(['lines' => 'Enter a quantity to deliver on at least one line.']);
+            }
+
+            $delivery = Delivery::query()->create([
+                'company_id' => $company->id,
+                'sales_order_id' => $order->id,
+                'document_number' => $this->sequenceService->next($company, 'sales_delivery'),
+                'delivered_by' => $actor->id,
+                'delivered_at' => now(),
+                'notes' => $notes,
+            ]);
+
+            foreach ($wanted as $index => $input) {
+                /** @var SalesOrderLine|null $line */
+                $line = $orderLines->get((int) $input['sales_order_line_id']);
+                if (! $line) {
+                    throw ValidationException::withMessages(["lines.{$index}.sales_order_line_id" => 'This line is not on the sales order.']);
+                }
+                if (! $line->needsDelivery()) {
+                    throw ValidationException::withMessages(["lines.{$index}.quantity" => "\"{$line->description}\" is a service and is invoiced without a delivery."]);
+                }
+                $quantity = bcadd((string) $input['quantity'], '0', 4);
+                $remaining = bcsub((string) $line->quantity, (string) $line->delivered_quantity, 4);
+                if (bccomp($quantity, $remaining, 4) > 0) {
+                    throw ValidationException::withMessages(["lines.{$index}.quantity" => "Only {$this->trimZeros($remaining)} of \"{$line->description}\" is left to deliver."]);
+                }
+                $source = StockLocation::query()->where('usage', 'internal')->find($input['location_id'] ?? null);
+                if (! $source) {
+                    throw ValidationException::withMessages(["lines.{$index}.location_id" => 'Choose the store location the goods leave from.']);
+                }
+                $lotCode = blank($input['lot_code'] ?? null) ? null : trim((string) $input['lot_code']);
+
+                $move = app(InventoryStockService::class)->postMovement($company, $actor, [
+                    'operation' => 'issue',
+                    'product_id' => $line->product_id,
+                    'from_location_id' => $source->id,
+                    'to_location_id' => $this->customerLocation($source)->id,
+                    'quantity' => $quantity,
+                    'lot_code' => $lotCode,
+                    'reference' => $order->document_number.' / '.$delivery->document_number,
+                ]);
+                $delivery->lines()->create([
+                    'company_id' => $company->id,
+                    'sales_order_line_id' => $line->id,
+                    'stock_move_id' => $move->id,
+                    'from_location_id' => $source->id,
+                    'quantity' => $quantity,
+                    'lot_code' => $lotCode,
+                ]);
+                $line->delivered_quantity = bcadd((string) $line->delivered_quantity, $quantity, 4);
+                $line->save();
+            }
+
+            $allDelivered = $orderLines->filter(fn (SalesOrderLine $line): bool => $line->needsDelivery())
+                ->every(fn (SalesOrderLine $line): bool => bccomp((string) $line->delivered_quantity, (string) $line->quantity, 4) >= 0);
+            $before = $order->status;
+            $order->update(['status' => $allDelivered ? SalesOrderStatus::Delivered->value : SalesOrderStatus::PartiallyDelivered->value]);
+            app(AuditLogService::class)->record($company, 'sales.order.delivered', $delivery, changes: [
+                'sales_order_id' => $order->id,
+                'status' => ['old' => $before, 'new' => $order->status],
+                'lines' => $delivery->lines()->get(['sales_order_line_id', 'quantity', 'from_location_id'])->toArray(),
+            ], actor: $actor);
+
+            return $delivery->load('lines');
+        });
+    }
+
+    /** Stop an order that has not gone anywhere yet: nothing delivered and nothing invoiced. */
+    public function cancelSalesOrder(SalesOrder $salesOrder, User $actor): SalesOrder
+    {
+        $company = $this->companyContext->requireActiveCompany();
+        if ((int) $salesOrder->company_id !== (int) $company->id) {
+            throw new AuthorizationException('Sales order does not belong to the active company.');
+        }
+
+        return DB::transaction(function () use ($company, $salesOrder, $actor): SalesOrder {
+            $order = SalesOrder::query()->lockForUpdate()->findOrFail($salesOrder->id);
+            if (! in_array($order->status, ['draft', 'pending_approval', 'approved'], true) || ! self::untouched($order)) {
+                throw ValidationException::withMessages(['sales_order' => 'Only orders with nothing delivered or invoiced can be cancelled.']);
+            }
+            $order->approvalRequests()->where('status', ApprovalStatus::Pending->value)
+                ->update(['status' => ApprovalStatus::Cancelled->value, 'completed_at' => now()]);
+            $before = $order->status;
+            $order->update(['status' => SalesOrderStatus::Cancelled->value]);
+            app(AuditLogService::class)->record($company, 'sales.order.cancelled', $order, changes: [
+                'status' => ['old' => $before, 'new' => SalesOrderStatus::Cancelled->value],
+            ], actor: $actor);
+
+            return $order->fresh();
+        });
+    }
+
+    /** Remove a draft or cancelled order with no approval, delivery or invoice history. */
+    public function deleteSalesOrder(SalesOrder $salesOrder, User $actor): void
+    {
+        $company = $this->companyContext->requireActiveCompany();
+        if ((int) $salesOrder->company_id !== (int) $company->id) {
+            throw new AuthorizationException('Sales order does not belong to the active company.');
+        }
+
+        DB::transaction(function () use ($company, $salesOrder, $actor): void {
+            $order = SalesOrder::query()->lockForUpdate()->findOrFail($salesOrder->id);
+            if (! self::deletable($order)) {
+                throw ValidationException::withMessages(['sales_order' => 'This order has approval, delivery or invoice history, so it is kept. Cancel it instead.']);
+            }
+            app(AuditLogService::class)->record($company, 'sales.order.deleted', $order, changes: [
+                'before' => $order->only(['document_number', 'customer_id', 'quotation_id', 'status', 'total']),
+            ], actor: $actor);
+            $order->lines()->delete();
+            $order->delete();
+        });
+    }
+
+    public static function untouched(SalesOrder $order): bool
+    {
+        return ! $order->deliveries()->exists()
+            && ! $order->invoices()->exists()
+            && $order->invoice_id === null;
+    }
+
+    public static function deletable(SalesOrder $order): bool
+    {
+        return in_array($order->status, ['draft', 'cancelled'], true)
+            && self::untouched($order)
+            && ! $order->approvalRequests()->exists();
+    }
+
+    /** Where delivered goods go: the company's customer location, made in the source warehouse the first time. */
+    private function customerLocation(StockLocation $source): StockLocation
+    {
+        return StockLocation::query()->where('usage', 'customer')->where('is_active', true)
+            ->orderByRaw('CASE WHEN warehouse_id = ? THEN 0 ELSE 1 END', [$source->warehouse_id])
+            ->orderBy('id')
+            ->first()
+            ?? StockLocation::query()->firstOrCreate(
+                ['warehouse_id' => $source->warehouse_id, 'code' => 'CUSTOMERS'],
+                ['company_id' => $source->company_id, 'name' => 'Customers', 'usage' => 'customer', 'is_active' => true],
+            );
+    }
+
+    private function trimZeros(string $value): string
+    {
+        return str_contains($value, '.') ? rtrim(rtrim($value, '0'), '.') : $value;
     }
 
     public function submitSalesOrder(SalesOrder $salesOrder, User $actor): SalesOrder

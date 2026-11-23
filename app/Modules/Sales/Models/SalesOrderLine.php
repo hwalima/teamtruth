@@ -57,4 +57,10 @@ class SalesOrderLine extends Model
     {
         return $this->belongsTo(InventoryProduct::class);
     }
+
+    /** Goods leave the store for this line; services and free-text lines are invoiced without a delivery. */
+    public function needsDelivery(): bool
+    {
+        return $this->product_id !== null && $this->product?->type !== 'service';
+    }
 }

@@ -269,7 +269,9 @@ export default function QuotationShow({ quotation, canManage, canSend, canEdit, 
                             <ul className="divide-y text-sm">
                                 {quotation.sales_orders.map((order) => (
                                     <li key={order.id} className="flex items-center justify-between gap-3 py-2">
-                                        <span className="font-medium break-all">{order.document_number}</span>
+                                        <Link href={route('erp.sales.orders.show', order.id)} className="font-medium break-all hover:underline">
+                                            {order.document_number}
+                                        </Link>
                                         <span className="flex shrink-0 items-center gap-2">
                                             <StatusBadge value={order.status} label={humanize(order.status)} />
                                             <span className="tabular-nums">{money(order.currency_code, order.total)}</span>
