@@ -204,8 +204,8 @@ class ProjectExpenseController extends Controller
                 'update' => $this->checkPermission('expense_update'),
                 'delete' => $this->checkPermission('expense_delete'),
                 'view' => $this->checkPermission('expense_view'),
-                'expense_approve' => $this->checkPermission('expense_approve'),
-                'expense_reject' => $this->checkPermission('expense_reject'),
+                'expense_approve' => $this->checkPermission('expense_approval_approve'),
+                'expense_reject' => $this->checkPermission('expense_approval_reject'),
             ]
         ]);
     }

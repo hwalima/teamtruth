@@ -209,8 +209,8 @@ class ProjectBudgetController extends Controller
             'permissions' => [
                 'update' => $this->checkPermission('budget_update'),
                 'delete' => $this->checkPermission('budget_delete'),
-                'expense_approve' => $this->checkPermission('expense_approve'),
-                'expense_reject' => $this->checkPermission('expense_reject'),
+                'expense_approve' => $this->checkPermission('expense_approval_approve'),
+                'expense_reject' => $this->checkPermission('expense_approval_reject'),
             ]
         ]);
     }

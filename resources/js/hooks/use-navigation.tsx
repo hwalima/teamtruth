@@ -475,7 +475,7 @@ export function useNavigation() {
             if (canUseErp('erp.roles.manage')) {
                 items.push({ title: t('Roles & Permissions'), href: route('erp.settings.roles.index'), icon: ShieldCheck, group: t('Company Settings') });
             }
-            if (canUseErp('erp.inventory.manage') || canUseErp('erp.purchase.manage')) {
+            if (['erp.inventory.manage', 'erp.purchase.manage', 'erp.invoicing.manage', 'erp.hrm.employee.manage'].some((permission) => canUseErp(permission))) {
                 items.push({ title: t('Data Import (Odoo)'), href: route('erp.data-import.index'), icon: FileUp, group: t('Company Settings') });
             }
             if (canUseErp('erp.settings.view')) {

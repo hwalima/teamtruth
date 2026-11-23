@@ -21,9 +21,10 @@ class DataImportController extends Controller
 {
     public function __construct(private DataImportService $imports) {}
 
-    public function index(): Response
+    public function index(Request $request): Response
     {
         $company = app(CompanyContext::class)->requireActiveCompany();
+        abort_unless($this->imports->canImportAnything($company, $request->user()), 403, 'You do not have permission to import any kind of record.');
 
         return Inertia::render('Erp/DataImport/Index', [
             'company' => $company->only(['id', 'code', 'name']),

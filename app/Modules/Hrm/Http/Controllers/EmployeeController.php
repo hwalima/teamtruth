@@ -41,6 +41,7 @@ class EmployeeController extends HrmController
             'filters' => $filters,
             'statusOptions' => EmployeeStatus::options(),
             'canManage' => $this->allowsErpPermission('erp.hrm.employee.manage'),
+            'canDelete' => $this->allowsErpPermission('erp.hrm.employee.terminate'),
         ]);
     }
 
@@ -74,6 +75,7 @@ class EmployeeController extends HrmController
             'documentTypeOptions' => EmployeeDocumentType::options(),
             'canUpdate' => $this->allows('update', $employee),
             'canTerminate' => $this->allows('terminate', $employee),
+            'canDelete' => $this->allows('delete', $employee),
             'canManageDocuments' => $this->allows('manageDocuments', $employee),
             'canManageContracts' => $this->allows('manageContracts', $employee),
             'canViewSalary' => $canViewSalary,

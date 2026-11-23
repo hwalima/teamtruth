@@ -45,6 +45,7 @@ type Props = {
     filters: Record<string, string | undefined>;
     statusOptions: Options;
     canManage: boolean;
+    canDelete: boolean;
 };
 
 export default function EmployeesIndex(props: Props) {
@@ -162,7 +163,7 @@ export default function EmployeesIndex(props: Props) {
                                             viewHref={route('erp.hrm.employees.show', employee.id)}
                                             editHref={props.canManage ? route('erp.hrm.employees.edit', employee.id) : undefined}
                                             onDelete={
-                                                props.canManage
+                                                props.canDelete
                                                     ? () =>
                                                           askDelete({
                                                               url: route('erp.hrm.employees.destroy', employee.id),

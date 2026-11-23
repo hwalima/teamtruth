@@ -97,6 +97,19 @@ class DataImportService
         }
     }
 
+    /** Whether the user may import at least one kind of file, so the import page is any use to them. */
+    public function canImportAnything(Company $company, User $user): bool
+    {
+        foreach (self::IMPORTERS as $class) {
+            $required = app($class)->permissions();
+            if (array_filter($required, fn (string $permission) => ! $this->roles->allows($company, $user, $permission)) === []) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     /** Store the file and preview it. */
     public function upload(Company $company, User $user, UploadedFile $file, ?string $model, array $options = []): DataImport
     {

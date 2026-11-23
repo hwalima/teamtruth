@@ -22,7 +22,7 @@ class ExpenseApprovalController extends Controller
     }
     public function approve(Request $request, ProjectExpense $expense)
     {
-        $this->authorizePermission('expense_approve');
+        $this->authorizePermission('expense_approval_approve');
         
         $validated = $request->validate([
             'notes' => 'nullable|string'
@@ -59,7 +59,7 @@ class ExpenseApprovalController extends Controller
 
     public function reject(Request $request, ProjectExpense $expense)
     {
-        $this->authorizePermission('expense_reject');
+        $this->authorizePermission('expense_approval_reject');
         
         try {
             
@@ -100,7 +100,7 @@ class ExpenseApprovalController extends Controller
 
     public function requestInfo(Request $request, ProjectExpense $expense)
     {
-        $this->authorizePermission('expense_request_info');
+        $this->authorizePermission('expense_approval_request_info');
         
         $validated = $request->validate([
             'notes' => 'required|string'
@@ -128,7 +128,7 @@ class ExpenseApprovalController extends Controller
 
     public function bulkApprove(Request $request)
     {
-        $this->authorizePermission('expense_approve');
+        $this->authorizePermission('expense_approval_bulk_approve');
         
         $validated = $request->validate([
             'expense_ids' => 'required|array',
@@ -165,7 +165,7 @@ class ExpenseApprovalController extends Controller
 
     public function index(Request $request)
     {
-        $this->authorizePermission('expense_view_approvals');
+        $this->authorizePermission('expense_approval_view_any');
         
         $user = auth()->user();
         $workspace = $user->currentWorkspace;
@@ -263,9 +263,9 @@ class ExpenseApprovalController extends Controller
             'projects' => $projects,
             'filters' => $request->only(['status', 'project_id', 'search', 'per_page', 'sort_by', 'sort_order', 'view']),
             'permissions' => [
-                'approve' => $this->checkPermission('expense_approve'),
-                'reject' => $this->checkPermission('expense_reject'),
-                'request_info' => $this->checkPermission('expense_request_info'),
+                'approve' => $this->checkPermission('expense_approval_approve'),
+                'reject' => $this->checkPermission('expense_approval_reject'),
+                'request_info' => $this->checkPermission('expense_approval_request_info'),
             ]
         ]);
     }

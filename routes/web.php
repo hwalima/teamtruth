@@ -335,16 +335,16 @@ Route::middleware(['auth', 'verified'])->prefix('erp')->name('erp.')->group(func
             ->middleware('erp.permission:erp.purchase.manage')
             ->name('purchase.orders.receive');
         Route::get('purchase/orders/{order}/receipts/{receipt}/bill', [\App\Modules\Purchase\Http\Controllers\PurchaseController::class, 'createBill'])
-            ->middleware('erp.permission:erp.purchase.manage')
+            ->middleware('erp.permission:erp.purchase.bills')
             ->name('purchase.orders.bills.create');
         Route::post('purchase/orders/{order}/receipts/{receipt}/bill', [\App\Modules\Purchase\Http\Controllers\PurchaseController::class, 'storeBill'])
-            ->middleware('erp.permission:erp.purchase.manage')
+            ->middleware('erp.permission:erp.purchase.bills')
             ->name('purchase.orders.bills.store');
         Route::post('purchase/bills/{bill}/submit', [\App\Modules\Purchase\Http\Controllers\PurchaseController::class, 'submitBill'])
-            ->middleware('erp.permission:erp.purchase.manage')
+            ->middleware('erp.permission:erp.purchase.bills')
             ->name('purchase.bills.submit');
         Route::post('purchase/bills/{bill}/post', [\App\Modules\Purchase\Http\Controllers\PurchaseController::class, 'postBill'])
-            ->middleware('erp.permission:erp.purchase.manage')
+            ->middleware('erp.permission:erp.purchase.bills')
             ->name('purchase.bills.post');
         Route::post('purchase/blanket-orders', [\App\Modules\Purchase\Http\Controllers\PurchaseController::class, 'storeBlanketOrder'])
             ->middleware('erp.permission:erp.purchase.manage')->name('purchase.blanket-orders.store');
@@ -359,13 +359,13 @@ Route::middleware(['auth', 'verified'])->prefix('erp')->name('erp.')->group(func
         Route::post('purchase/vendors/price-lists', [\App\Modules\Purchase\Http\Controllers\PurchaseController::class, 'storeVendorPriceList'])
             ->middleware('erp.permission:erp.purchase.manage')->name('purchase.vendors.price-lists.store');
         Route::get('purchase/payments/create', [\App\Modules\Purchase\Http\Controllers\PurchaseController::class, 'createPayment'])
-            ->middleware('erp.permission:erp.purchase.manage')
+            ->middleware('erp.permission:erp.purchase.bills')
             ->name('purchase.payments.create');
         Route::post('purchase/payments', [\App\Modules\Purchase\Http\Controllers\PurchaseController::class, 'storePayment'])
-            ->middleware('erp.permission:erp.purchase.manage')
+            ->middleware('erp.permission:erp.purchase.bills')
             ->name('purchase.payments.store');
         Route::post('purchase/payments/{payment}/post', [\App\Modules\Purchase\Http\Controllers\PurchaseController::class, 'postPayment'])
-            ->middleware('erp.permission:erp.purchase.manage')
+            ->middleware('erp.permission:erp.purchase.bills')
             ->name('purchase.payments.post');
 
         Route::get('accounting', [\App\Modules\Accounting\Http\Controllers\AccountingController::class, 'index'])

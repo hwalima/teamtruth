@@ -339,7 +339,7 @@ class TimesheetController extends Controller
                 'delete' => $this->checkPermission('timesheet_delete'),
                 'submit' => $this->checkPermission('timesheet_submit'),
                 'approve' => $this->checkPermission('timesheet_approve'),
-                'reject' => $this->checkPermission('timesheet_reject'),
+                'reject' => $this->checkPermission('timesheet_approve'),
                 'useTimer' => $this->checkPermission('timesheet_use_timer'),
             ],
             'userWorkspaceRole' => $workspace->isOwner($user) ? 'owner' : $workspace->getMemberRole($user),
@@ -372,7 +372,7 @@ class TimesheetController extends Controller
                 'delete' => $this->checkPermission('timesheet_delete'),
                 'submit' => $this->checkPermission('timesheet_submit'),
                 'approve' => $this->checkPermission('timesheet_approve'),
-                'reject' => $this->checkPermission('timesheet_reject'),
+                'reject' => $this->checkPermission('timesheet_approve'),
             ]
         ]);
     }
@@ -593,7 +593,7 @@ class TimesheetController extends Controller
 
     public function reject(Request $request, Timesheet $timesheet)
     {
-        $this->authorizePermission('timesheet_reject');
+        $this->authorizePermission('timesheet_approve');
         
         $validated = $request->validate([
             'reason' => 'required|string'

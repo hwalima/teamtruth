@@ -73,6 +73,7 @@ type Props = {
     documentTypeOptions: Options;
     canUpdate: boolean;
     canTerminate: boolean;
+    canDelete: boolean;
     canManageDocuments: boolean;
     canManageContracts: boolean;
     canViewSalary: boolean;
@@ -139,7 +140,7 @@ export default function EmployeeShow({ employee, ...props }: Props) {
                             Edit
                         </a>
                     )}
-                    {props.canUpdate && (
+                    {props.canDelete && (
                         <button
                             type="button"
                             className={secondaryButton}

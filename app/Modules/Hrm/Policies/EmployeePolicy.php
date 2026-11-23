@@ -36,7 +36,7 @@ class EmployeePolicy
 
     public function delete(User $user, Employee $employee): bool
     {
-        return $user->can('erp.hrm.employee.manage');
+        return $user->can('erp.hrm.employee.terminate');
     }
 
     public function manageDocuments(User $user, Employee $employee): bool
@@ -62,11 +62,11 @@ class EmployeePolicy
 
     public function terminate(User $user, Employee $employee): bool
     {
-        return $user->can('erp.hrm.employee.manage');
+        return $user->can('erp.hrm.employee.terminate');
     }
 
     public function rehire(User $user, Employee $employee): bool
     {
-        return $user->can('erp.hrm.employee.manage');
+        return $user->can('erp.hrm.employee.terminate');
     }
 }

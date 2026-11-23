@@ -359,7 +359,7 @@ class PurchaseController extends Controller
     public function createBill(PurchaseOrder $order, PurchaseReceipt $receipt, Request $request): Response
     {
         $company = app(CompanyContext::class)->requireActiveCompany();
-        $this->authorizeManagement($request, $company);
+        $this->authorizeBills($request, $company);
         abort_unless((int) $receipt->purchase_order_id === (int) $order->id, 404);
         abort_unless((int) $order->company_id === (int) $company->id, 404);
         abort_unless((int) $receipt->company_id === (int) $company->id, 404);
@@ -388,7 +388,7 @@ class PurchaseController extends Controller
     public function storeBill(Request $request, PurchaseOrder $order, PurchaseReceipt $receipt, PurchaseService $service): RedirectResponse
     {
         $company = app(CompanyContext::class)->requireActiveCompany();
-        $this->authorizeManagement($request, $company);
+        $this->authorizeBills($request, $company);
         abort_unless((int) $receipt->purchase_order_id === (int) $order->id, 404);
 
         $validated = $request->validate([
@@ -420,7 +420,7 @@ class PurchaseController extends Controller
     public function submitBill(PurchaseBill $bill, Request $request, PurchaseService $service): RedirectResponse
     {
         $company = app(CompanyContext::class)->requireActiveCompany();
-        $this->authorizeManagement($request, $company);
+        $this->authorizeBills($request, $company);
         abort_unless((int) $bill->company_id === (int) $company->id, 404);
 
         $service->submitBillForApproval($bill, $request->user());
@@ -431,7 +431,7 @@ class PurchaseController extends Controller
     public function postBill(PurchaseBill $bill, Request $request, PurchaseService $service): RedirectResponse
     {
         $company = app(CompanyContext::class)->requireActiveCompany();
-        $this->authorizeManagement($request, $company);
+        $this->authorizeBills($request, $company);
         abort_unless((int) $bill->company_id === (int) $company->id, 404);
 
         $service->postBill($bill, $request->user());
@@ -531,7 +531,7 @@ class PurchaseController extends Controller
     public function createPayment(Request $request): Response
     {
         $company = app(CompanyContext::class)->requireActiveCompany();
-        $this->authorizeManagement($request, $company);
+        $this->authorizeBills($request, $company);
 
         return Inertia::render('Erp/Purchase/CreatePayment', [
             'company' => $company->only(['id', 'code', 'name', 'default_currency']),
@@ -556,7 +556,7 @@ class PurchaseController extends Controller
     public function storePayment(Request $request, PurchaseService $service): RedirectResponse
     {
         $company = app(CompanyContext::class)->requireActiveCompany();
-        $this->authorizeManagement($request, $company);
+        $this->authorizeBills($request, $company);
 
         $validated = $request->validate([
             'vendor_id' => ['required', 'integer', Rule::exists('purchase_vendors', 'id')->where('company_id', $company->id)->where('is_active', true)],
@@ -584,7 +584,7 @@ class PurchaseController extends Controller
     public function postPayment(PurchasePayment $payment, Request $request, PurchaseService $service): RedirectResponse
     {
         $company = app(CompanyContext::class)->requireActiveCompany();
-        $this->authorizeManagement($request, $company);
+        $this->authorizeBills($request, $company);
         abort_unless((int) $payment->company_id === (int) $company->id, 404);
 
         $service->postPayment($payment, $request->user());
@@ -595,6 +595,12 @@ class PurchaseController extends Controller
     private function authorizeAccess(Request $request, Company $company): void
     {
         app(ErpRoleService::class)->authorize($company, $request->user(), 'erp.purchase.view');
+    }
+
+    /** Vendor bills and payments are finance work, separate from buying. */
+    private function authorizeBills(Request $request, Company $company): void
+    {
+        app(ErpRoleService::class)->authorize($company, $request->user(), 'erp.purchase.bills');
     }
 
     private function authorizeManagement(Request $request, Company $company): void

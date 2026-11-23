@@ -48,6 +48,7 @@ class ErpRoleService
             'Procurement' => [
                 'erp.purchase.view' => 'View purchasing',
                 'erp.purchase.manage' => 'Manage vendors, quotations, purchase orders and receipts',
+                'erp.purchase.bills' => 'Record and post vendor bills and payments',
             ],
             'Inventory' => [
                 'erp.inventory.view' => 'View inventory and stock',
@@ -85,7 +86,8 @@ class ErpRoleService
                 'erp.hrm.manage' => 'Manage HRM records (full HRM access)',
                 'erp.hrm.employee.view' => 'View employees',
                 'erp.hrm.employee.view_salary' => 'View employee salaries',
-                'erp.hrm.employee.manage' => 'Manage employees',
+                'erp.hrm.employee.manage' => 'Add and update employees and their documents',
+                'erp.hrm.employee.terminate' => 'Terminate, rehire and delete employees',
                 'erp.hrm.leave.view' => 'View leave requests and balances',
                 'erp.hrm.leave.request' => 'Request leave',
                 'erp.hrm.leave.approve' => 'Approve or reject leave',
@@ -129,16 +131,90 @@ class ErpRoleService
             : array_values(array_diff(self::allPermissionKeys(), self::ADMIN_ONLY_PERMISSIONS));
     }
 
+    /**
+     * The roles every company starts with: slug => display name. The job roles
+     * below admin are ready-made starting points that companies can adjust.
+     */
+    public const DEFAULT_ROLES = [
+        'owner' => 'Owner',
+        'admin' => 'Admin',
+        'finance' => 'Finance',
+        'manager' => 'Manager',
+        'member' => 'Member',
+        'hr-manager' => 'HR Manager',
+        'hr-officer' => 'HR Officer',
+        'stores-manager' => 'Stores Manager',
+        'procurement-officer' => 'Procurement Officer',
+        'finance-clerk' => 'Finance Clerk',
+    ];
+
+    /** What every staff member can do: the ERP home, raising requisitions and acting on approvals assigned to them. */
+    private const BASELINE_PERMISSIONS = [
+        'erp.dashboard.view',
+        'erp.requisitions.view',
+        'erp.requisitions.create',
+        'erp.approvals.view',
+        'erp.approvals.act',
+    ];
+
     public static function defaultPermissions(string $role): array
     {
         $all = self::allPermissionKeys();
 
         return match ($role) {
             'owner', 'admin' => $all,
+            // Everything in HR, including salaries and terminations.
+            'hr-manager' => [...self::BASELINE_PERMISSIONS, 'erp.hrm.manage'],
+            // Day-to-day HR administration: employee records and self-service requests.
+            // No salaries, terminations, disciplinary cases, leave approval or HR setup.
+            'hr-officer' => [
+                ...self::BASELINE_PERMISSIONS,
+                'erp.hrm.employee.view',
+                'erp.hrm.employee.manage',
+                'erp.hrm.leave.view',
+                'erp.hrm.contract.view',
+                'erp.hrm.organization.view',
+                'erp.hrm.department.view',
+                'erp.hrm.position.view',
+                'erp.hrm.grade.view',
+                'erp.hrm.cost_center.view',
+                'erp.hrm.self_service.view',
+                'erp.hrm.self_service.manage',
+            ],
+            // Runs procurement and the stores: buying, stock setup and movements, and requisitions.
+            'stores-manager' => [
+                ...self::BASELINE_PERMISSIONS,
+                'erp.requisitions.manage',
+                'erp.purchase.view',
+                'erp.purchase.manage',
+                'erp.inventory.view',
+                'erp.inventory.manage',
+                'erp.stock.manage',
+            ],
+            // Day-to-day buying: vendors, quotations, purchase orders and receipts. Paying
+            // suppliers and changing stock setup stay with finance and the stores manager.
+            'procurement-officer' => [
+                ...self::BASELINE_PERMISSIONS,
+                'erp.purchase.view',
+                'erp.purchase.manage',
+                'erp.inventory.view',
+            ],
+            // Daily transactions: invoices, customer payments, vendor bills and payments, bank
+            // lines. No ledger setup, journals, period locks, reports or approving fund requests.
+            'finance-clerk' => [
+                ...self::BASELINE_PERMISSIONS,
+                'erp.purchase.view',
+                'erp.purchase.bills',
+                'erp.invoicing.view',
+                'erp.invoicing.manage',
+                'erp.banking.view',
+                'erp.banking.manage',
+            ],
             'finance' => [
                 'erp.dashboard.view',
                 'erp.requisitions.view',
                 'erp.purchase.view',
+                'erp.purchase.bills',
                 'erp.sales.view',
                 'erp.sales.manage',
                 'erp.accounting.view',
@@ -159,6 +235,7 @@ class ErpRoleService
                 'erp.requisitions.manage',
                 'erp.purchase.view',
                 'erp.purchase.manage',
+                'erp.purchase.bills',
                 'erp.sales.view',
                 'erp.sales.manage',
                 'erp.inventory.view',
@@ -168,14 +245,7 @@ class ErpRoleService
                 'erp.approvals.view',
                 'erp.approvals.act',
             ],
-            default => [
-                'erp.dashboard.view',
-                'erp.project_management.view',
-                'erp.requisitions.view',
-                'erp.requisitions.create',
-                'erp.approvals.view',
-                'erp.approvals.act',
-            ],
+            default => [...self::BASELINE_PERMISSIONS, 'erp.project_management.view'],
         };
     }
 
@@ -244,11 +314,14 @@ class ErpRoleService
 
     public function createDefaultRoles(Company $company): void
     {
-        foreach (['owner', 'admin', 'finance', 'manager', 'member'] as $slug) {
+        foreach (self::DEFAULT_ROLES as $slug => $name) {
+            if (CompanyErpRole::query()->where('company_id', $company->id)->where('slug', '!=', $slug)->where('name', $name)->exists()) {
+                continue; // The company already made its own role with this name.
+            }
             CompanyErpRole::query()->firstOrCreate(
                 ['company_id' => $company->id, 'slug' => $slug],
                 [
-                    'name' => ucfirst($slug),
+                    'name' => $name,
                     'permissions' => $slug === 'owner' ? ['*'] : self::defaultPermissions($slug),
                     'is_system' => true,
                 ],
