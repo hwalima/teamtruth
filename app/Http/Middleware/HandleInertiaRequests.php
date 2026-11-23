@@ -275,7 +275,9 @@ class HandleInertiaRequests extends Middleware
                     ]
                 ) : null,
                 'roles' => fn() => $this->getUserRoles($request),
-                'permissions' => fn() => $this->getUserPermissions($request),
+                'permissions' => fn() => $request->user()
+                    ? \App\Support\GlobalPermissions::merge($this->getUserPermissions($request))
+                    : [],
             ],
             'workspaceSettings' => fn() => $this->getWorkspaceSettings($request),
             'isImpersonating' => session('impersonated_by') ? true : false,

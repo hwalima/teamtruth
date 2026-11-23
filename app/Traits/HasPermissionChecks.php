@@ -14,12 +14,16 @@ trait HasPermissionChecks
         if (!$user) {
             return false;
         }
-        
+
+        if (\App\Support\GlobalPermissions::grants($permission)) {
+            return true;
+        }
+
         // Super admin has all permissions
         if ($user->type === 'superadmin' || $user->type === 'super admin') {
             return true;
         }
-        
+
         // Company users have broad access
         if ($user->type === 'company') {
             return true;

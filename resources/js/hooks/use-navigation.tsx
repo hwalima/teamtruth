@@ -21,7 +21,6 @@ import {
     FileText,
     FolderOpen,
     Gift,
-    Globe,
     HelpCircle,
     Home,
     Image,
@@ -101,15 +100,6 @@ export function useNavigation() {
             }
             if (hasPermission(permissions, 'referral_view_any') || hasPermission(permissions, 'referral_view')) {
                 items.push({ title: t('Referral Program'), href: route('referral.index'), icon: Gift, group: t('Management') });
-            }
-            const landingChildren = [];
-            if (hasPermission(permissions, 'landing_page_manage') || hasPermission(permissions, 'landing_page_update')) landingChildren.push({ title: t('Landing Page'), href: route('landing-page') });
-            if (hasPermission(permissions, 'custom_page_view_any') || hasPermission(permissions, 'custom_page_view'))
-                landingChildren.push({ title: t('Custom Pages'), href: route('landing-page.custom-pages.index') });
-            if (hasPermission(permissions, 'contact_view_any') || hasPermission(permissions, 'contact_view')) landingChildren.push({ title: t('Contact Inquiries'), href: route('contacts.index') });
-            if (hasPermission(permissions, 'newsletter_view_any') || hasPermission(permissions, 'newsletter_view')) landingChildren.push({ title: t('Newsletter'), href: route('newsletters.index') });
-            if (landingChildren.length > 0) {
-                items.push({ title: t('Landing Page'), icon: Globe, group: t('Management'), children: landingChildren });
             }
 
             // System Control
@@ -230,20 +220,6 @@ export function useNavigation() {
             if (hasPermission(permissions, 'google_meeting_view_any') && globalSettings?.is_google_meeting_test === '1') {
                 items.push({ title: t('Google Meetings'), href: route('google-meetings.index'), icon: Video, group: t('Communications & Content') });
             }
-            if (hasPermission(permissions, 'contract_view_any') || hasPermission(permissions, 'contract_view') ||
-                hasPermission(permissions, 'contract_type_view_any') || hasPermission(permissions, 'contract_type_view')) {
-                const contractChildren = [];
-                if (hasPermission(permissions, 'contract_view_any') || hasPermission(permissions, 'contract_view')) contractChildren.push({ title: t('Contracts'), href: route('contracts.index') });
-                if (hasPermission(permissions, 'contract_type_view_any') || hasPermission(permissions, 'contract_type_view'))
-                    contractChildren.push({ title: t('Contract Types'), href: route('contract-types.index') });
-                items.push({
-                    title: t('Contracts'),
-                    icon: FileText,
-                    group: t('Communications & Content'),
-                    children: contractChildren.length > 1 ? contractChildren : undefined,
-                    href: contractChildren.length === 1 ? contractChildren[0].href : undefined,
-                });
-            }
             if (hasPermission(permissions, 'media_view_any') || hasPermission(permissions, 'media_view')) {
                 items.push({ title: t('Media Library'), href: route('media-library'), icon: Image, group: t('Communications & Content') });
             }
@@ -256,7 +232,7 @@ export function useNavigation() {
             return items;
         };
 
-        // ─── Website & Marketing and System Control (also shown inside the ERP) ──
+        // ─── System Control (also shown inside the ERP) ──
         const buildSystemItems = (): NavItem[] => {
             const items: NavItem[] = [];
 
@@ -270,16 +246,6 @@ export function useNavigation() {
                 return items;
             }
 
-            // Website & Marketing
-            const landingChildren = [];
-            if (hasPermission(permissions, 'landing_page_manage') || hasPermission(permissions, 'landing_page_update')) landingChildren.push({ title: t('Landing Page'), href: route('landing-page') });
-            if (hasPermission(permissions, 'custom_page_view_any') || hasPermission(permissions, 'custom_page_view'))
-                landingChildren.push({ title: t('Custom Pages'), href: route('landing-page.custom-pages.index') });
-            if (hasPermission(permissions, 'newsletter_view_any') || hasPermission(permissions, 'newsletter_view')) landingChildren.push({ title: t('Newsletters'), href: route('newsletters.index') });
-            if (hasPermission(permissions, 'contact_view_any') || hasPermission(permissions, 'contact_view')) landingChildren.push({ title: t('Contact Inquiries'), href: route('contacts.index') });
-            if (landingChildren.length > 0) {
-                items.push({ title: t('Landing Page'), icon: Globe, group: t('Website & Marketing'), children: landingChildren });
-            }
 
             // System Control
             if (hasPermission(permissions, 'currency_view_any') || hasPermission(permissions, 'currency_view')) {

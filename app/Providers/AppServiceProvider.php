@@ -30,6 +30,11 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // Notes, Google Meetings and the Media Library are open to every signed-in user.
+        \Illuminate\Support\Facades\Gate::before(
+            fn ($user, string $ability) => \App\Support\GlobalPermissions::grants($ability) ? true : null
+        );
+
         $this->loadMigrationsFrom(app_path('Modules/Core/Database/Migrations'));
         $this->loadMigrationsFrom(app_path('Modules/Inventory/Database/Migrations'));
         $this->loadMigrationsFrom(app_path('Modules/Requisitions/Database/Migrations'));

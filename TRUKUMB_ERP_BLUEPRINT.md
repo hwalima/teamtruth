@@ -517,7 +517,7 @@ For each subsidiary, collect before go-live:
 
 ## 14. Progress Tracker
 
-_Last reviewed: 23 November 2026. 233 automated tests pass._
+_Last reviewed: 23 November 2026. 236 automated tests pass._
 
 Legend: `[x]` done and in use · `[~]` partly built (see the note) · `[ ]` not started
 
@@ -639,6 +639,8 @@ Found while reviewing the code on 22 November 2026, most valuable first.
 ---
 
 ## 18. Change log
+
+- **23 Nov 2026:** Notes, Google Meetings (view and join) and the Media Library (browse, upload, download) are open to every signed-in user, whatever their role (`App\Support\GlobalPermissions`); creating meetings and deleting media stay role-based. The Contracts / Contract Types and Website & Marketing (Landing Page) menus are removed from every sidebar; their pages and data are untouched. HRM employee contracts are unaffected.
 
 - **23 Nov 2026:** The ERP sidebar now also shows the workspace tools: Communications & Content (Notes, meetings, Contracts, Media Library, Mzitshwa AI), ICT Support, Website & Marketing and System Control (Currency, Email and Notification Templates, Settings), each under the same permissions as outside the ERP.
 
