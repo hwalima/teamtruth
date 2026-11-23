@@ -957,13 +957,15 @@ Route::withoutMiddleware(['web', \App\Http\Middleware\VerifyCsrfToken::class])
         Route::match(['GET', 'POST'], 'iyzipay/invoice/success', [IyzipayPaymentController::class, 'invoiceSuccess'])->name('iyzipay.invoice.success');
         Route::match(['GET', 'POST'], 'iyzipay/invoice/callback', [IyzipayPaymentController::class, 'invoiceCallback'])->name('iyzipay.invoice.callback');
         Route::match(['GET', 'POST'], 'iyzipay/invoice/success/{token}', [IyzipayPaymentController::class, 'invoiceSuccessFromLink'])->name('iyzipay.invoice.success.link');
-
-        // Invitation routes (public access for accepting invitations)
-        Route::get('invitations/{token}', [WorkspaceInvitationController::class, 'show'])
-            ->name('invitations.show');
-        Route::post('invitations/{token}/accept', [WorkspaceInvitationController::class, 'accept'])
-            ->name('invitations.accept');
     });
+
+// Workspace invitations: public, but with the normal web session so accepting signs the
+// person in and any problem is shown on the page.
+Route::get('invitations/{token}', [WorkspaceInvitationController::class, 'show'])
+    ->name('invitations.show');
+Route::post('invitations/{token}/accept', [WorkspaceInvitationController::class, 'accept'])
+    ->middleware('throttle:20,1')
+    ->name('invitations.accept');
 
 // Language layout direction update (public route)
 Route::post('update-layout-direction', [LanguageController::class, 'updateLayoutDirection'])->name('update-layout-direction');

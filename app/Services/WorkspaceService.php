@@ -117,8 +117,8 @@ class WorkspaceService
             $rtlLanguages = ['ar', 'he'];
             $layoutDirection = in_array($defaultLanguage, $rtlLanguages) ? 'right' : 'left';
 
-            $user = User::where('email', $invitation->email)->first();
-            
+            $user = User::whereRaw('LOWER(email) = ?', [mb_strtolower(trim($invitation->email))])->first();
+
             if (!$user) {
                 if (!$password) {
                     throw new \Exception('Password required for new user');
@@ -130,17 +130,24 @@ class WorkspaceService
                 $user->update(['lang' => $defaultLanguage]);
             }
 
-            WorkspaceMember::create([
-                'workspace_id' => $invitation->workspace_id,
-                'user_id' => $user->id,
-                'role' => $invitation->role,
-                'status' => 'active',
-                'invited_by' => $invitation->invited_by,
-                'invited_at' => $invitation->created_at,
-                'joined_at' => now()
-            ]);
+            // A person can only have one membership row per workspace (unique key), so an
+            // earlier or inactive membership is brought up to date instead of duplicated.
+            WorkspaceMember::updateOrCreate(
+                ['workspace_id' => $invitation->workspace_id, 'user_id' => $user->id],
+                [
+                    'role' => $invitation->role,
+                    'status' => 'active',
+                    'invited_by' => $invitation->invited_by,
+                    'invited_at' => $invitation->created_at,
+                    'joined_at' => now(),
+                ]
+            );
 
-            $invitation->update(['accepted_at' => now()]);
+            // This invitation and any other open one for the same person and workspace are done.
+            WorkspaceInvitation::where('workspace_id', $invitation->workspace_id)
+                ->whereRaw('LOWER(email) = ?', [mb_strtolower(trim($invitation->email))])
+                ->whereNull('accepted_at')
+                ->update(['accepted_at' => now()]);
 
             if (!$user->current_workspace_id) {
                 $user->update(['current_workspace_id' => $invitation->workspace_id]);
@@ -172,10 +179,33 @@ class WorkspaceService
             'lang' => $lang,
         ]);
         
-        // Assign the role they were invited with
-        $user->assignRole($invitation->role);
-        
+        // Assign the role they were invited with. Workspace access comes from the membership
+        // role, so a missing role must not stop the person from joining.
+        if (\App\Models\Role::where('name', $invitation->role)->where('guard_name', 'web')->exists()) {
+            $user->assignRole($invitation->role);
+        }
+
         return $user;
+    }
+
+    /**
+     * Closes open invitations for people who are already active members, for example
+     * when an earlier accept saved the membership but not the invitation.
+     */
+    public function settleAcceptedInvitations(Workspace $workspace): void
+    {
+        $memberEmails = User::whereIn('id', $workspace->members()->where('status', 'active')->pluck('user_id'))
+            ->pluck('email')
+            ->map(fn ($email) => mb_strtolower(trim($email)))
+            ->all();
+
+        if ($memberEmails === []) {
+            return;
+        }
+
+        $workspace->invitations()->whereNull('accepted_at')->get()
+            ->filter(fn ($invitation) => in_array(mb_strtolower(trim($invitation->email)), $memberEmails, true))
+            ->each(fn ($invitation) => $invitation->update(['accepted_at' => now()]));
     }
 
     private function generateUniqueSlug(string $name): string

@@ -86,7 +86,7 @@ class WorkspaceInvitationController extends Controller
             return redirect()->route('login');
         }
 
-        $existingUser = auth()->check() || User::where('email', $invitation->email)->exists();
+        $existingUser = $this->accountExists($invitation->email);
 
         return Inertia::render('Invitations/Accept', [
             'invitation' => $invitation,
@@ -103,11 +103,8 @@ class WorkspaceInvitationController extends Controller
                 abort(404);
             }
 
-            $existingUser = auth()->check();
-            $userExists = User::where('email', $invitation->email)->exists();
-
-            // If user exists in DB but not authenticated, password is not required
-            if (!$existingUser && !$userExists) {
+            // Only a person without an account yet has to choose a password.
+            if (!$this->accountExists($invitation->email)) {
                 $request->validate([
                     'password' => 'required|min:8|confirmed'
                 ]);
@@ -118,9 +115,10 @@ class WorkspaceInvitationController extends Controller
                 $request->password
             );
 
-            // Log in the user if not already authenticated
-            if (!$existingUser) {
+            // Sign in as the invited person (also when someone else was signed in on this browser).
+            if (auth()->id() !== $result['user']->id) {
                 auth()->login($result['user']);
+                $request->session()->regenerate();
             }
 
             // Redirect to workspace
@@ -131,6 +129,11 @@ class WorkspaceInvitationController extends Controller
         } catch (\Exception $e) {
             return back()->withErrors(['error' => $e->getMessage()]);
         }
+    }
+
+    private function accountExists(string $email): bool
+    {
+        return User::whereRaw('LOWER(email) = ?', [mb_strtolower(trim($email))])->exists();
     }
 
     public function resend(WorkspaceInvitation $invitation)

@@ -84,6 +84,7 @@ class WorkspaceController extends Controller
             abort(403);
         }
         
+        app(\App\Services\WorkspaceService::class)->settleAcceptedInvitations($workspace);
         $workspace->load(['members.user', 'pendingInvitations']);
         
         // Add pending_invitations as an alias for the frontend

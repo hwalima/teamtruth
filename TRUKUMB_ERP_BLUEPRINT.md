@@ -517,7 +517,7 @@ For each subsidiary, collect before go-live:
 
 ## 14. Progress Tracker
 
-_Last reviewed: 23 November 2026. 244 automated tests pass._
+_Last reviewed: 23 November 2026. 249 automated tests pass._
 
 Legend: `[x]` done and in use · `[~]` partly built (see the note) · `[ ]` not started
 
@@ -640,6 +640,7 @@ Found while reviewing the code on 22 November 2026, most valuable first.
 
 ## 18. Change log
 
+- **23 Nov 2026:** Workspace invitations that were accepted no longer stay pending. The invitation pages ran without the web session, so accepting did not keep the person signed in and errors were never shown; accepting also failed for anyone who already had a (possibly inactive) membership row, matched emails case-sensitively and stopped when the invited role was missing. Accepting now updates the existing membership, closes every open invitation for that person, and the workspace page closes invitations for people who are already active members.
 - **23 Nov 2026:** Mzitshwa AI rebuilt. It now runs on a free OpenAI-compatible provider chosen in `.env` (`MZITSHWA_PROVIDER`: NVIDIA by default; Gemini, Groq and OpenRouter also supported; `config/mzitshwa.php`). It answers from live data across the workspace and the whole ERP (profit and loss, balance sheet, trial balance, aged receivables and payables, invoices, customers, bank balances, stock on hand, purchases, requisitions, the sales pipeline, HR and leave, and the user's pending approvals), limited to what the user's ERP role and workspace permissions allow, in the active company only. The ERP is read-only; workspace changes (create, update and assign tasks, report bugs) are only proposed and happen after the user presses Confirm, with permissions checked again. It opens from a sparkle icon in the top bar or Ctrl+/ as a side panel with history; the sidebar entry and floating button are gone. The old routes had no sign-in, so the old assistant never worked; the Groq service was removed and conversations no longer need a workspace (migration). Time logging by chat was dropped.
 - **23 Nov 2026:** Notes, Google Meetings (view and join) and the Media Library (browse, upload, download) are open to every signed-in user, whatever their role (`App\Support\GlobalPermissions`); creating meetings and deleting media stay role-based. The Contracts / Contract Types and Website & Marketing (Landing Page) menus are removed from every sidebar; their pages and data are untouched. HRM employee contracts are unaffected.
 
