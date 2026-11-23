@@ -211,6 +211,15 @@ export function useNavigation() {
                 });
             }
 
+            items.push(...buildSharedToolItems());
+
+            return items;
+        };
+
+        // ─── Shared tools: also shown inside the ERP, so they are always one click away ──
+        const buildSharedToolItems = (): NavItem[] => {
+            const items: NavItem[] = [];
+
             // Communications & Content
             if (hasPermission(permissions, 'note_view_any') || hasPermission(permissions, 'note_view')) {
                 items.push({ title: t('Notes'), href: route('notes.index'), icon: FileIcon, group: t('Communications & Content') });
@@ -247,45 +256,19 @@ export function useNavigation() {
             return items;
         };
 
-        // ─── SaaS Company User ───────────────────────────────────────────────────
-        const getSaasNavItems = (): NavItem[] => {
-            const items = buildCommonNavItems();
+        // ─── Website & Marketing and System Control (also shown inside the ERP) ──
+        const buildSystemItems = (): NavItem[] => {
+            const items: NavItem[] = [];
 
-            // Subscription & Billing
-            const planChildren = [];
-            if (hasPermission(permissions, 'plan_view_any') || hasPermission(permissions, 'plan_view')) planChildren.push({ title: t('Plans'), href: route('plans.index') });
-            if (hasPermission(permissions, 'plan_view_my_requests'))
-                planChildren.push({ title: t('My Plan Requests'), href: route('my-plan-requests.index') });
-            if (hasPermission(permissions, 'plan_view_my_orders')) planChildren.push({ title: t('My Plan Orders'), href: route('my-plan-orders.index') });
-            if (planChildren.length > 0) {
-                items.push({
-                    title: t('Plans'),
-                    icon: CreditCard,
-                    group: t('Subscription & Billing'),
-                    children: planChildren.length > 1 ? planChildren : undefined,
-                    href: planChildren.length === 1 ? planChildren[0].href : undefined,
-                });
+            if (isSaasMode) {
+                if (hasPermission(permissions, 'notification_template_view_any')) {
+                    items.push({ title: t('Notification Templates'), href: route('notification-templates.index'), icon: Bell, group: t('System Control') });
+                }
+                if (hasPermission(permissions, 'settings_view')) {
+                    items.push({ title: t('Settings'), href: route('settings'), icon: Settings, group: t('System Control') });
+                }
+                return items;
             }
-
-            // Growth
-            if (hasPermission(permissions, 'referral_view_any')) {
-                items.push({ title: t('Referral Program'), href: route('referral.index'), icon: Gift, group: t('Growth') });
-            }
-
-            // System Control
-            if (hasPermission(permissions, 'notification_template_view_any')) {
-                items.push({ title: t('Notification Templates'), href: route('notification-templates.index'), icon: Bell, group: t('System Control') });
-            }
-            if (hasPermission(permissions, 'settings_view')) {
-                items.push({ title: t('Settings'), href: route('settings'), icon: Settings, group: t('System Control') });
-            }
-
-            return items;
-        };
-
-        // ─── Non-SaaS ────────────────────────────────────────────────────────────
-        const getNonSaasNavItems = (): NavItem[] => {
-            const items = buildCommonNavItems();
 
             // Website & Marketing
             const landingChildren = [];
@@ -314,6 +297,39 @@ export function useNavigation() {
 
             return items;
         };
+
+        // ─── SaaS Company User ───────────────────────────────────────────────────
+        const getSaasNavItems = (): NavItem[] => {
+            const items = buildCommonNavItems();
+
+            // Subscription & Billing
+            const planChildren = [];
+            if (hasPermission(permissions, 'plan_view_any') || hasPermission(permissions, 'plan_view')) planChildren.push({ title: t('Plans'), href: route('plans.index') });
+            if (hasPermission(permissions, 'plan_view_my_requests'))
+                planChildren.push({ title: t('My Plan Requests'), href: route('my-plan-requests.index') });
+            if (hasPermission(permissions, 'plan_view_my_orders')) planChildren.push({ title: t('My Plan Orders'), href: route('my-plan-orders.index') });
+            if (planChildren.length > 0) {
+                items.push({
+                    title: t('Plans'),
+                    icon: CreditCard,
+                    group: t('Subscription & Billing'),
+                    children: planChildren.length > 1 ? planChildren : undefined,
+                    href: planChildren.length === 1 ? planChildren[0].href : undefined,
+                });
+            }
+
+            // Growth
+            if (hasPermission(permissions, 'referral_view_any')) {
+                items.push({ title: t('Referral Program'), href: route('referral.index'), icon: Gift, group: t('Growth') });
+            }
+
+            items.push(...buildSystemItems());
+
+            return items;
+        };
+
+        // ─── Non-SaaS ────────────────────────────────────────────────────────────
+        const getNonSaasNavItems = (): NavItem[] => [...buildCommonNavItems(), ...buildSystemItems()];
 
         // ─── ERP ─────────────────────────────────────────────────────────────────
         const getErpNavItems = (): NavItem[] => {
@@ -510,6 +526,9 @@ export function useNavigation() {
                 }
                 items.push({ title: t('Settings'), icon: Settings, group: t('Company Settings'), children: settings });
             }
+
+            // Workspace-wide tools stay reachable from inside the ERP.
+            items.push(...buildSharedToolItems(), ...buildSystemItems());
             return items;
         };
 

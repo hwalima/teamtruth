@@ -640,6 +640,8 @@ Found while reviewing the code on 22 November 2026, most valuable first.
 
 ## 18. Change log
 
+- **23 Nov 2026:** The ERP sidebar now also shows the workspace tools: Communications & Content (Notes, meetings, Contracts, Media Library, Mzitshwa AI), ICT Support, Website & Marketing and System Control (Currency, Email and Notification Templates, Settings), each under the same permissions as outside the ERP.
+
 - **23 Nov 2026:** Sales orders get a list and their own page. Goods are delivered from stock in parts (stock goes out to the Customers location), and invoices bill what was delivered plus services, with several invoices per order. Leads and opportunities get list pages with search, status tabs, edit, qualify / won / lost and delete; the Sales page becomes an overview. New tables: sal_deliveries, sal_delivery_lines, sal_sales_order_invoices; sales orders gain customer reference and notes.
 
 - **22 Nov 2026:** Quotations get full actions: edit a draft, duplicate, cancel (withdraws a pending approval) and delete, from the list and the quotation page. Each is recorded in the audit log.
