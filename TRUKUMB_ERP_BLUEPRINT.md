@@ -517,7 +517,7 @@ For each subsidiary, collect before go-live:
 
 ## 14. Progress Tracker
 
-_Last reviewed: 24 November 2026. 272 automated tests pass._
+_Last reviewed: 24 November 2026. 278 automated tests pass._
 
 Legend: `[x]` done and in use · `[~]` partly built (see the note) · `[ ]` not started
 
@@ -640,6 +640,7 @@ Found while reviewing the code on 22 November 2026, most valuable first.
 
 ## 18. Change log
 
+- **24 Nov 2026:** The media library is shared again and does not depend on the ERP company. Everyone sees every file and folder in each workspace they belong to, whoever uploaded it (before, members only saw their own uploads, and only in the workspace currently selected). Locked files, and files in locked folders, stay hidden from people without access. Locking, sharing, moving and deleting stay with the uploader and the workspace owner (`App\Support\MediaLibraryScope`).
 - **24 Nov 2026:** The company picker is now a "Choose a company to work in" screen for people in several companies: a card per company with their role there and an Open button that goes straight to that company's home (switching used to return to the list). Adding a company is tucked behind "Add a new company" and only shown to people allowed to create companies.
 - **24 Nov 2026:** Sign-in journey. Signing in now goes to a new `/start` route that picks each person's home: the ERP home of the company they last worked in (remembered on the user as `last_erp_company_id`), the company picker when they belong to several and have not chosen one, or the project dashboard when they are in no ERP company. A link opened before signing in (for example an approval) is honoured. The ERP home is now a "My work" page: approvals waiting for me, my open requisitions (with a New button) and my leave balances, then figures for the work the role covers, grouped as People (employees, leave waiting, contracts ending in 30 days), Buying & stock (approved requisitions to fulfil, open RFQs, orders waiting for delivery with overdue count) and Money (vendor bills due within 7 days, overdue customer invoices, cash in the bank per currency, bank lines to match). Each figure only appears when the role can open the page behind it. The module cards gain Invoicing and Banking, and Human Resources is no longer marked coming soon. The approvals inbox query moved into `ApprovalWorkflowService::pendingFor()` so the home and the inbox agree.
 - **24 Nov 2026:** Purchase only shows the vendor bill and payment buttons (create bill, pay a vendor, submit, post) to people who can record bills and payments. Approval workflow steps can now target any of the company's roles, even one nobody holds yet; the list shows each role's name and how many people hold it, and warns that documents cannot be submitted to that step until someone is given the role.

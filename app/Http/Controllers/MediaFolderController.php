@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\MediaAccess;
 use App\Models\MediaFolder;
+use App\Support\MediaLibraryScope;
 use App\Models\MediaItem;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -15,7 +16,7 @@ class MediaFolderController extends Controller
     {
         $user = auth()->user();
 
-        $folders = MediaFolder::where('workspace_id', $user->current_workspace_id)
+        $folders = MediaLibraryScope::visible(MediaFolder::query(), $user)
             ->orderBy('name')
             ->get()
             ->map(fn($f) => $this->formatFolder($f));
@@ -130,9 +131,11 @@ class MediaFolderController extends Controller
 
     private function resolveFolder(int $id): MediaFolder
     {
-        return MediaFolder::where('id', $id)
-            ->where('workspace_id', auth()->user()->current_workspace_id)
-            ->firstOrFail();
+        $user = auth()->user();
+        $folder = MediaLibraryScope::visible(MediaFolder::whereKey($id), $user)->firstOrFail();
+        abort_unless(MediaLibraryScope::canManage($user, $folder->workspace_id, $folder->user_id), 403, __('Only the person who created this folder or the workspace owner can change it.'));
+
+        return $folder;
     }
 
     private function formatFolder(MediaFolder $folder): array

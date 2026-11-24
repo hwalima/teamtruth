@@ -9,6 +9,7 @@ use App\Models\MediaAccess;
 use App\Services\StorageConfigService;
 use App\Services\DynamicStorageService;
 use App\Services\PlanLimitService;
+use App\Support\MediaLibraryScope;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
@@ -20,13 +21,9 @@ class MediaController extends Controller
     public function index(Request $request)
     {
         $user = auth()->user();
-        $workspaceId = $user->current_workspace_id;
-
-        $query = MediaItem::with('media');
-
-        if ($user->type !== 'superadmin' && $workspaceId) {
-            $query->where('workspace_id', $workspaceId);
-        }
+        // Shared library: every file in the person's workspaces, whoever
+        // uploaded it and whichever ERP company they are working in.
+        $query = MediaLibraryScope::visible(MediaItem::with('media'), $user);
 
         // Folder filter: pass folder_id=0 for root, or an actual folder ID
         if ($request->has('folder_id')) {
@@ -35,46 +32,16 @@ class MediaController extends Controller
         }
         
         $mediaItems = $query->latest()->get();
+        $lockedFolders = MediaFolder::whereIn('id', $mediaItems->pluck('folder_id')->filter()->unique())
+            ->where('is_locked', true)->pluck('id')->map(fn ($id): int => (int) $id)->all();
+        $mediaItems = $mediaItems->filter(fn (MediaItem $item): bool =>
+            (! $item->is_locked || $this->canAccessLocked($user, 'file', $item->id))
+            && (! in_array((int) $item->folder_id, $lockedFolders, true) || $this->canAccessLocked($user, 'folder', (int) $item->folder_id)));
 
         $media = $mediaItems->flatMap(function ($item) use ($user) {
             $mediaCollection = $item->getMedia('images');
 
-            // Filter based on user role in workspace
-            if ($user->type === 'superadmin') {
-                // Superadmin sees all media
-                $filteredMedia = $mediaCollection;
-            } elseif ($user->current_workspace_id) {
-                // Check user's role in current workspace
-                $workspaceMember = \DB::table('workspace_members')
-                    ->where('workspace_id', $user->current_workspace_id)
-                    ->where('user_id', $user->id)
-                    ->where('status', 'active')
-                    ->first();
-
-                if ($workspaceMember && $workspaceMember->role === 'owner') {
-                    // Owner sees all media from workspace members
-                    $workspaceUserIds = \DB::table('workspace_members')
-                        ->where('workspace_id', $user->current_workspace_id)
-                        ->where('status', 'active')
-                        ->pluck('user_id')
-                        ->toArray();
-                    $filteredMedia = $mediaCollection->filter(function ($media) use ($workspaceUserIds) {
-                        return in_array($media->user_id, $workspaceUserIds);
-                    });
-                } else {
-                    // Manager, member, client see only their own media
-                    $filteredMedia = $mediaCollection->filter(function ($media) use ($user) {
-                        return $media->user_id === $user->id;
-                    });
-                }
-            } else {
-                // No workspace - see only own media
-                $filteredMedia = $mediaCollection->filter(function ($media) use ($user) {
-                    return $media->user_id === $user->id;
-                });
-            }
-
-            return $filteredMedia->map(function ($media) use ($item) {
+            return $mediaCollection->map(function ($media) use ($item) {
                 try {
                     $originalUrl = $this->getFullUrl($media->getUrl());
                     $thumbUrl = $originalUrl;
@@ -106,7 +73,7 @@ class MediaController extends Controller
             })->filter(); // Remove null entries
         });
 
-        return response()->json($media);
+        return response()->json($media->values());
     }
 
     private function getFullUrl($url)
@@ -320,34 +287,8 @@ class MediaController extends Controller
     public function download($id)
     {
         $user = auth()->user();
-        $query = Media::where('id', $id);
-
-        if ($user->type === 'superadmin') {
-            // Superadmin can download any media
-        } elseif ($user->current_workspace_id) {
-            $workspaceMember = \DB::table('workspace_members')
-                ->where('workspace_id', $user->current_workspace_id)
-                ->where('user_id', $user->id)
-                ->where('status', 'active')
-                ->first();
-
-            if ($workspaceMember && $workspaceMember->role === 'owner') {
-                // Owner can download media from workspace members
-                $workspaceUserIds = \DB::table('workspace_members')
-                    ->where('workspace_id', $user->current_workspace_id)
-                    ->where('status', 'active')
-                    ->pluck('user_id')
-                    ->toArray();
-                $query->whereIn('user_id', $workspaceUserIds);
-            } else {
-                // Others can download only their own media
-                $query->where('user_id', $user->id);
-            }
-        } else {
-            $query->where('user_id', $user->id);
-        }
-
-        $media = $query->firstOrFail();
+        $media = Media::findOrFail($id);
+        $this->authorizeMedia($media, $user, manage: false);
         $mediaItem = MediaItem::find($media->model_id);
 
         // Check lock access on the file itself or its containing folder
@@ -383,34 +324,8 @@ class MediaController extends Controller
     public function destroy($id)
     {
         $user = auth()->user();
-        $query = Media::where('id', $id);
-
-        if ($user->type === 'superadmin') {
-            // Superadmin can delete any media
-        } elseif ($user->current_workspace_id) {
-            $workspaceMember = \DB::table('workspace_members')
-                ->where('workspace_id', $user->current_workspace_id)
-                ->where('user_id', $user->id)
-                ->where('status', 'active')
-                ->first();
-
-            if ($workspaceMember && $workspaceMember->role === 'owner') {
-                // Owner can delete media from workspace members
-                $workspaceUserIds = \DB::table('workspace_members')
-                    ->where('workspace_id', $user->current_workspace_id)
-                    ->where('status', 'active')
-                    ->pluck('user_id')
-                    ->toArray();
-                $query->whereIn('user_id', $workspaceUserIds);
-            } else {
-                // Others can delete only their own media
-                $query->where('user_id', $user->id);
-            }
-        } else {
-            $query->where('user_id', $user->id);
-        }
-
-        $media = $query->firstOrFail();
+        $media = Media::findOrFail($id);
+        $this->authorizeMedia($media, $user, manage: true);
         $mediaItem = $media->model;
 
         $fileSize = $media->size;
@@ -578,23 +493,32 @@ class MediaController extends Controller
 
     private function resolveMediaItem(int $mediaItemId, $user): MediaItem
     {
-        $query = MediaItem::where('id', $mediaItemId);
+        $item = MediaLibraryScope::visible(MediaItem::whereKey($mediaItemId), $user)->firstOrFail();
+        abort_unless(MediaLibraryScope::canManage($user, $item->workspace_id, $item->user_id), 403, __('Only the person who uploaded this file or the workspace owner can change it.'));
 
-        if ($user->type !== 'superadmin') {
-            $workspaceMember = \DB::table('workspace_members')
-                ->where('workspace_id', $user->current_workspace_id)
-                ->where('user_id', $user->id)
-                ->where('status', 'active')
-                ->first();
+        return $item;
+    }
 
-            if ($workspaceMember && $workspaceMember->role === 'owner') {
-                $query->where('workspace_id', $user->current_workspace_id);
-            } else {
-                $query->where('user_id', $user->id);
-            }
+    /** Library files must be visible to the person; other attachments only to whoever uploaded them. */
+    private function authorizeMedia(Media $media, $user, bool $manage): void
+    {
+        if ($user->type === 'superadmin') {
+            return;
         }
 
-        return $query->firstOrFail();
+        $item = $media->model_type === MediaItem::class || $media->model_type === (new MediaItem)->getMorphClass()
+            ? MediaLibraryScope::visible(MediaItem::whereKey($media->model_id), $user)->first()
+            : null;
+
+        if (! $item) {
+            abort_unless((int) $media->user_id === (int) $user->id, 404);
+
+            return;
+        }
+
+        if ($manage) {
+            abort_unless(MediaLibraryScope::canManage($user, $item->workspace_id, $item->user_id ?? $media->user_id), 403, __('Only the person who uploaded this file or the workspace owner can delete it.'));
+        }
     }
 
     private function canAccessLocked($user, string $type, int $resourceId): bool
@@ -603,13 +527,8 @@ class MediaController extends Controller
             return true;
         }
 
-        $workspaceMember = \DB::table('workspace_members')
-            ->where('workspace_id', $user->current_workspace_id)
-            ->where('user_id', $user->id)
-            ->where('status', 'active')
-            ->first();
-
-        if ($workspaceMember && $workspaceMember->role === 'owner') {
+        $resource = $type === 'file' ? MediaItem::find($resourceId) : MediaFolder::find($resourceId);
+        if ($resource && MediaLibraryScope::canManage($user, $resource->workspace_id, $resource->user_id)) {
             return true;
         }
 
