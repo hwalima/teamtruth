@@ -71,6 +71,8 @@ use App\Http\Controllers\GoogleMeetingController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
+Route::middleware(['auth', 'verified'])->get('start', \App\Modules\Core\Http\Controllers\StartController::class)->name('start');
+
 Route::middleware(['auth', 'verified'])->prefix('erp')->name('erp.')->group(function () {
     Route::get('companies', [\App\Modules\Core\Http\Controllers\CompanyController::class, 'index'])
         ->name('companies.index');

@@ -44,7 +44,7 @@ class AuthenticatedSessionController extends Controller
         if ($emailVerificationEnabled && !$request->user()->hasVerifiedEmail()) {
             return redirect()->route('verification.notice');
         }
-        return redirect()->route('dashboard');
+        return redirect()->intended(route('start', absolute: false));
     }
 
     /**

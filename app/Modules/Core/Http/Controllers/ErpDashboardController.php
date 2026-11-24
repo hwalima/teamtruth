@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Modules\Accounting\Models\AccountingAccount;
 use App\Modules\Accounting\Models\JournalEntry;
 use App\Modules\Core\Services\CompanyContext;
+use App\Modules\Core\Services\ErpHomeService;
 use App\Modules\Core\Services\ErpRoleService;
 use App\Modules\Inventory\Models\InventoryProduct;
 use App\Modules\Purchase\Models\PurchaseVendor;
@@ -68,13 +69,31 @@ class ErpDashboardController extends Controller
                 'status' => 'available',
             ],
             [
+                'key' => 'invoicing',
+                'name' => __('Invoicing'),
+                'description' => __('Customer invoices, credit notes, statements and receipts.'),
+                'href' => route('erp.invoicing.index'),
+                'permission' => 'erp.invoicing.view',
+                'available' => true,
+                'status' => 'available',
+            ],
+            [
+                'key' => 'banking',
+                'name' => __('Banking'),
+                'description' => __('Bank accounts, statements, transfers and reconciliation.'),
+                'href' => route('erp.banking.dashboard'),
+                'permission' => 'erp.banking.view',
+                'available' => true,
+                'status' => 'available',
+            ],
+            [
                 'key' => 'hrm',
                 'name' => __('Human Resources'),
-                'description' => __('Employee records, leave and HR workflows.'),
-                'href' => null,
-                'permission' => 'erp.hrm.view',
-                'available' => false,
-                'status' => 'planned',
+                'description' => __('Employee records, contracts, leave and HR workflows.'),
+                'href' => route('erp.hrm.employees.index'),
+                'permission' => 'erp.hrm.employee.view',
+                'available' => true,
+                'status' => 'available',
             ],
         ];
         $modules = collect($modules)
@@ -82,8 +101,13 @@ class ErpDashboardController extends Controller
             ->map(fn (array $module): array => [...$module, 'available' => $module['available'] && $allows($module['permission'])])
             ->values();
 
+        $home = app(ErpHomeService::class);
+
         return Inertia::render('Erp/Dashboard/Index', [
             'company' => $company->only(['id', 'code', 'name', 'default_currency']),
+            'userName' => $request->user()->name,
+            'myWork' => $home->myWork($company, $request->user(), $allows),
+            'tiles' => $home->tiles($company, $allows),
             'modules' => $modules,
             'canManageRoles' => $allows('erp.roles.manage'),
             'canManageMembers' => $allows('erp.members.manage'),

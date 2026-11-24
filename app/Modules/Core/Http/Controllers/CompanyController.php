@@ -99,6 +99,7 @@ class CompanyController extends Controller
             actor: $request->user(),
         );
         $request->session()->put('active_erp_company_id', $company->id);
+        $request->user()->forceFill(['last_erp_company_id' => $company->id])->saveQuietly();
 
         return redirect()->route('erp.companies.index')->with('success', __('Active company changed.'));
     }

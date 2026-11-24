@@ -26,42 +26,7 @@ class ApprovalController extends Controller
         $company = app(CompanyContext::class)->requireActiveCompany();
         $actor = $request->user();
         $service = app(ApprovalWorkflowService::class);
-        $delegatedFromIds = ApprovalDelegation::query()
-            ->where('to_user_id', $actor->id)
-            ->where('starts_at', '<=', now())
-            ->where('ends_at', '>', now())
-            ->pluck('from_user_id')
-            ->map(fn ($id): int => (int) $id);
-        $candidateUserIds = $delegatedFromIds->push((int) $actor->id)->unique()->values();
-        $candidateRoles = $company->activeUsers()
-            ->whereIn('users.id', $candidateUserIds)
-            ->pluck('company_user.role')
-            ->unique()
-            ->values();
-        $pending = ApprovalRequest::query()
-            ->where('status', ApprovalStatus::Pending->value)
-            ->whereHas('workflow.steps', function ($steps) use ($candidateUserIds, $candidateRoles): void {
-                $steps->whereColumn('approval_workflow_steps.step_order', 'approval_requests.current_step')
-                    ->where(fn ($query) => $query
-                        ->whereNull('approval_workflow_steps.min_amount')
-                        ->orWhereColumn('approval_workflow_steps.min_amount', '<=', 'approval_requests.amount'))
-                    ->where(fn ($query) => $query
-                        ->whereNull('approval_workflow_steps.max_amount')
-                        ->orWhereColumn('approval_workflow_steps.max_amount', '>=', 'approval_requests.amount'))
-                    ->where(function ($query) use ($candidateUserIds, $candidateRoles): void {
-                        $query->where(fn ($direct) => $direct
-                            ->where('approver_type', 'user')
-                            ->whereIn('approver_id', $candidateUserIds))
-                            ->orWhere(fn ($role) => $role
-                                ->where('approver_type', 'role')
-                                ->whereIn('approver_id', $candidateRoles));
-                    });
-            })
-            ->with(['workflow.steps', 'requester:id,name', 'actions.actor:id,name', 'actions.step'])
-            ->orderBy('submitted_at')
-            ->get()
-            ->filter(fn (ApprovalRequest $approval): bool => $service->canAct($approval, $actor))
-            ->values();
+        $pending = $service->pendingFor($company, $actor);
 
         return Inertia::render('Erp/Approvals/Inbox', [
             'approvals' => $this->paginate($pending, $request),

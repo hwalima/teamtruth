@@ -40,6 +40,9 @@ class ResolveActiveCompany
         }
 
         $this->companyContext->setActiveCompany($company);
+        if ((int) $user->last_erp_company_id !== (int) $company->id) {
+            $user->forceFill(['last_erp_company_id' => $company->id])->saveQuietly();
+        }
 
         return $next($request);
     }
