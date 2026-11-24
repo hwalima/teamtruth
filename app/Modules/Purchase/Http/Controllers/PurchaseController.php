@@ -44,6 +44,7 @@ class PurchaseController extends Controller
 
         return Inertia::render('Erp/Purchase/Index', [
             'company' => $company->only(['id', 'code', 'name', 'default_currency']),
+            'canBills' => app(ErpRoleService::class)->allows($company, $request->user(), 'erp.purchase.bills'),
             'vendors' => PurchaseVendor::query()->where('is_active', true)->orderBy('name')->get(),
             'nextVendorCode' => PurchaseVendor::nextCode(),
             'products' => InventoryProduct::query()

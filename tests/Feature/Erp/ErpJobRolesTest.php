@@ -138,3 +138,28 @@ test('existing roles keep paying vendors and terminating staff after the split',
         ->and($finance->fresh()->permissions)->toContain('erp.purchase.bills')
         ->and($company->erpRoles()->where('slug', 'finance-clerk')->exists())->toBeTrue();
 });
+
+test('bill and payment buttons only show to people who can record them', function () {
+    $this->actingAs(withJobRole($this->company, 'procurement-officer'))->withSession(['active_erp_company_id' => $this->company->id])
+        ->get(route('erp.purchase.index'))->assertInertia(fn ($page) => $page->where('canBills', false));
+
+    $this->actingAs(withJobRole($this->company, 'finance-clerk'))->withSession(['active_erp_company_id' => $this->company->id])
+        ->get(route('erp.purchase.index'))->assertInertia(fn ($page) => $page->where('canBills', true));
+});
+
+test('an approval step can target a company role before anyone holds it', function () {
+    \App\Models\Currency::create(['name' => 'US Dollar', 'code' => 'USD', 'symbol' => '$']);
+    $owner = withJobRole($this->company, 'owner');
+    $this->actingAs($owner)->withSession(['active_erp_company_id' => $this->company->id]);
+
+    $this->get(route('erp.approvals.workflows.index'))->assertInertia(fn ($page) => $page
+        ->where('roles', fn ($roles) => collect($roles)->contains(fn ($role) => $role['slug'] === 'finance-clerk' && $role['name'] === 'Finance Clerk' && $role['holders'] === 0)));
+
+    $step = ['approver_type' => 'role', 'min_amount' => null, 'max_amount' => null, 'require_all' => false];
+    $workflow = ['name' => 'Bill approval', 'approvable_type' => 'App\Modules\Purchase\Models\PurchaseOrder', 'currency_code' => 'USD', 'is_active' => true];
+
+    $this->post(route('erp.approvals.workflows.store'), [...$workflow, 'steps' => [[...$step, 'approver_id' => 'finance-clerk']]])
+        ->assertSessionHasNoErrors();
+    $this->post(route('erp.approvals.workflows.store'), [...$workflow, 'steps' => [[...$step, 'approver_id' => 'no-such-role']]])
+        ->assertSessionHasErrors('steps');
+});

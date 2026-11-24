@@ -168,6 +168,7 @@ type VendorPriceList = {
 };
 type Props = {
     company: { id: number; code: string; name: string; default_currency: string };
+    canBills: boolean;
     nextVendorCode: string;
     vendors: Vendor[];
     products: Product[];
@@ -259,9 +260,11 @@ export default function PurchaseIndex(props: Props) {
                         <button type="button" onClick={() => setAddingVendor(true)} className={secondaryButton}>
                             Add vendor
                         </button>
-                        <a href={route('erp.purchase.payments.create')} className={secondaryButton}>
-                            Pay a vendor
-                        </a>
+                        {props.canBills && (
+                            <a href={route('erp.purchase.payments.create')} className={secondaryButton}>
+                                Pay a vendor
+                            </a>
+                        )}
                     </div>
                     <VendorFormDialog
                         open={addingVendor}
@@ -466,7 +469,7 @@ export default function PurchaseIndex(props: Props) {
                                             <strong>{receipt.document_number}</strong> — Received {new Date(receipt.received_at).toLocaleDateString()}
                                             ({receipt.lines.length} line(s))
                                         </span>
-                                        {['approved', 'partially_received', 'received'].includes(order.status) && (
+                                        {props.canBills && ['approved', 'partially_received', 'received'].includes(order.status) && (
                                             <a
                                                 href={route('erp.purchase.orders.bills.create', [order.id, receipt.id])}
                                                 className={secondaryButton}
@@ -494,9 +497,11 @@ export default function PurchaseIndex(props: Props) {
             <section id="bills" className="scroll-mt-20 space-y-4">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                     <h2 className="text-xl font-semibold">Vendor bills</h2>
-                    <a href={route('erp.purchase.payments.create')} className={secondaryButton}>
-                        Create payment
-                    </a>
+                    {props.canBills && (
+                        <a href={route('erp.purchase.payments.create')} className={secondaryButton}>
+                            Create payment
+                        </a>
+                    )}
                 </div>
                 {props.bills.map((bill) => (
                     <article key={bill.id} className="bg-card/70 min-w-0 space-y-3 rounded-xl border p-4 sm:p-5">
@@ -540,14 +545,14 @@ export default function PurchaseIndex(props: Props) {
                                 </tbody>
                             </table>
                         </div>
-                        {bill.status === 'draft' && (
+                        {props.canBills && bill.status === 'draft' && (
                             <div className="flex gap-2">
                                 <form action={route('erp.purchase.bills.submit', bill.id)} method="POST">
                                     <button type="submit" className={secondaryButton}>Submit for approval</button>
                                 </form>
                             </div>
                         )}
-                        {bill.status === 'approved' && bill.posted_at === null && (
+                        {props.canBills && bill.status === 'approved' && bill.posted_at === null && (
                             <div className="flex gap-2">
                                 <form action={route('erp.purchase.bills.post', bill.id)} method="POST">
                                     <button type="submit" className={secondaryButton}>Post to accounting</button>
@@ -590,7 +595,7 @@ export default function PurchaseIndex(props: Props) {
                                 </ul>
                             </div>
                         )}
-                        {payment.status === 'draft' && (
+                        {props.canBills && payment.status === 'draft' && (
                             <form action={route('erp.purchase.payments.post', payment.id)} method="POST">
                                 <button type="submit" className={secondaryButton}>Post to accounting</button>
                             </form>

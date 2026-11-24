@@ -6,6 +6,8 @@ import { route } from 'ziggy-js';
 const REQUISITION_MODEL = 'App\\Modules\\Requisitions\\Models\\Requisition';
 const PURCHASE_ORDER_MODEL = 'App\\Modules\\Purchase\\Models\\PurchaseOrder';
 
+type RoleOption = { slug: string; name: string; holders: number };
+
 type Member = { id: number; name: string; email: string; role: string };
 type Currency = { code: string; name: string };
 type Step = {
@@ -32,7 +34,7 @@ type Workflow = {
 type Props = {
     workflows: Workflow[];
     members: Member[];
-    roles: string[];
+    roles: RoleOption[];
     currencies: Currency[];
 };
 
@@ -111,7 +113,7 @@ export default function Workflows({ workflows, members, roles, currencies }: Pro
                                 <li key={step.step_order} className="rounded border p-3 text-sm">
                                     <strong>Step {step.step_order}</strong>:{' '}
                                     {step.approver_type === 'role'
-                                        ? `Role: ${step.approver_id}`
+                                        ? `Role: ${roles.find((role) => role.slug === step.approver_id)?.name ?? step.approver_id}`
                                         : (members.find((member) => member.id.toString() === step.approver_id)?.name ?? `User ${step.approver_id}`)}
                                     {(step.min_amount || step.max_amount) && (
                                         <p className="text-muted-foreground mt-1">
@@ -140,7 +142,7 @@ function WorkflowForm({
 }: {
     initial?: Workflow;
     members: Member[];
-    roles: string[];
+    roles: RoleOption[];
     currencies: Currency[];
     onSaved?: () => void;
 }) {
@@ -272,7 +274,7 @@ function WorkflowForm({
                                     const approver_type = event.target.value as 'user' | 'role';
                                     updateStep(index, {
                                         approver_type,
-                                        approver_id: approver_type === 'user' ? (members[0]?.id.toString() ?? '') : (roles[0] ?? ''),
+                                        approver_id: approver_type === 'user' ? (members[0]?.id.toString() ?? '') : (roles[0]?.slug ?? ''),
                                     });
                                 }}
                                 className="bg-background rounded-md border px-3 py-2"
@@ -296,11 +298,16 @@ function WorkflowForm({
                                           </option>
                                       ))
                                     : roles.map((role) => (
-                                          <option key={role} value={role}>
-                                              {role}
+                                          <option key={role.slug} value={role.slug}>
+                                              {role.name} — {role.holders === 0 ? 'nobody holds it yet' : `${role.holders} ${role.holders === 1 ? 'person' : 'people'}`}
                                           </option>
                                       ))}
                             </select>
+                            {step.approver_type === 'role' && roles.find((role) => role.slug === step.approver_id)?.holders === 0 && (
+                                <span className="text-muted-foreground text-xs">
+                                    Give someone this role under Members before documents reach this step, or they cannot be submitted.
+                                </span>
+                            )}
                             {errors[`steps.${index}.approver_id`] && <span className="text-destructive">{errors[`steps.${index}.approver_id`]}</span>}
                         </label>
                         <label className="flex items-center gap-2 self-end text-sm">
@@ -374,12 +381,12 @@ function WorkflowForm({
     );
 }
 
-function newStep(members: Member[], roles: string[]): Step {
+function newStep(members: Member[], roles: RoleOption[]): Step {
     const member = members[0];
     return {
         step_order: 1,
         approver_type: 'user',
-        approver_id: member?.id.toString() ?? roles[0] ?? '',
+        approver_id: member?.id.toString() ?? roles[0]?.slug ?? '',
         min_amount: '',
         max_amount: '',
         require_all: false,

@@ -43,7 +43,7 @@ class ApprovalWorkflowController extends Controller
                     'email' => $user->email,
                     'role' => $user->pivot->role,
                 ]),
-            'roles' => $company->activeUsers()->pluck('company_user.role')->unique()->values(),
+            'roles' => $this->roleOptions($company),
             'currencies' => Currency::query()->orderBy('code')->get(['code', 'name']),
         ]);
     }
@@ -196,7 +196,10 @@ class ApprovalWorkflowController extends Controller
             if ($step['approver_type'] === 'user') {
                 $eligible = $company->activeUsers()->whereKey((int) $step['approver_id'])->exists();
             } else {
-                $eligible = $company->activeUsers()->wherePivot('role', $step['approver_id'])->exists();
+                // Any of the company's roles, even one nobody holds yet; submissions
+                // explain the gap until someone is given it.
+                $eligible = $company->erpRoles()->where('slug', $step['approver_id'])->exists()
+                    || $company->activeUsers()->wherePivot('role', $step['approver_id'])->exists();
             }
             if (! $eligible) {
                 throw ValidationException::withMessages([
@@ -272,5 +275,29 @@ class ApprovalWorkflowController extends Controller
     private function authorizeManagement(Request $request, Company $company): void
     {
         app(ErpRoleService::class)->authorize($company, $request->user(), 'erp.approvals.manage');
+    }
+
+    /**
+     * Every role the company has, with how many active people hold it, so a step
+     * can be set up for a role before anyone is given it.
+     *
+     * @return list<array{slug: string, name: string, holders: int}>
+     */
+    private function roleOptions(Company $company): array
+    {
+        $holders = $company->activeUsers()->pluck('company_user.role')->countBy();
+        $roles = $company->erpRoles()->orderBy('name')->get(['slug', 'name'])
+            ->mapWithKeys(fn ($role): array => [$role->slug => $role->name]);
+        foreach ($holders->keys() as $slug) {
+            if (! $roles->has($slug)) {
+                $roles->put($slug, ucwords(str_replace(['-', '_'], ' ', (string) $slug)));
+            }
+        }
+
+        return $roles->map(fn (string $name, string $slug): array => [
+            'slug' => $slug,
+            'name' => $name,
+            'holders' => (int) ($holders[$slug] ?? 0),
+        ])->values()->all();
     }
 }

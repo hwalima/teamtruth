@@ -517,7 +517,7 @@ For each subsidiary, collect before go-live:
 
 ## 14. Progress Tracker
 
-_Last reviewed: 23 November 2026. 263 automated tests pass._
+_Last reviewed: 24 November 2026. 265 automated tests pass._
 
 Legend: `[x]` done and in use · `[~]` partly built (see the note) · `[ ]` not started
 
@@ -640,6 +640,7 @@ Found while reviewing the code on 22 November 2026, most valuable first.
 
 ## 18. Change log
 
+- **24 Nov 2026:** Purchase only shows the vendor bill and payment buttons (create bill, pay a vendor, submit, post) to people who can record bills and payments. Approval workflow steps can now target any of the company's roles, even one nobody holds yet; the list shows each role's name and how many people hold it, and warns that documents cannot be submitted to that step until someone is given the role.
 - **23 Nov 2026:** Roles audit. Every company now gets five ready-made job roles beside Owner, Admin, Finance, Manager and Member: **HR Manager** (all of HR), **HR Officer** (employee records and documents, leave, contracts and org structure to view; no pay, terminations or leave approval), **Stores Manager** (requisition approval, purchasing, inventory and stock), **Procurement Officer** (RFQs, purchase orders and receipts, inventory to view) and **Finance Clerk** (vendor bills and payments, invoices and bank entries; no ledger, approvals or settings). All five can raise requisitions and act on their approval steps, and every role can be edited under Members and Roles. Two permissions were split out so junior roles can have buying or HR admin without the sensitive part: *Record and post vendor bills and payments* (`erp.purchase.bills`) and *Terminate, rehire and delete employees* (`erp.hrm.employee.terminate`); a migration gives them to every role that had the broader permission, so nobody loses access. Data Import is now only open to people who can import at least one kind of record. Workspace side: invited members no longer bypass their role in screens that check permissions (the old rule let any account of type "company" through); the workspace owner and super admins keep full access, everyone else gets what their member role grants. The expense approval and timesheet screens now check permissions that exist (they checked five names that were never seeded, so no role could be given them).
 - **23 Nov 2026:** Banking date filters default to the current date: a bank statement with no dates chosen runs up to today (or later, only when lines are dated in the future) instead of stopping at the last line, and the dashboard's One month picker shows the current month instead of being blank.
 - **23 Nov 2026:** Workspace invitations that were accepted no longer stay pending. The invitation pages ran without the web session, so accepting did not keep the person signed in and errors were never shown; accepting also failed for anyone who already had a (possibly inactive) membership row, matched emails case-sensitively and stopped when the invited role was missing. Accepting now updates the existing membership, closes every open invitation for that person, and the workspace page closes invitations for people who are already active members.
