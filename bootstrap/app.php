@@ -33,6 +33,17 @@ return Application::configure(basePath: dirname(__DIR__))
             PreventWebResponseCaching::class,
         ]);
 
+        // routes/api.php holds the JSON endpoints the app's own pages call
+        // (media library, notifications, assistant ...). They are reached
+        // from the signed-in browser, so they need the login session and
+        // CSRF protection, but not the Inertia page middleware.
+        $middleware->api(prepend: [
+            \Illuminate\Cookie\Middleware\EncryptCookies::class,
+            \Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse::class,
+            \Illuminate\Session\Middleware\StartSession::class,
+            \Illuminate\Foundation\Http\Middleware\ValidateCsrfToken::class,
+        ]);
+
         $middleware->alias([
             'erp.company' => \App\Modules\Core\Http\Middleware\ResolveActiveCompany::class,
             'erp.permission' => \App\Modules\Core\Http\Middleware\RequireErpPermission::class,
