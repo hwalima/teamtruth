@@ -110,3 +110,20 @@ test('the HR manager sees people figures and the HR module', function () {
             ->where('tiles', fn ($tiles) => collect($tiles)->pluck('key')->sort()->values()->all() === ['contracts-ending', 'employees', 'leave-to-approve'])
             ->where('modules', fn ($modules) => collect($modules)->firstWhere('key', 'hrm')['available'] === true));
 });
+
+test('the company picker shows my role in each company and opening one goes to its home', function () {
+    $other = Company::create(['code' => 'ACM', 'name' => 'Acme Holdings', 'default_currency' => 'USD']);
+    app(ErpRoleService::class)->createDefaultRoles($other);
+    $user = memberOf($this->company, 'finance-clerk');
+    memberOf($other, 'hr-officer', $user);
+
+    $this->actingAs($user)->get(route('erp.companies.index'))
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Erp/Companies/Index')
+            ->where('erpContext.activeCompany', null)
+            ->where("roles.{$this->company->id}", 'Finance Clerk')
+            ->where("roles.{$other->id}", 'HR Officer')
+            ->where('canCreate', false));
+
+    $this->post(route('erp.companies.switch', $other))->assertRedirect(route('erp.dashboard'));
+});

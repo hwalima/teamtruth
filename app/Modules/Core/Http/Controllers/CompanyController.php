@@ -12,6 +12,7 @@ use App\Modules\Core\Services\ErpRoleService;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -49,6 +50,8 @@ class CompanyController extends Controller
                     ? $roleService->permissionsFor($activeCompany, $request->user())
                     : [],
             ],
+            'roles' => $this->roleNamesFor($request, $companies),
+            'canCreate' => $request->user()->can('erp.company.create'),
             'canManageMembers' => $activeCompany !== null && $roleService->allows($activeCompany, $request->user(), 'erp.members.manage'),
             'canManageRoles' => $activeCompany !== null && $roleService->allows($activeCompany, $request->user(), 'erp.roles.manage'),
         ]);
@@ -101,7 +104,10 @@ class CompanyController extends Controller
         $request->session()->put('active_erp_company_id', $company->id);
         $request->user()->forceFill(['last_erp_company_id' => $company->id])->saveQuietly();
 
-        return redirect()->route('erp.companies.index')->with('success', __('Active company changed.'));
+        // Straight into the company's home, as signing in would.
+        return app(ErpRoleService::class)->allows($company, $request->user(), 'erp.dashboard.view')
+            ? redirect()->route('erp.dashboard')->with('success', __('Now working in :company.', ['company' => $company->name]))
+            : redirect()->route('erp.companies.index')->with('success', __('Active company changed.'));
     }
 
     public function sampleDocument(): \Symfony\Component\HttpFoundation\Response
@@ -113,6 +119,24 @@ class CompanyController extends Controller
         return response($contents)
             ->header('Content-Type', 'application/pdf')
             ->header('Content-Disposition', 'inline; filename="company-brand-preview.pdf"');
+    }
+
+    /**
+     * The name of the person's role in each of their companies, by company id.
+     *
+     * @return array<int, string>
+     */
+    private function roleNamesFor(Request $request, Collection $companies): array
+    {
+        $memberships = DB::table('company_user')
+            ->leftJoin('company_erp_roles', 'company_erp_roles.id', '=', 'company_user.erp_role_id')
+            ->where('company_user.user_id', $request->user()->getKey())
+            ->whereIn('company_user.company_id', $companies->pluck('id'))
+            ->get(['company_user.company_id', 'company_user.role', 'company_erp_roles.name']);
+
+        return $memberships->mapWithKeys(fn ($membership): array => [
+            (int) $membership->company_id => $membership->name ?? ucwords(str_replace(['-', '_'], ' ', (string) $membership->role)),
+        ])->all();
     }
 
     private function companiesFor(Request $request): Collection
