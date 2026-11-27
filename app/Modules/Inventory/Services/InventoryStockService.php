@@ -179,6 +179,7 @@ class InventoryStockService
                 || ($source?->usage === 'internal' && $destination?->usage === 'adjustment'),
             'scrap' => $source?->usage === 'internal' && $destination?->usage === 'scrap',
             'return' => $source?->usage === 'internal' && $destination?->usage === 'supplier',
+            'customer_return' => $source?->usage === 'customer' && $destination?->usage === 'internal',
             default => false,
         };
 

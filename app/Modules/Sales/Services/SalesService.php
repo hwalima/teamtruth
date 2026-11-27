@@ -568,6 +568,7 @@ class SalesService
                 'unit_price' => $pair[0]->unit_price,
                 'discount_percent' => $pair[0]->discount,
                 'tax_rate' => $pair[0]->tax_rate,
+                'metadata' => ['sales_order_line_id' => $pair[0]->id],
             ])->all());
             foreach ($toInvoice as [$line, $quantity]) {
                 $line->update(['invoiced_quantity' => bcadd((string) $line->invoiced_quantity, $quantity, 4)]);
@@ -624,6 +625,7 @@ class SalesService
             $delivery = Delivery::query()->create([
                 'company_id' => $company->id,
                 'sales_order_id' => $order->id,
+                'kind' => Delivery::KIND_DELIVERY,
                 'document_number' => $this->sequenceService->next($company, 'sales_delivery'),
                 'delivered_by' => $actor->id,
                 'delivered_at' => now(),
@@ -682,6 +684,96 @@ class SalesService
             ], actor: $actor);
 
             return $delivery->load('lines');
+        });
+    }
+
+    /**
+     * Take goods back from the customer: they leave the customer location for a store location,
+     * the order line counts them as no longer delivered, and the order goes back to part delivered.
+     * Anything already invoiced stays invoiced; the result says so, so a credit note can be raised.
+     *
+     * @param  array<int, array{sales_order_line_id: int, quantity: string|float|int, location_id?: int|null, lot_code?: string|null}>  $lines
+     * @return array{return: Delivery, invoiced_quantity_returned: bool}
+     */
+    public function returnFromCustomer(SalesOrder $salesOrder, User $actor, array $lines, string $reason): array
+    {
+        $company = $this->companyContext->requireActiveCompany();
+        if ((int) $salesOrder->company_id !== (int) $company->id) {
+            throw new AuthorizationException('Sales order does not belong to the active company.');
+        }
+
+        return DB::transaction(function () use ($company, $salesOrder, $actor, $lines, $reason): array {
+            $order = SalesOrder::query()->lockForUpdate()->findOrFail($salesOrder->id);
+            if (! in_array($order->status, ['partially_delivered', 'delivered'], true)) {
+                throw ValidationException::withMessages(['sales_order' => 'Only orders with goods delivered can take a return.']);
+            }
+            $orderLines = $order->lines()->with('product')->lockForUpdate()->get()->keyBy('id');
+            $wanted = collect($lines)->filter(fn (array $line): bool => bccomp((string) ($line['quantity'] ?? '0'), '0', 4) > 0)->values();
+            if ($wanted->isEmpty()) {
+                throw ValidationException::withMessages(['lines' => 'Enter a quantity coming back on at least one line.']);
+            }
+
+            $return = Delivery::query()->create([
+                'company_id' => $company->id,
+                'sales_order_id' => $order->id,
+                'kind' => Delivery::KIND_RETURN,
+                'document_number' => $this->sequenceService->next($company, 'sales_return'),
+                'delivered_by' => $actor->id,
+                'delivered_at' => now(),
+                'notes' => $reason,
+            ]);
+            $alreadyInvoiced = false;
+
+            foreach ($wanted as $index => $input) {
+                /** @var SalesOrderLine|null $line */
+                $line = $orderLines->get((int) $input['sales_order_line_id']);
+                if (! $line || ! $line->needsDelivery()) {
+                    throw ValidationException::withMessages(["lines.{$index}.sales_order_line_id" => 'Only goods delivered on this order can come back.']);
+                }
+                $quantity = bcadd((string) $input['quantity'], '0', 4);
+                if (bccomp($quantity, (string) $line->delivered_quantity, 4) > 0) {
+                    throw ValidationException::withMessages(["lines.{$index}.quantity" => "Only {$this->trimZeros((string) $line->delivered_quantity)} of \"{$line->description}\" has been delivered."]);
+                }
+                $store = StockLocation::query()->where('usage', 'internal')->find($input['location_id'] ?? null);
+                if (! $store) {
+                    throw ValidationException::withMessages(["lines.{$index}.location_id" => 'Choose the store location the goods come back to.']);
+                }
+                $lotCode = blank($input['lot_code'] ?? null) ? null : trim((string) $input['lot_code']);
+
+                $move = app(InventoryStockService::class)->postMovement($company, $actor, [
+                    'operation' => 'customer_return',
+                    'product_id' => $line->product_id,
+                    'from_location_id' => $this->customerLocation($store)->id,
+                    'to_location_id' => $store->id,
+                    'quantity' => $quantity,
+                    'lot_code' => $lotCode,
+                    'reference' => $order->document_number.' / '.$return->document_number,
+                ]);
+                $return->lines()->create([
+                    'company_id' => $company->id,
+                    'sales_order_line_id' => $line->id,
+                    'stock_move_id' => $move->id,
+                    'from_location_id' => $store->id,
+                    'quantity' => $quantity,
+                    'lot_code' => $lotCode,
+                ]);
+                $line->delivered_quantity = bcsub((string) $line->delivered_quantity, $quantity, 4);
+                $line->save();
+                $alreadyInvoiced = $alreadyInvoiced || bccomp((string) $line->invoiced_quantity, (string) $line->delivered_quantity, 4) > 0;
+            }
+
+            $goods = $orderLines->filter(fn (SalesOrderLine $line): bool => $line->needsDelivery());
+            $nothingOut = $goods->every(fn (SalesOrderLine $line): bool => bccomp((string) $line->delivered_quantity, '0', 4) <= 0);
+            $before = $order->status;
+            $order->update(['status' => $nothingOut ? SalesOrderStatus::Approved->value : SalesOrderStatus::PartiallyDelivered->value]);
+            app(AuditLogService::class)->record($company, 'sales.order.returned', $return, changes: [
+                'sales_order_id' => $order->id,
+                'reason' => $reason,
+                'status' => ['old' => $before, 'new' => $order->status],
+                'lines' => $return->lines()->get(['sales_order_line_id', 'quantity', 'from_location_id'])->toArray(),
+            ], actor: $actor);
+
+            return ['return' => $return->load('lines'), 'invoiced_quantity_returned' => $alreadyInvoiced];
         });
     }
 

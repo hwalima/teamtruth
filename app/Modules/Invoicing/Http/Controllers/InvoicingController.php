@@ -10,6 +10,7 @@ use App\Modules\Accounting\Models\AccountingJournal;
 use App\Modules\Core\Services\CompanyContext;
 use App\Modules\Core\Services\DocumentRenderer;
 use App\Modules\Inventory\Models\InventoryProduct;
+use App\Modules\Invoicing\Events\InvoiceCancelled;
 use App\Modules\Invoicing\Http\Requests\StoreInvoiceRequest;
 use App\Modules\Invoicing\Http\Requests\UpdateInvoiceRequest;
 use App\Modules\Invoicing\Models\Customer;
@@ -363,6 +364,7 @@ class InvoicingController extends Controller
             'status' => 'cancelled',
             'updated_by' => $request->user()->id,
         ]);
+        InvoiceCancelled::dispatch($invoice, $request->user());
 
         return back()->with('success', 'Invoice cancelled successfully.');
     }

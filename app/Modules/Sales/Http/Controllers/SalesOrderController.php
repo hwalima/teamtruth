@@ -4,6 +4,7 @@ namespace App\Modules\Sales\Http\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Modules\Core\Services\CompanyContext;
+use App\Modules\Core\Services\DocumentRenderer;
 use App\Modules\Inventory\Models\StockLocation;
 use App\Modules\Inventory\Services\InventoryStockService;
 use App\Modules\Sales\Models\Delivery;
@@ -12,6 +13,7 @@ use App\Modules\Sales\Models\SalesOrderLine;
 use App\Modules\Sales\Services\SalesService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response as HttpResponse;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -119,6 +121,7 @@ class SalesOrderController extends Controller
                 ]),
                 'deliveries' => $salesOrder->deliveries->map(fn (Delivery $delivery) => [
                     'id' => $delivery->id,
+                    'kind' => $delivery->kind ?? Delivery::KIND_DELIVERY,
                     'document_number' => $delivery->document_number,
                     'delivered_at' => $delivery->delivered_at?->toIso8601String(),
                     'delivered_by' => $delivery->deliveredBy?->name,
@@ -137,6 +140,8 @@ class SalesOrderController extends Controller
                 ...$this->progress($salesOrder),
                 ...$this->flags($salesOrder),
             ],
+            // Store locations returned goods can go back to.
+            'locations' => $locations->values()->map(fn (StockLocation $location) => ['id' => $location->id, 'label' => $location->code.' · '.$location->name]),
             'canManage' => $this->allowsErpPermission('erp.sales.manage'),
             'canInvoice' => $this->allowsErpPermission('erp.invoicing.view'),
         ]);
@@ -156,6 +161,39 @@ class SalesOrderController extends Controller
         $delivery = $this->salesService->deliverSalesOrder($salesOrder, $request->user(), $data['lines'], $data['notes'] ?? null);
 
         return back()->with('success', 'Delivery '.$delivery->document_number.' recorded and stock updated.');
+    }
+
+    public function returnGoods(Request $request, SalesOrder $salesOrder): RedirectResponse
+    {
+        $this->authorizeErpPermission('erp.sales.manage');
+        $data = $request->validate([
+            'reason' => ['required', 'string', 'max:2000'],
+            'lines' => ['required', 'array', 'min:1', 'max:200'],
+            'lines.*.sales_order_line_id' => ['required', 'integer'],
+            'lines.*.quantity' => ['nullable', 'numeric', 'min:0'],
+            'lines.*.location_id' => ['nullable', 'integer'],
+            'lines.*.lot_code' => ['nullable', 'string', 'max:100'],
+        ]);
+        $result = $this->salesService->returnFromCustomer($salesOrder, $request->user(), $data['lines'], $data['reason']);
+        $message = 'Return '.$result['return']->document_number.' recorded and the goods are back in stock.';
+        if ($result['invoiced_quantity_returned']) {
+            $message .= ' Some of these goods were already invoiced: raise a credit note for them in Invoicing.';
+        }
+
+        return back()->with('success', $message);
+    }
+
+    /** The delivery note (or return note) as a branded PDF, to go with the goods and be signed. */
+    public function deliveryPdf(SalesOrder $salesOrder, Delivery $delivery, DocumentRenderer $renderer): HttpResponse
+    {
+        abort_unless((int) $delivery->sales_order_id === (int) $salesOrder->id, 404);
+        $delivery->loadMissing(['salesOrder.customer', 'deliveredBy', 'lines.orderLine.product.unit', 'lines.location']);
+        $name = ($delivery->isReturn() ? 'return-note-' : 'delivery-note-').preg_replace('/[^A-Za-z0-9_-]+/', '-', $delivery->document_number).'.pdf';
+
+        return response($renderer->render($delivery, 'pdf.documents.delivery-note'), 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'inline; filename="'.$name.'"',
+        ]);
     }
 
     public function invoice(Request $request, SalesOrder $salesOrder): RedirectResponse
@@ -209,6 +247,7 @@ class SalesOrderController extends Controller
         return [
             'can_submit' => $order->status === 'draft',
             'can_deliver' => in_array($order->status, ['approved', 'partially_delivered'], true) && $order->lines->contains(fn (SalesOrderLine $line) => $line->needsDelivery()),
+            'can_return' => in_array($order->status, ['partially_delivered', 'delivered'], true) && $order->lines->contains(fn (SalesOrderLine $line) => $line->needsDelivery() && bccomp((string) $line->delivered_quantity, '0', 4) > 0),
             'can_cancel' => in_array($order->status, ['draft', 'pending_approval', 'approved'], true) && $untouched,
             'can_delete' => in_array($order->status, ['draft', 'cancelled'], true) && $untouched && (int) $order->approval_requests_count === 0,
         ];

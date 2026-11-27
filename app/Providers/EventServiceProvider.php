@@ -72,6 +72,8 @@ use App\Modules\Accounting\Listeners\PostInvoiceToLedger;
 use App\Modules\Invoicing\Events\CreditNoteIssued;
 use App\Modules\Invoicing\Events\InvoicePaymentRecorded;
 use App\Modules\Invoicing\Events\InvoicePosted;
+use App\Modules\Invoicing\Events\InvoiceCancelled;
+use App\Modules\Sales\Listeners\ReleaseInvoicedQuantities;
 use Illuminate\Foundation\Support\Providers\EventServiceProvider as ServiceProvider;
 
 class EventServiceProvider extends ServiceProvider
@@ -175,6 +177,9 @@ class EventServiceProvider extends ServiceProvider
         ],
         CreditNoteIssued::class => [
             PostCreditNoteToLedger::class,
+        ],
+        InvoiceCancelled::class => [
+            ReleaseInvoicedQuantities::class,
         ],
 
     ];

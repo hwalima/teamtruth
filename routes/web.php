@@ -435,6 +435,8 @@ Route::middleware(['auth', 'verified'])->prefix('erp')->name('erp.')->group(func
             Route::get('orders', [\App\Modules\Sales\Http\Controllers\SalesOrderController::class, 'index'])->name('orders.index');
             Route::get('orders/{salesOrder}', [\App\Modules\Sales\Http\Controllers\SalesOrderController::class, 'show'])->name('orders.show');
             Route::post('orders/{salesOrder}/deliveries', [\App\Modules\Sales\Http\Controllers\SalesOrderController::class, 'deliver'])->middleware('erp.permission:erp.sales.manage')->name('orders.deliver');
+            Route::post('orders/{salesOrder}/returns', [\App\Modules\Sales\Http\Controllers\SalesOrderController::class, 'returnGoods'])->middleware('erp.permission:erp.sales.manage')->name('orders.returns.store');
+            Route::get('orders/{salesOrder}/deliveries/{delivery}/pdf', [\App\Modules\Sales\Http\Controllers\SalesOrderController::class, 'deliveryPdf'])->name('orders.deliveries.pdf');
             Route::post('orders/{salesOrder}/invoice', [\App\Modules\Sales\Http\Controllers\SalesOrderController::class, 'invoice'])->middleware('erp.permission:erp.sales.manage')->name('orders.invoice');
             Route::post('orders/{salesOrder}/cancel', [\App\Modules\Sales\Http\Controllers\SalesOrderController::class, 'cancel'])->middleware('erp.permission:erp.sales.manage')->name('orders.cancel');
             Route::delete('orders/{salesOrder}', [\App\Modules\Sales\Http\Controllers\SalesOrderController::class, 'destroy'])->middleware('erp.permission:erp.sales.manage')->name('orders.destroy');

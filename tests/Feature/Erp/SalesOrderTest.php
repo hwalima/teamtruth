@@ -215,3 +215,76 @@ test('an order from another company cannot be opened', function () {
 
     $this->withSession(['active_erp_company_id' => $other->id])->get(route('erp.sales.orders.show', $order))->assertNotFound();
 });
+
+test('cancelling an invoice gives its quantities back to the order', function () {
+    $order = approvedOrder();
+    [$goods, $service] = [$order->lines[0], $order->lines[1]];
+    $this->post(route('erp.sales.orders.deliver', $order), ['lines' => [
+        ['sales_order_line_id' => $goods->id, 'quantity' => '4', 'location_id' => $this->store->id],
+    ]]);
+    $this->post(route('erp.sales.orders.invoice', $order))->assertSessionHasNoErrors();
+    $invoice = Invoice::query()->sole();
+    expect($goods->fresh()->invoiced_quantity)->toBe('4.0000')
+        ->and($invoice->lines()->first()->metadata['sales_order_line_id'])->toBe($goods->id);
+
+    $this->post(route('erp.invoicing.cancel', $invoice))->assertSessionHas('success');
+
+    expect($invoice->fresh()->status)->toBe('cancelled')
+        ->and($goods->fresh()->invoiced_quantity)->toBe('0.0000')
+        ->and($service->fresh()->invoiced_quantity)->toBe('0.0000')
+        ->and(AuditEvent::query()->where('event', 'sales.order.invoice_cancelled')->count())->toBe(1);
+
+    // The same goods can now go on a new invoice.
+    $this->post(route('erp.sales.orders.invoice', $order))->assertSessionHasNoErrors();
+    expect($goods->fresh()->invoiced_quantity)->toBe('4.0000');
+});
+
+test('each delivery has a delivery note PDF', function () {
+    $order = approvedOrder();
+    $this->post(route('erp.sales.orders.deliver', $order), ['lines' => [
+        ['sales_order_line_id' => $order->lines[0]->id, 'quantity' => '3', 'location_id' => $this->store->id],
+    ]]);
+    $delivery = Delivery::query()->sole();
+
+    $this->get(route('erp.sales.orders.show', $order))
+        ->assertInertia(fn ($page) => $page->where('order.deliveries.0.kind', 'delivery'));
+    $this->get(route('erp.sales.orders.deliveries.pdf', [$order, $delivery]))
+        ->assertOk()->assertHeader('Content-Type', 'application/pdf');
+
+    $other = SalesOrder::create(['customer_id' => $this->customer->id, 'document_number' => 'SMP/SO/0009', 'status' => 'approved', 'currency_code' => 'USD', 'created_by' => $this->user->id]);
+    $this->get(route('erp.sales.orders.deliveries.pdf', [$other, $delivery]))->assertNotFound();
+});
+
+test('goods come back from the customer into stock and the order reopens for delivery', function () {
+    $order = approvedOrder();
+    $goods = $order->lines[0];
+    $this->post(route('erp.sales.orders.deliver', $order), ['lines' => [
+        ['sales_order_line_id' => $goods->id, 'quantity' => '10', 'location_id' => $this->store->id],
+    ]]);
+    $this->post(route('erp.sales.orders.invoice', $order));
+    expect($order->fresh()->status)->toBe('delivered');
+
+    // More than was delivered is refused, and a reason is required.
+    $this->post(route('erp.sales.orders.returns.store', $order), ['reason' => 'Damaged', 'lines' => [
+        ['sales_order_line_id' => $goods->id, 'quantity' => '11', 'location_id' => $this->store->id],
+    ]])->assertSessionHasErrors('lines.0.quantity');
+    $this->post(route('erp.sales.orders.returns.store', $order), ['lines' => [
+        ['sales_order_line_id' => $goods->id, 'quantity' => '2', 'location_id' => $this->store->id],
+    ]])->assertSessionHasErrors('reason');
+
+    $this->post(route('erp.sales.orders.returns.store', $order), ['reason' => 'Two bits arrived cracked.', 'lines' => [
+        ['sales_order_line_id' => $goods->id, 'quantity' => '2', 'location_id' => $this->store->id],
+    ]])->assertSessionHasNoErrors()->assertSessionHas('success', fn (string $message) => str_contains($message, 'credit note'));
+
+    $return = Delivery::query()->where('kind', 'return')->sole();
+    expect($order->fresh()->status)->toBe('partially_delivered')
+        ->and($goods->fresh()->delivered_quantity)->toBe('8.0000')
+        ->and(app(InventoryStockService::class)->quantityOnHand($this->company, $this->product->id, $this->store->id, null))->toBe('12.0000')
+        ->and($return->document_number)->toContain('SALES_RETURN')
+        ->and(AuditEvent::query()->where('event', 'sales.order.returned')->count())->toBe(1);
+
+    $this->get(route('erp.sales.orders.show', $order))
+        ->assertInertia(fn ($page) => $page->where('order.can_deliver', true)->where('order.can_return', true)
+            ->where('order.deliveries', fn ($deliveries) => collect($deliveries)->pluck('kind')->sort()->values()->all() === ['delivery', 'return']));
+    $this->get(route('erp.sales.orders.deliveries.pdf', [$order, $return]))->assertOk();
+});

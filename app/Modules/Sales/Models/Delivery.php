@@ -15,7 +15,16 @@ class Delivery extends Model
 
     protected $table = 'sal_deliveries';
 
-    protected $fillable = ['company_id', 'sales_order_id', 'document_number', 'delivered_by', 'delivered_at', 'notes'];
+    protected $fillable = ['company_id', 'sales_order_id', 'kind', 'document_number', 'delivered_by', 'delivered_at', 'notes'];
+
+    public const KIND_DELIVERY = 'delivery';
+
+    public const KIND_RETURN = 'return';
+
+    public function isReturn(): bool
+    {
+        return $this->kind === self::KIND_RETURN;
+    }
 
     protected function casts(): array
     {

@@ -2,8 +2,9 @@ import { OrderActions, type OrderFlags } from '@/components/erp/order-actions';
 import { ORDER_STATUS_LABELS, money, qty, type OrderStatus } from '@/components/erp/sales';
 import { Card, Detail, StatusBadge, formatDate, humanize, inputClass, primaryButton } from '@/components/hrm/ui';
 import { Link, useForm, usePage } from '@inertiajs/react';
-import { Truck } from 'lucide-react';
+import { FileText, Truck, Undo2 } from 'lucide-react';
 import type { FormEvent } from 'react';
+import { useState } from 'react';
 import { route } from 'ziggy-js';
 
 type StockRow = { location_id: number; location: string; lot_code: string | null; quantity: string };
@@ -41,8 +42,10 @@ type Order = OrderFlags & {
     quotation: { id: number; document_number: string } | null;
     creator: { id: number; name: string } | null;
     lines: Line[];
+    can_return: boolean;
     deliveries: {
         id: number;
+        kind: 'delivery' | 'return';
         document_number: string;
         delivered_at: string | null;
         delivered_by: string | null;
@@ -54,7 +57,8 @@ type Order = OrderFlags & {
     delivered_percent: number | null;
     invoiced_percent: number;
 };
-type Props = { order: Order; canManage: boolean; canInvoice: boolean };
+type Location = { id: number; label: string };
+type Props = { order: Order; locations: Location[]; canManage: boolean; canInvoice: boolean };
 
 const sourceKey = (row: StockRow) => `${row.location_id}|${row.lot_code ?? ''}`;
 
@@ -169,7 +173,124 @@ function DeliverForm({ order }: { order: Order }) {
     );
 }
 
-export default function OrderShow({ order, canManage, canInvoice }: Props) {
+/** Goods coming back from the customer: how many of each delivered line, which store they go back to, and why. */
+function ReturnForm({ order, locations }: { order: Order; locations: Location[] }) {
+    const [open, setOpen] = useState(false);
+    const delivered = order.lines.filter((line) => line.needs_delivery && Number(line.delivered_quantity) > 0);
+    const form = useForm({
+        reason: '',
+        lines: delivered.map((line) => ({ sales_order_line_id: line.id, quantity: '0', location_id: locations[0]?.id ?? 0, lot_code: '' })),
+    });
+    const errors = form.errors as Record<string, string | undefined>;
+
+    const setLine = (index: number, patch: Partial<(typeof form.data.lines)[number]>) =>
+        form.setData('lines', form.data.lines.map((line, i) => (i === index ? { ...line, ...patch } : line)));
+
+    const submit = (event: FormEvent) => {
+        event.preventDefault();
+        form.transform((data) => ({
+            reason: data.reason,
+            lines: data.lines.map((line) => ({ ...line, quantity: line.quantity || '0', lot_code: line.lot_code || null })),
+        }));
+        form.post(route('erp.sales.orders.returns.store', order.id), { preserveScroll: true, onSuccess: () => setOpen(false) });
+    };
+
+    if (delivered.length === 0) return null;
+
+    return (
+        <Card title="Returns from the customer">
+            {!open ? (
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                    <p className="text-muted-foreground text-sm">Goods sent back by the customer go back into stock and can be delivered again.</p>
+                    <button type="button" onClick={() => setOpen(true)} className="inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium hover:bg-muted">
+                        <Undo2 className="size-4" /> Record a return
+                    </button>
+                </div>
+            ) : (
+                <form onSubmit={submit} className="space-y-4">
+                    <p className="text-muted-foreground text-sm">
+                        Enter what came back. Goods already invoiced stay invoiced: raise a credit note for them in Invoicing afterwards.
+                    </p>
+                    {(errors.lines || errors.sales_order || errors.operation) && (
+                        <p className="text-destructive text-sm">{errors.lines ?? errors.sales_order ?? errors.operation}</p>
+                    )}
+                    <ul className="divide-y rounded-xl border">
+                        {delivered.map((line, index) => {
+                            const value = form.data.lines[index];
+                            const tracked = line.product !== null && line.product.tracking !== 'none';
+                            return (
+                                <li key={line.id} className="grid gap-3 p-3 sm:grid-cols-[minmax(0,1fr)_8rem_minmax(0,14rem)] sm:items-start">
+                                    <div className="min-w-0">
+                                        <div className="font-medium">{line.description}</div>
+                                        <div className="text-muted-foreground text-xs">
+                                            {line.product?.sku} · {qty(line.delivered_quantity)} {line.product?.unit ?? ''} delivered
+                                        </div>
+                                        {tracked && (
+                                            <input
+                                                value={value.lot_code}
+                                                onChange={(e) => setLine(index, { lot_code: e.target.value })}
+                                                placeholder="Lot or serial number"
+                                                maxLength={100}
+                                                className={`${inputClass} mt-2`}
+                                            />
+                                        )}
+                                    </div>
+                                    <label className="grid gap-1 text-sm">
+                                        <span className="text-muted-foreground text-xs">Quantity back</span>
+                                        <input
+                                            type="number"
+                                            min="0"
+                                            max={line.delivered_quantity}
+                                            step="any"
+                                            value={value.quantity}
+                                            onChange={(e) => setLine(index, { quantity: e.target.value })}
+                                            className={`${inputClass} text-right`}
+                                        />
+                                        {errors[`lines.${index}.quantity`] && <span className="text-destructive text-xs">{errors[`lines.${index}.quantity`]}</span>}
+                                    </label>
+                                    <label className="grid min-w-0 gap-1 text-sm">
+                                        <span className="text-muted-foreground text-xs">Back to</span>
+                                        <select value={value.location_id} onChange={(e) => setLine(index, { location_id: Number(e.target.value) })} className={inputClass}>
+                                            {locations.map((location) => (
+                                                <option key={location.id} value={location.id}>
+                                                    {location.label}
+                                                </option>
+                                            ))}
+                                        </select>
+                                        {errors[`lines.${index}.location_id`] && <span className="text-destructive text-xs">{errors[`lines.${index}.location_id`]}</span>}
+                                    </label>
+                                </li>
+                            );
+                        })}
+                    </ul>
+                    <label className="grid gap-1.5 text-sm">
+                        <span className="text-foreground/85 font-medium">Reason for the return</span>
+                        <textarea
+                            rows={2}
+                            required
+                            value={form.data.reason}
+                            onChange={(e) => form.setData('reason', e.target.value)}
+                            className={inputClass}
+                            maxLength={2000}
+                            placeholder="Damaged in transit, wrong item, over-supplied…"
+                        />
+                        {errors.reason && <span className="text-destructive text-xs">{errors.reason}</span>}
+                    </label>
+                    <div className="flex justify-end gap-2">
+                        <button type="button" onClick={() => setOpen(false)} className="rounded-lg border px-3 py-2 text-sm">
+                            Cancel
+                        </button>
+                        <button type="submit" className={`${primaryButton} gap-2`} disabled={form.processing}>
+                            <Undo2 className="size-4" /> {form.processing ? 'Recording…' : 'Record return'}
+                        </button>
+                    </div>
+                </form>
+            )}
+        </Card>
+    );
+}
+
+export default function OrderShow({ order, locations, canManage, canInvoice }: Props) {
     const errors = usePage().props.errors as Record<string, string | undefined>;
     const flowError = errors.approval ?? errors.sales_order;
     const hasDiscount = order.lines.some((line) => Number(line.discount) > 0);
@@ -284,6 +405,8 @@ export default function OrderShow({ order, canManage, canInvoice }: Props) {
 
             {canManage && order.can_deliver && <DeliverForm order={order} />}
 
+            {canManage && order.can_return && <ReturnForm order={order} locations={locations} />}
+
             <div className="grid gap-6 lg:grid-cols-2">
                 <Card title="Deliveries">
                     {order.deliveries.length === 0 ? (
@@ -293,7 +416,14 @@ export default function OrderShow({ order, canManage, canInvoice }: Props) {
                             {order.deliveries.map((delivery) => (
                                 <li key={delivery.id} className="space-y-1 py-3 first:pt-0 last:pb-0">
                                     <div className="flex flex-wrap items-baseline justify-between gap-2">
-                                        <span className="font-medium break-all">{delivery.document_number}</span>
+                                        <span className="flex flex-wrap items-center gap-2">
+                                            <span className="font-medium break-all">{delivery.document_number}</span>
+                                            {delivery.kind === 'return' && (
+                                                <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-900 dark:bg-amber-500/15 dark:text-amber-200">
+                                                    Return
+                                                </span>
+                                            )}
+                                        </span>
                                         <span className="text-muted-foreground text-xs">
                                             {formatDate(delivery.delivered_at)}
                                             {delivery.delivered_by && ` · ${delivery.delivered_by}`}
@@ -303,12 +433,20 @@ export default function OrderShow({ order, canManage, canInvoice }: Props) {
                                         {delivery.lines.map((line) => (
                                             <li key={line.id}>
                                                 {qty(line.quantity)} × {line.description}
-                                                {line.location && ` from ${line.location}`}
+                                                {line.location && (delivery.kind === 'return' ? ` back to ${line.location}` : ` from ${line.location}`)}
                                                 {line.lot_code && ` (lot ${line.lot_code})`}
                                             </li>
                                         ))}
                                     </ul>
                                     {delivery.notes && <p className="text-sm">{delivery.notes}</p>}
+                                    <a
+                                        href={route('erp.sales.orders.deliveries.pdf', [order.id, delivery.id])}
+                                        target="_blank"
+                                        rel="noopener"
+                                        className="text-primary inline-flex items-center gap-1 text-sm hover:underline"
+                                    >
+                                        <FileText className="size-4" /> {delivery.kind === 'return' ? 'Return note PDF' : 'Delivery note PDF'}
+                                    </a>
                                 </li>
                             ))}
                         </ul>

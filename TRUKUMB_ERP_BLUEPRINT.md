@@ -517,7 +517,7 @@ For each subsidiary, collect before go-live:
 
 ## 14. Progress Tracker
 
-_Last reviewed: 24 November 2026. 281 automated tests pass._
+_Last reviewed: 27 November 2026. 284 automated tests pass._
 
 Legend: `[x]` done and in use · `[~]` partly built (see the note) · `[ ]` not started
 
@@ -554,7 +554,10 @@ Legend: `[x]` done and in use · `[~]` partly built (see the note) · `[ ]` not 
     - [x] Delivery from stock: deliver all or part of each goods line from a chosen store (and lot), stock is issued to the Customers location, the order shows part delivered or delivered
     - [x] Invoice from the order: bills goods up to what was delivered plus service lines, minus what is already invoiced; several invoices per order are linked to it
     - [x] Leads and opportunities pages: search, status tabs, add and edit in a dialog, qualify / lost / reopen, make an opportunity from a lead, won / lost with pipeline totals, quote from an opportunity
-    - [ ] Cancelling an invoice does not yet give its quantities back to the order (so they could be invoiced again)
+    - [x] Cancelling an invoice raised from an order gives its quantities back to the order, so they can be invoiced again
+    - [x] Delivery note PDF for every delivery (and a return note for every return), with signature lines
+    - [x] Returns from the customer: goods go back into a chosen store, the order counts them as not delivered and reopens for delivery
+    - [ ] A credit note against a posted order invoice does not yet change the order's invoiced quantities
   - [x] Balance sheet, aged receivables and aged payables (Financial Reports page, CSV and branded PDF)
   - [ ] Cash flow statement
   - [x] Bank reconciliation (match statement lines to customer receipts and vendor payments, explain bank charges, auto-match)
@@ -587,7 +590,7 @@ These are ordered so each step builds on the one before it and finishes work tha
    - ~~Part 1: quotations.~~ Done (22 Nov 2026): Sales → Quotations lists every quotation with search and status tabs; New quotation takes any number of lines (product, description, quantity, price, discount, tax) with live totals, notes and terms; each quotation has its own page with Submit for approval, Create sales order, View PDF and Email to customer.
    - ~~Quotation actions.~~ Done (22 Nov 2026): Edit (drafts only), Duplicate (a new draft with the same lines), Cancel (also withdraws an approval that is still waiting) and Delete (only quotations with no approval or order history; the rest are cancelled and kept). Buttons on every list row and on the quotation page.
    - ~~Part 2: orders, delivery, invoicing, leads and opportunities.~~ Done (23 Nov 2026): Sales → Sales Orders lists every order with what has been delivered and invoiced; each order has its own page with Submit for approval, Deliver (all or part, from a chosen store, stock taken out), Create invoice (goods up to what was delivered, plus services) and Cancel / Delete for untouched orders. Sales → Leads and Sales → Opportunities are list pages with search, status tabs and actions; the Sales overview shows what needs attention at each step.
-   - Still open: cancelling an invoice should give its quantities back to the order; a delivery note PDF; returns from the customer.
+   - ~~Still open: cancelling an invoice gives its quantities back; delivery note PDF; returns from the customer.~~ Done (27 Nov 2026). Sales is complete apart from one follow-up: a credit note against a posted order invoice should also reduce the order's invoiced quantities.
 4. ~~**Purchase order PDF and email to the vendor.**~~ Done (22 Nov 2026): each approved order has View PDF and Email to vendor on the Purchase page. The email goes to the vendor's address (it can be changed before sending), carries the PDF, and replies go to the buyer who sent it.
 5. **Stock valuation.** Average cost on receipts, with journals for stock, goods received not invoiced and cost of sales. Needed before POS and before the balance sheet shows stock correctly.
 6. **Finish HRM core.** Job descriptions screen, leave calendar, and expiry alerts for documents and contracts (a daily scheduled job).
@@ -640,6 +643,7 @@ Found while reviewing the code on 22 November 2026, most valuable first.
 
 ## 18. Change log
 
+- **27 Nov 2026:** Sales finished. Cancelling an invoice raised from a sales order gives its quantities back to the order (each invoice line now records its order line; older invoices are matched by product and description). Every delivery has a branded delivery note PDF with signature lines. Returns from the customer: Record a return on the order takes goods back into a chosen store (new `customer_return` stock movement, `SALES_RETURN` numbers, `sal_deliveries.kind`), lowers the delivered quantity, reopens the order for delivery, and prints a return note; if the goods were already invoiced it says to raise a credit note.
 - **24 Nov 2026:** The app's own JSON endpoints in `routes/api.php` (media library, notifications, assistant, task dependencies and the rest) now run with the login session, cookies and CSRF checks. Since they moved out of the web routes on 11 Nov they had no session, so the server answered "User is not logged in" and pages such as the media library showed nothing.
 - **24 Nov 2026:** The media library is shared again and does not depend on the ERP company. Everyone sees every file and folder in each workspace they belong to, whoever uploaded it (before, members only saw their own uploads, and only in the workspace currently selected). Locked files, and files in locked folders, stay hidden from people without access. Locking, sharing, moving and deleting stay with the uploader and the workspace owner (`App\Support\MediaLibraryScope`).
 - **24 Nov 2026:** The company picker is now a "Choose a company to work in" screen for people in several companies: a card per company with their role there and an Open button that goes straight to that company's home (switching used to return to the list). Adding a company is tucked behind "Add a new company" and only shown to people allowed to create companies.
