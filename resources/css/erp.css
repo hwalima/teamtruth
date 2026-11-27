@@ -1,39 +1,138 @@
+/*
+ * ERP design layer. Every page under pages/Erp is wrapped in .erp-shell, so these
+ * rules give all of them the same modern look without touching each page:
+ * an animated backdrop, staggered page entrance, glass cards, gradient buttons,
+ * polished forms and tables. Colours come from the theme tokens so dark mode follows.
+ */
+
 .erp-shell {
-    --erp-glass-border: color-mix(in srgb, var(--foreground) 9%, transparent);
-    --erp-glass-shadow: 0 12px 36px color-mix(in srgb, var(--foreground) 7%, transparent);
+    --erp-gold: #e3b448;
+    --erp-gold-light: #f0c766;
+    --erp-gold-deep: #cf9c33;
+    --erp-navy: #001a4d;
+    --erp-glass-border: color-mix(in srgb, var(--foreground) 8%, transparent);
+    --erp-glass-shadow:
+        0 1px 2px color-mix(in srgb, var(--foreground) 4%, transparent),
+        0 12px 32px -12px color-mix(in srgb, var(--foreground) 14%, transparent);
+    --erp-lift-shadow:
+        0 2px 4px color-mix(in srgb, var(--foreground) 5%, transparent),
+        0 22px 44px -16px color-mix(in srgb, var(--foreground) 24%, transparent);
+    --erp-highlight: linear-gradient(180deg, color-mix(in srgb, #fff 55%, transparent), transparent 3.5rem);
     position: relative;
     isolation: isolate;
     min-height: 100vh;
     background:
-        radial-gradient(ellipse at 12% 0%, color-mix(in srgb, var(--primary) 8%, transparent), transparent 34rem),
-        radial-gradient(ellipse at 92% 18%, color-mix(in srgb, #60a5fa 7%, transparent), transparent 38rem);
+        radial-gradient(ellipse at 12% 0%, color-mix(in srgb, var(--primary) 9%, transparent), transparent 34rem),
+        radial-gradient(ellipse at 92% 18%, color-mix(in srgb, #60a5fa 8%, transparent), transparent 38rem);
 }
 
+.dark .erp-shell {
+    --erp-highlight: linear-gradient(180deg, color-mix(in srgb, #fff 5%, transparent), transparent 3.5rem);
+}
+
+/* ── Animated backdrop: two slow aurora glows over a faint, fading grid ── */
+.erp-shell::before,
+.erp-shell::after {
+    content: '';
+    position: fixed;
+    z-index: -1;
+    pointer-events: none;
+}
+
+.erp-shell::before {
+    inset: 0;
+    background-image:
+        linear-gradient(color-mix(in srgb, var(--foreground) 4.5%, transparent) 1px, transparent 1px),
+        linear-gradient(90deg, color-mix(in srgb, var(--foreground) 4.5%, transparent) 1px, transparent 1px);
+    background-size: 56px 56px;
+    -webkit-mask-image: radial-gradient(ellipse 80% 55% at 60% 0%, #000 10%, transparent 70%);
+    mask-image: radial-gradient(ellipse 80% 55% at 60% 0%, #000 10%, transparent 70%);
+}
+
+.erp-shell::after {
+    top: -20vh;
+    right: -10vw;
+    width: 60vw;
+    height: 60vh;
+    border-radius: 9999px;
+    background:
+        radial-gradient(circle at 30% 40%, color-mix(in srgb, var(--erp-gold) 14%, transparent), transparent 60%),
+        radial-gradient(circle at 70% 60%, color-mix(in srgb, #3b82f6 12%, transparent), transparent 60%);
+    filter: blur(40px);
+    animation: erp-aurora 28s ease-in-out infinite alternate;
+}
+
+@keyframes erp-aurora {
+    to {
+        transform: translate(-18vw, 14vh) scale(1.2) rotate(12deg);
+    }
+}
+
+/* ── Page frame and staggered entrance ── */
 .erp-shell main.mx-auto {
     width: calc(100% - clamp(1.5rem, 5vw, 4rem));
     max-width: 90rem;
     padding: clamp(1.25rem, 3vw, 2.5rem) 0;
 }
 
-.erp-shell main > header:not([class*='bg-gradient']) {
+.erp-shell main > * {
+    animation: erp-rise 0.55s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+
+.erp-shell main > *:nth-child(2) { animation-delay: 0.05s; }
+.erp-shell main > *:nth-child(3) { animation-delay: 0.1s; }
+.erp-shell main > *:nth-child(4) { animation-delay: 0.15s; }
+.erp-shell main > *:nth-child(5) { animation-delay: 0.2s; }
+.erp-shell main > *:nth-child(6) { animation-delay: 0.25s; }
+.erp-shell main > *:nth-child(n + 7) { animation-delay: 0.3s; }
+
+@keyframes erp-rise {
+    from {
+        opacity: 0;
+        transform: translateY(14px);
+    }
+    to {
+        opacity: 1;
+        transform: none;
+    }
+}
+
+/* ── Page header ── */
+.erp-shell main > header:not([class*='bg-gradient']):not(.erp-hero) {
     padding: 0.25rem 0.125rem 0.5rem;
 }
 
-.erp-shell main > header:not([class*='bg-gradient']) h1 {
-    font-size: clamp(1.65rem, 3vw, 2.25rem);
-    font-weight: 650;
+.erp-shell main > header:not([class*='bg-gradient']):not(.erp-hero) h1 {
+    font-size: clamp(1.65rem, 3vw, 2.35rem);
+    font-weight: 700;
     letter-spacing: -0.035em;
     line-height: 1.15;
+    background: linear-gradient(120deg, var(--foreground) 30%, color-mix(in srgb, var(--foreground) 55%, #3b82f6));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
 }
 
-.erp-shell main > section:not([class*='grid']):not([aria-label]),
+.erp-shell main > header:not([class*='bg-gradient']):not(.erp-hero) h1::after {
+    content: '';
+    display: block;
+    width: 2.75rem;
+    height: 3px;
+    margin-top: 0.55rem;
+    border-radius: 9999px;
+    background: linear-gradient(90deg, var(--erp-gold), transparent);
+}
+
+/* ── Cards ── */
+.erp-shell main > section:not([class*='grid']):not([aria-label]):not(.erp-hero),
 .erp-shell main > section[class*='rounded'][class*='border'],
 .erp-shell main section[class*='rounded-md'][class*='border'],
 .erp-shell main article[class*='rounded-md'][class*='border'] {
     border: 1px solid var(--erp-glass-border);
     border-color: var(--erp-glass-border);
     border-radius: 1.25rem;
-    background-color: color-mix(in srgb, var(--card) 76%, transparent);
+    background-color: color-mix(in srgb, var(--card) 80%, transparent);
+    background-image: var(--erp-highlight);
     box-shadow: var(--erp-glass-shadow);
     padding: clamp(1rem, 2vw, 1.5rem);
     -webkit-backdrop-filter: blur(20px);
@@ -42,78 +141,238 @@
 
 .erp-shell main section[class*='rounded-lg'][class*='border'],
 .erp-shell main section[class*='rounded-xl'][class*='border'],
+.erp-shell main section[class*='rounded-2xl'][class*='border'],
 .erp-shell main article[class*='rounded-xl'][class*='border'],
 .erp-shell main li[class*='rounded-md'][class*='border'],
 .erp-shell main div[class*='rounded-xl'][class*='border'][class*='bg-card'] {
     border-color: var(--erp-glass-border);
-    background-color: color-mix(in srgb, var(--card) 72%, transparent);
+    background-color: color-mix(in srgb, var(--card) 78%, transparent);
+    background-image: var(--erp-highlight);
+    box-shadow: var(--erp-glass-shadow);
     -webkit-backdrop-filter: blur(16px);
     backdrop-filter: blur(16px);
 }
 
-.erp-shell main input:not([type='checkbox']):not([type='radio']):not([type='file']),
+.erp-shell main section[class*='rounded-xl'][class*='border'],
+.erp-shell main section[class*='rounded-2xl'][class*='border'],
+.erp-shell main div[class*='rounded-xl'][class*='border'][class*='bg-card'] {
+    border-radius: 1.25rem;
+}
+
+/* Clickable cards and tiles lift and pick up a gold edge. */
+.erp-shell main a[class*='rounded'][class*='border'],
+.erp-shell main a > div[class*='rounded'][class*='border'] {
+    position: relative;
+    border-color: var(--erp-glass-border);
+    background-color: color-mix(in srgb, var(--card) 82%, transparent);
+    background-image: var(--erp-highlight);
+    box-shadow: var(--erp-glass-shadow);
+    transition:
+        transform 220ms cubic-bezier(0.2, 0.7, 0.2, 1),
+        box-shadow 220ms ease,
+        border-color 220ms ease;
+}
+
+.erp-shell main a[class*='rounded-xl'][class*='border'],
+.erp-shell main a > div[class*='rounded-xl'][class*='border'] {
+    border-radius: 1.1rem;
+}
+
+.erp-shell main a[class*='rounded'][class*='border']:not([class~='bg-primary']):hover,
+.erp-shell main a:hover > div[class*='rounded'][class*='border'] {
+    transform: translateY(-3px);
+    border-color: color-mix(in srgb, var(--erp-gold) 55%, transparent);
+    box-shadow:
+        var(--erp-lift-shadow),
+        0 0 0 4px color-mix(in srgb, var(--erp-gold) 10%, transparent);
+}
+
+/* ── Forms ── */
+.erp-shell main input:not([type='checkbox']):not([type='radio']):not([type='file']):not([type='range']),
 .erp-shell main select,
 .erp-shell main textarea {
     max-width: 100%;
-    border-color: color-mix(in srgb, var(--foreground) 13%, transparent);
-    border-radius: 0.75rem;
-    background-color: color-mix(in srgb, var(--background) 82%, transparent);
+    border-color: color-mix(in srgb, var(--foreground) 12%, transparent);
+    border-radius: 0.8rem;
+    background-color: color-mix(in srgb, var(--background) 70%, #fff 30%);
+    box-shadow: inset 0 1px 2px color-mix(in srgb, var(--foreground) 5%, transparent);
     transition:
-        border-color 150ms ease,
-        box-shadow 150ms ease,
-        background-color 150ms ease;
+        border-color 160ms ease,
+        box-shadow 160ms ease,
+        background-color 160ms ease;
 }
 
-.erp-shell main input:not([type='checkbox']):not([type='radio']):not([type='file']):focus,
+.dark .erp-shell main input:not([type='checkbox']):not([type='radio']):not([type='file']):not([type='range']),
+.dark .erp-shell main select,
+.dark .erp-shell main textarea {
+    background-color: color-mix(in srgb, var(--background) 75%, transparent);
+}
+
+.erp-shell main input:not([type='checkbox']):not([type='radio']):not([type='file']):not([type='range']):hover,
+.erp-shell main select:hover,
+.erp-shell main textarea:hover {
+    border-color: color-mix(in srgb, var(--foreground) 22%, transparent);
+}
+
+.erp-shell main input:not([type='checkbox']):not([type='radio']):not([type='file']):not([type='range']):focus,
 .erp-shell main select:focus,
 .erp-shell main textarea:focus {
-    border-color: color-mix(in srgb, var(--primary) 72%, transparent);
+    border-color: var(--erp-gold);
     outline: none;
-    box-shadow: 0 0 0 4px color-mix(in srgb, var(--primary) 16%, transparent);
+    background-color: var(--background);
+    box-shadow:
+        0 0 0 4px color-mix(in srgb, var(--erp-gold) 20%, transparent),
+        0 6px 16px -8px color-mix(in srgb, var(--erp-gold) 50%, transparent);
 }
 
-.erp-shell main button[class*='bg-primary'],
-.erp-shell main a[class*='bg-primary'] {
+.erp-shell main select:not([multiple]):not([size]) {
+    -webkit-appearance: none;
+    appearance: none;
+    padding-right: 2.4rem;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.8rem center;
+    background-size: 1rem;
+}
+
+.erp-shell main input[type='checkbox'],
+.erp-shell main input[type='radio'] {
+    accent-color: var(--erp-gold);
+}
+
+.erp-shell main input::placeholder,
+.erp-shell main textarea::placeholder {
+    color: color-mix(in srgb, var(--foreground) 38%, transparent);
+}
+
+.erp-shell main label > span:first-child {
+    letter-spacing: -0.005em;
+}
+
+/* ── Buttons ── */
+.erp-shell main button[class~='bg-primary'],
+.erp-shell main a[class~='bg-primary'] {
+    position: relative;
+    overflow: hidden;
     min-height: 2.5rem;
-    border-radius: 0.75rem;
-    box-shadow: 0 4px 12px color-mix(in srgb, var(--primary) 20%, transparent);
+    border-radius: 0.8rem;
+    background-image: linear-gradient(135deg, var(--erp-gold-light) 0%, var(--erp-gold) 45%, var(--erp-gold-deep) 100%);
+    box-shadow:
+        0 8px 20px -8px color-mix(in srgb, var(--erp-gold) 75%, transparent),
+        inset 0 1px 0 rgb(255 255 255 / 0.45);
     transition:
-        transform 150ms ease,
-        box-shadow 150ms ease,
-        opacity 150ms ease;
+        transform 160ms ease,
+        box-shadow 160ms ease,
+        opacity 160ms ease;
 }
 
-.erp-shell main button[class*='bg-primary']:hover,
-.erp-shell main a[class*='bg-primary']:hover {
+.erp-shell main button[class~='bg-primary']::after,
+.erp-shell main a[class~='bg-primary']::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -80%;
+    width: 50%;
+    height: 100%;
+    transform: skewX(-20deg);
+    background: linear-gradient(90deg, transparent, rgb(255 255 255 / 0.5), transparent);
+    transition: left 650ms ease;
+    pointer-events: none;
+}
+
+.erp-shell main button[class~='bg-primary']:hover:not(:disabled),
+.erp-shell main a[class~='bg-primary']:hover {
     transform: translateY(-1px);
-    box-shadow: 0 8px 18px color-mix(in srgb, var(--primary) 24%, transparent);
+    box-shadow:
+        0 12px 26px -8px color-mix(in srgb, var(--erp-gold) 85%, transparent),
+        inset 0 1px 0 rgb(255 255 255 / 0.45);
 }
 
+.erp-shell main button[class~='bg-primary']:hover::after,
+.erp-shell main a[class~='bg-primary']:hover::after {
+    left: 130%;
+}
+
+.erp-shell main button[class~='bg-primary']:active:not(:disabled),
+.erp-shell main a[class~='bg-primary']:active {
+    transform: translateY(0) scale(0.98);
+}
+
+/* Outline buttons get a glassy face. */
+.erp-shell main :is(a, button)[class*='rounded-xl'][class~='border'][class*='bg-background'] {
+    background-color: color-mix(in srgb, var(--card) 85%, transparent);
+    box-shadow: 0 1px 2px color-mix(in srgb, var(--foreground) 6%, transparent);
+    transition:
+        background-color 160ms ease,
+        border-color 160ms ease,
+        transform 160ms ease,
+        box-shadow 160ms ease;
+}
+
+.erp-shell main :is(a, button)[class*='rounded-xl'][class~='border'][class*='bg-background']:hover:not(:disabled) {
+    transform: translateY(-1px);
+    border-color: color-mix(in srgb, var(--erp-gold) 45%, transparent);
+    box-shadow: 0 8px 18px -10px color-mix(in srgb, var(--foreground) 30%, transparent);
+}
+
+/* ── Tables ── */
 .erp-shell main table {
     border-collapse: separate;
     border-spacing: 0;
 }
 
 .erp-shell main table thead th {
-    background-color: color-mix(in srgb, var(--muted) 76%, transparent);
+    background-color: color-mix(in srgb, var(--muted) 80%, transparent);
     color: var(--muted-foreground);
-    font-size: 0.72rem;
+    font-size: 0.7rem;
     font-weight: 650;
-    letter-spacing: 0.035em;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
     white-space: nowrap;
+    border-bottom: 1px solid var(--erp-glass-border);
+}
+
+.erp-shell main table thead tr:first-child th:first-child {
+    border-top-left-radius: 0.8rem;
+}
+
+.erp-shell main table thead tr:first-child th:last-child {
+    border-top-right-radius: 0.8rem;
 }
 
 .erp-shell main table th,
 .erp-shell main table td {
-    padding: 0.75rem;
+    padding: 0.8rem 0.85rem;
+}
+
+.erp-shell main table tbody td {
+    border-bottom: 1px solid color-mix(in srgb, var(--foreground) 6%, transparent);
+}
+
+.erp-shell main table tbody tr:last-child td {
+    border-bottom-color: transparent;
 }
 
 .erp-shell main table tbody tr {
-    transition: background-color 140ms ease;
+    transition: background-color 160ms ease;
+}
+
+.erp-shell main table tbody tr > td:first-child {
+    transition: box-shadow 160ms ease;
 }
 
 .erp-shell main table tbody tr:hover {
-    background-color: color-mix(in srgb, var(--primary) 5%, transparent);
+    background-color: color-mix(in srgb, var(--erp-gold) 7%, transparent);
+}
+
+.erp-shell main table tbody tr:hover > td:first-child {
+    box-shadow: inset 3px 0 0 var(--erp-gold);
+}
+
+.erp-shell main table tfoot td,
+.erp-shell main table tfoot th {
+    background-color: color-mix(in srgb, var(--muted) 60%, transparent);
+    font-weight: 600;
 }
 
 .erp-shell main [class*='overflow-x-auto'] {
@@ -122,11 +381,134 @@
     scrollbar-width: thin;
 }
 
+/* ── Hero banner (navy aurora, matches the sign-in screen) ── */
+.erp-hero {
+    position: relative;
+    overflow: hidden;
+    isolation: isolate;
+    border-radius: 1.5rem;
+    color: #fff;
+    background: linear-gradient(135deg, #001233 0%, #001a4d 40%, #0b2f6e 100%);
+    box-shadow:
+        0 24px 60px -24px rgb(0 26 77 / 0.6),
+        inset 0 1px 0 rgb(255 255 255 / 0.08);
+}
+
+.erp-hero::before {
+    content: '';
+    position: absolute;
+    inset: -40%;
+    z-index: -1;
+    background:
+        radial-gradient(circle at 20% 30%, rgb(59 130 246 / 0.45), transparent 35%),
+        radial-gradient(circle at 80% 20%, rgb(227 180 72 / 0.35), transparent 30%),
+        radial-gradient(circle at 60% 90%, rgb(56 189 248 / 0.25), transparent 35%);
+    filter: blur(30px);
+    animation: erp-hero-drift 18s ease-in-out infinite alternate;
+}
+
+.erp-hero::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    background-image:
+        linear-gradient(rgb(227 180 72 / 0.08) 1px, transparent 1px),
+        linear-gradient(90deg, rgb(227 180 72 / 0.08) 1px, transparent 1px);
+    background-size: 40px 40px;
+    -webkit-mask-image: linear-gradient(110deg, transparent 35%, #000 100%);
+    mask-image: linear-gradient(110deg, transparent 35%, #000 100%);
+}
+
+@keyframes erp-hero-drift {
+    to {
+        transform: translate(8%, -6%) rotate(8deg) scale(1.1);
+    }
+}
+
+.erp-hero-shimmer {
+    background: linear-gradient(110deg, var(--erp-gold) 0%, #fff3cf 22%, var(--erp-gold) 44%, #c8902a 70%, var(--erp-gold) 100%);
+    background-size: 250% 100%;
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    animation: erp-shimmer 6s linear infinite;
+}
+
+@keyframes erp-shimmer {
+    to {
+        background-position: -250% 0;
+    }
+}
+
+.erp-hero-chip {
+    border: 1px solid rgb(255 255 255 / 0.16);
+    background: rgb(255 255 255 / 0.07);
+    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px);
+}
+
+.erp-hero-stat {
+    border: 1px solid rgb(255 255 255 / 0.12);
+    background: rgb(255 255 255 / 0.06);
+    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(12px);
+    transition:
+        transform 200ms ease,
+        background-color 200ms ease,
+        border-color 200ms ease;
+}
+
+.erp-hero-stat:hover {
+    transform: translateY(-2px);
+    border-color: rgb(227 180 72 / 0.45);
+    background: rgb(255 255 255 / 0.1);
+}
+
+/* Links inside the hero keep their own look (no card lift rules). */
+.erp-shell main .erp-hero a[class*='rounded'][class*='border']:hover {
+    transform: translateY(-1px);
+    box-shadow: none;
+}
+
+.erp-shell main .erp-hero a[class*='rounded'][class*='border'] {
+    border-color: rgb(255 255 255 / 0.2);
+    background-color: rgb(255 255 255 / 0.1);
+    background-image: none;
+    box-shadow: none;
+}
+
+.erp-shell main .erp-hero a[class*='rounded'][class*='border']:hover {
+    border-color: rgb(227 180 72 / 0.6);
+    background-color: rgb(255 255 255 / 0.16);
+}
+
+/* ── Top bar and scrollbars ── */
 .erp-shell header[class*='border-sidebar-border'] {
     border-color: var(--erp-glass-border);
-    background-color: color-mix(in srgb, var(--background) 80%, transparent);
-    -webkit-backdrop-filter: blur(20px);
-    backdrop-filter: blur(20px);
+    background-color: color-mix(in srgb, var(--background) 72%, transparent);
+    -webkit-backdrop-filter: blur(20px) saturate(1.4);
+    backdrop-filter: blur(20px) saturate(1.4);
+}
+
+.erp-shell ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+}
+
+.erp-shell ::-webkit-scrollbar-thumb {
+    border: 3px solid transparent;
+    border-radius: 9999px;
+    background-color: color-mix(in srgb, var(--foreground) 18%, transparent);
+    background-clip: padding-box;
+}
+
+.erp-shell ::-webkit-scrollbar-thumb:hover {
+    background-color: color-mix(in srgb, var(--erp-gold) 70%, transparent);
+}
+
+.erp-shell ::-webkit-scrollbar-track {
+    background: transparent;
 }
 
 @media (max-width: 640px) {
@@ -134,13 +516,18 @@
         width: calc(100% - 1.5rem);
     }
 
-    .erp-shell main > section:not([class*='grid']):not([aria-label]) {
+    .erp-shell main > section:not([class*='grid']):not([aria-label]):not(.erp-hero) {
         padding: 1rem;
     }
 
     .erp-shell main table th,
     .erp-shell main table td {
-        padding: 0.625rem 0.75rem;
+        padding: 0.65rem 0.75rem;
+    }
+
+    .erp-shell::after {
+        width: 100vw;
+        right: -40vw;
     }
 }
 
@@ -149,6 +536,12 @@
     .erp-shell *::before,
     .erp-shell *::after {
         scroll-behavior: auto !important;
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
         transition-duration: 0.01ms !important;
+    }
+
+    .erp-shell::after {
+        animation: none;
     }
 }

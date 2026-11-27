@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { route } from 'ziggy-js';
+import { Hero, heroButton, heroButtonSolid } from '@/components/hrm/ui';
 
 type Module = {
     key: string;
@@ -86,50 +87,44 @@ export default function Index({ company, userName, myWork, tiles, modules, canMa
     return (
         <main className="mx-auto w-full max-w-7xl space-y-8 p-5 sm:p-8">
             <Head title={`${company.name} | Home`} />
-            <section className="from-primary to-primary/80 text-primary-foreground relative overflow-hidden rounded-2xl bg-gradient-to-br p-6 shadow-sm sm:p-8">
-                <div className="bg-primary-foreground/5 absolute -top-20 -right-14 h-64 w-64 rounded-full" />
-                <div className="relative flex flex-wrap items-end justify-between gap-6">
-                    <div className="max-w-2xl">
-                        <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs">
-                            <Building2 className="h-3.5 w-3.5" />
-                            {company.code} · {company.name}
-                        </div>
-                        <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
-                            {greeting()}, {firstName}
-                        </h1>
-                        <p className="mt-2 max-w-xl text-sm text-white/80 sm:text-base">
-                            {myWork.approvals && myWork.approvals.count > 0
-                                ? `${myWork.approvals.count} ${myWork.approvals.count === 1 ? 'document is' : 'documents are'} waiting for your approval.`
-                                : 'Here is what needs your attention today.'}
-                        </p>
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                        {canManageMembers && (
-                            <Link
-                                href={route('erp.companies.members.index')}
-                                className="inline-flex items-center gap-2 rounded-lg border border-white/30 bg-white/10 px-4 py-2 text-sm font-medium hover:bg-white/20"
-                            >
-                                <UsersRound className="h-4 w-4" /> Members
-                            </Link>
-                        )}
-                        {canManageRoles && (
-                            <Link
-                                href={route('erp.settings.roles.index')}
-                                className="text-primary inline-flex items-center gap-2 rounded-lg bg-white px-4 py-2 text-sm font-semibold shadow-sm hover:bg-white/90"
-                            >
-                                <Settings2 className="h-4 w-4" /> Roles & access
-                            </Link>
-                        )}
-                    </div>
-                </div>
-            </section>
+            <Hero
+                eyebrow={
+                    <>
+                        <Building2 className="h-3.5 w-3.5 text-[#E3B448]" />
+                        {company.code} · {company.name}
+                    </>
+                }
+                title={`${greeting()},`}
+                highlight={firstName}
+                subtitle={
+                    myWork.approvals && myWork.approvals.count > 0
+                        ? `${myWork.approvals.count} ${myWork.approvals.count === 1 ? 'document is' : 'documents are'} waiting for your approval.`
+                        : 'Here is what needs your attention today.'
+                }
+                actions={
+                    (canManageMembers || canManageRoles) && (
+                        <>
+                            {canManageMembers && (
+                                <Link href={route('erp.companies.members.index')} className={heroButton}>
+                                    <UsersRound className="h-4 w-4" /> Members
+                                </Link>
+                            )}
+                            {canManageRoles && (
+                                <Link href={route('erp.settings.roles.index')} className={heroButtonSolid}>
+                                    <Settings2 className="h-4 w-4" /> Roles & access
+                                </Link>
+                            )}
+                        </>
+                    )
+                }
+            />
 
             {hasWork && (
                 <section aria-labelledby="my-work" className="space-y-4">
                     <h2 id="my-work" className="text-xl font-semibold">
                         My work
                     </h2>
-                    <div className="grid gap-4 lg:grid-cols-3">
+                    <div className="grid gap-4 [grid-template-columns:repeat(auto-fit,minmax(min(100%,19rem),1fr))]">
                         {myWork.approvals && (
                             <Panel
                                 icon={<ClipboardCheck className="h-4 w-4" />}
@@ -234,8 +229,11 @@ export default function Index({ company, userName, myWork, tiles, modules, canMa
 
             {Object.entries(groups).map(([group, groupTiles]) => (
                 <section key={group} aria-label={group} className="space-y-3">
-                    <h2 className="text-muted-foreground text-sm font-semibold tracking-wide uppercase">{group}</h2>
-                    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                    <h2 className="text-muted-foreground flex items-center gap-3 text-xs font-semibold tracking-[0.14em] uppercase">
+                        {group}
+                        <span aria-hidden className="from-border h-px flex-1 bg-gradient-to-r to-transparent" />
+                    </h2>
+                    <div className="grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(min(100%,14rem),1fr))]">
                         {groupTiles.map((tile) => (
                             <Link
                                 key={tile.key}
@@ -246,7 +244,7 @@ export default function Index({ company, userName, myWork, tiles, modules, canMa
                                     {tile.label}
                                     <ArrowUpRight className="group-hover:text-primary h-3.5 w-3.5 shrink-0 transition" />
                                 </span>
-                                <span className="mt-1.5 text-2xl font-semibold break-words tabular-nums">{tile.value}</span>
+                                <span className="mt-2 text-3xl font-bold tracking-tight break-words tabular-nums">{tile.value}</span>
                                 {tile.hint && (
                                     <span className={`mt-1 text-xs ${tile.attention ? 'text-amber-700 dark:text-amber-400' : 'text-muted-foreground'}`}>
                                         {tile.hint}
@@ -271,7 +269,7 @@ export default function Index({ company, userName, myWork, tiles, modules, canMa
                                 className={`group bg-card flex h-full flex-col rounded-xl border p-5 shadow-sm transition ${module.available ? 'hover:border-primary/40 hover:-translate-y-0.5 hover:shadow-md' : 'opacity-75'}`}
                             >
                                 <div className="flex items-start justify-between gap-4">
-                                    <span className="bg-primary/10 text-primary rounded-lg p-2.5">
+                                    <span className="rounded-xl bg-gradient-to-br from-[#001a4d] to-[#174079] p-2.5 text-[#E3B448] shadow-md shadow-blue-950/20 transition-transform group-hover:scale-110 group-hover:-rotate-3">
                                         <Icon className="h-5 w-5" />
                                     </span>
                                     {module.available ? (
@@ -326,23 +324,24 @@ function Panel({
     children: ReactNode;
 }) {
     return (
-        <div className="bg-card flex min-w-0 flex-col rounded-xl border shadow-sm">
+        <div className="bg-card flex min-w-0 flex-col overflow-hidden rounded-xl border shadow-sm">
             <div className="flex items-center justify-between gap-2 border-b px-4 py-3">
                 <span className="flex min-w-0 items-center gap-2 font-medium">
-                    <span className="bg-primary/10 text-primary rounded-md p-1.5">{icon}</span>
+                    <span className="rounded-lg bg-gradient-to-br from-[#f0c766] to-[#cf9c33] p-1.5 text-[#001a4d] shadow-sm shadow-amber-500/30">{icon}</span>
                     <span className="truncate">{title}</span>
                 </span>
                 <span className="flex shrink-0 items-center gap-3">
                     {action}
-                    <span className="bg-muted rounded-full px-2 py-0.5 text-xs tabular-nums">
+                    <span className={`rounded-full px-2 py-0.5 text-xs font-medium tabular-nums ${count > 0 ? 'bg-[#E3B448]/20 text-amber-800 dark:text-amber-300' : 'bg-muted'}`}>
                         {count}
                         {countLabel && ` ${countLabel}`}
                     </span>
                 </span>
             </div>
             <div className="flex-1 px-4 py-1">{children}</div>
-            <Link href={href} className="text-primary border-t px-4 py-2.5 text-sm font-medium hover:underline">
+            <Link href={href} className="group bg-muted/30 hover:bg-muted/60 flex items-center justify-between border-t px-4 py-2.5 text-sm font-medium text-blue-700 transition-colors dark:text-blue-300">
                 {linkLabel}
+                <ArrowUpRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
             </Link>
         </div>
     );
@@ -350,7 +349,7 @@ function Panel({
 
 function Empty({ icon, text }: { icon: ReactNode; text: string }) {
     return (
-        <div className="text-muted-foreground flex flex-col items-center gap-2 py-6 text-center text-sm">
+        <div className="text-muted-foreground flex flex-col items-center gap-2 py-7 text-center text-sm [&>svg]:rounded-full [&>svg]:bg-emerald-500/10 [&>svg]:p-2 [&>svg]:h-9 [&>svg]:w-9 [&>svg]:text-emerald-600">
             {icon}
             {text}
         </div>

@@ -12,21 +12,21 @@ export type Paginated<T> = {
 };
 
 export const inputClass =
-    'border-input bg-background/70 text-foreground focus:border-primary/60 focus:ring-primary/10 w-full rounded-xl border px-3 py-2.5 text-sm shadow-sm transition outline-none focus:ring-4';
+    'border-input bg-background/70 text-foreground focus:border-primary/60 focus:ring-primary/10 min-h-11 w-full rounded-xl border px-3.5 py-2.5 text-sm shadow-sm transition outline-none focus:ring-4';
 export const primaryButton =
     'bg-primary text-primary-foreground inline-flex min-h-10 items-center justify-center rounded-xl px-4 py-2 text-sm font-semibold shadow-sm transition hover:-translate-y-0.5 hover:shadow-md disabled:opacity-60';
 export const secondaryButton =
-    'border-border/70 bg-background/40 hover:bg-primary/10 hover:border-primary/30 inline-flex min-h-10 items-center justify-center rounded-xl border px-4 py-2 text-sm font-medium transition-colors disabled:opacity-60';
+    'border-border/70 bg-background/40 hover:bg-primary/10 hover:border-primary/30 inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl border px-4 py-2 text-sm font-medium transition-colors disabled:opacity-60';
 export const dangerButton =
     'border-destructive/40 text-destructive hover:bg-destructive/10 inline-flex min-h-10 items-center justify-center rounded-xl border px-4 py-2 text-sm font-medium transition-colors disabled:opacity-60';
 
 export function Page({ title, subtitle, actions, children }: { title: string; subtitle?: ReactNode; actions?: ReactNode; children: ReactNode }) {
     return (
         <main className="mx-auto max-w-7xl space-y-6 p-4 sm:p-6">
-            <header className="flex flex-wrap items-start justify-between gap-3">
+            <header className="flex flex-wrap items-end justify-between gap-4">
                 <div>
                     <h1 className="text-2xl font-semibold">{title}</h1>
-                    {subtitle && <p className="text-muted-foreground mt-1 text-sm">{subtitle}</p>}
+                    {subtitle && <p className="text-muted-foreground mt-2 text-sm">{subtitle}</p>}
                 </div>
                 {actions && <div className="flex flex-wrap gap-2">{actions}</div>}
             </header>
@@ -37,10 +37,15 @@ export function Page({ title, subtitle, actions, children }: { title: string; su
 
 export function Card({ title, actions, children, className = '' }: { title?: ReactNode; actions?: ReactNode; children: ReactNode; className?: string }) {
     return (
-        <section className={`bg-card/70 space-y-4 rounded-xl border p-4 sm:p-6 ${className}`}>
+        <section className={`bg-card/70 space-y-5 rounded-2xl border p-4 sm:p-6 ${className}`}>
             {(title || actions) && (
                 <div className="flex flex-wrap items-center justify-between gap-3">
-                    {title && <h2 className="text-lg font-medium">{title}</h2>}
+                    {title && (
+                        <h2 className="flex items-center gap-2.5 text-lg font-semibold tracking-tight">
+                            <span aria-hidden className="h-5 w-1 shrink-0 rounded-full bg-gradient-to-b from-[#f0c766] to-[#cf9c33]" />
+                            {title}
+                        </h2>
+                    )}
                     {actions}
                 </div>
             )}
@@ -48,6 +53,83 @@ export function Card({ title, actions, children, className = '' }: { title?: Rea
         </section>
     );
 }
+
+/**
+ * Navy "aurora" banner for the top of a home or overview page. Pass stats for the
+ * glass tiles along the bottom and actions for the buttons on the right.
+ */
+export function Hero({
+    eyebrow,
+    title,
+    highlight,
+    subtitle,
+    actions,
+    stats,
+    as: Tag = 'section',
+}: {
+    eyebrow?: ReactNode;
+    title: ReactNode;
+    highlight?: ReactNode;
+    subtitle?: ReactNode;
+    actions?: ReactNode;
+    stats?: { icon?: ReactNode; label: string; value: ReactNode; href?: string }[];
+    as?: 'section' | 'header';
+}) {
+    return (
+        <Tag className="erp-hero p-6 sm:p-8">
+            <div className="flex flex-wrap items-end justify-between gap-6">
+                <div className="max-w-2xl min-w-0">
+                    {eyebrow && (
+                        <div className="erp-hero-chip mb-4 inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs text-white/85">{eyebrow}</div>
+                    )}
+                    <h1 className="text-3xl font-bold tracking-tight text-white sm:text-4xl">
+                        {title}
+                        {highlight && (
+                            <>
+                                {' '}
+                                <span className="erp-hero-shimmer">{highlight}</span>
+                            </>
+                        )}
+                    </h1>
+                    {subtitle && <div className="mt-3 max-w-xl text-sm leading-relaxed text-white/70 sm:text-base">{subtitle}</div>}
+                </div>
+                {actions && <div className="flex flex-wrap gap-2">{actions}</div>}
+            </div>
+            {stats && stats.length > 0 && (
+                <div className="mt-7 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                    {stats.map((stat) => {
+                        const body = (
+                            <>
+                                {stat.icon && (
+                                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/10 text-[#E3B448]">{stat.icon}</span>
+                                )}
+                                <span className="min-w-0">
+                                    <span className="block truncate text-xs text-white/60">{stat.label}</span>
+                                    <span className="block text-2xl font-semibold text-white tabular-nums">{stat.value}</span>
+                                </span>
+                            </>
+                        );
+                        return stat.href ? (
+                            <a key={stat.label} href={stat.href} className="erp-hero-stat flex items-center gap-3 rounded-2xl px-4 py-3">
+                                {body}
+                            </a>
+                        ) : (
+                            <div key={stat.label} className="erp-hero-stat flex items-center gap-3 rounded-2xl px-4 py-3">
+                                {body}
+                            </div>
+                        );
+                    })}
+                </div>
+            )}
+        </Tag>
+    );
+}
+
+/** Classes for buttons that sit on a Hero banner. */
+export const heroButton =
+    'inline-flex min-h-10 items-center gap-2 rounded-xl border border-white/20 bg-white/10 px-4 py-2 text-sm font-medium text-white backdrop-blur transition hover:-translate-y-0.5 hover:border-[#E3B448]/60 hover:bg-white/15';
+export const heroButtonSolid =
+    'inline-flex min-h-10 items-center gap-2 rounded-xl bg-gradient-to-br from-[#f0c766] to-[#cf9c33] px-4 py-2 text-sm font-semibold text-[#001a4d] shadow-lg shadow-amber-500/25 transition hover:-translate-y-0.5';
 
 export function Field({ label, error, children, className = '' }: { label: string; error?: string; children: ReactNode; className?: string }) {
     return (
@@ -99,8 +181,8 @@ export function Select({
 
 export function Checkbox({ label, checked, onChange }: { label: string; checked: boolean; onChange: (value: boolean) => void }) {
     return (
-        <label className="flex items-center gap-2 text-sm">
-            <input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} className="size-4" />
+        <label className="flex cursor-pointer items-center gap-2.5 text-sm select-none">
+            <input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} className="size-4 cursor-pointer rounded" />
             <span>{label}</span>
         </label>
     );
@@ -130,7 +212,10 @@ const badgeColors: Record<string, string> = {
 export function StatusBadge({ value, label }: { value: string | null | undefined; label?: string }) {
     if (!value) return null;
     return (
-        <span className={`rounded px-2 py-1 text-xs font-medium ${badgeColors[value] ?? 'bg-blue-100 text-blue-800'}`}>
+        <span
+            className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium whitespace-nowrap ring-1 ring-black/5 ring-inset ${badgeColors[value] ?? 'bg-blue-100 text-blue-800'}`}
+        >
+            <span aria-hidden className="size-1.5 rounded-full bg-current opacity-70" />
             {label ?? humanize(value)}
         </span>
     );
@@ -138,8 +223,9 @@ export function StatusBadge({ value, label }: { value: string | null | undefined
 
 export function Empty({ children }: { children: ReactNode }) {
     return (
-        <div className="border-border/80 bg-muted/20 text-muted-foreground rounded-xl border border-dashed px-4 py-10 text-center text-sm leading-6">
-            {children}
+        <div className="border-border/80 bg-muted/20 text-muted-foreground relative overflow-hidden rounded-2xl border border-dashed px-4 py-12 text-center text-sm leading-6">
+            <div aria-hidden className="pointer-events-none absolute inset-x-0 -top-16 mx-auto h-32 w-64 rounded-full bg-[#E3B448]/10 blur-3xl" />
+            <div className="relative">{children}</div>
         </div>
     );
 }
@@ -153,7 +239,7 @@ export function Pagination<T>({ page }: { page: Paginated<T> }) {
                     <a
                         key={index}
                         href={link.url}
-                        className={`inline-flex min-h-9 items-center rounded-xl border px-3 text-sm ${link.active ? 'bg-primary text-primary-foreground' : 'hover:bg-primary/10'}`}
+                        className={`inline-flex min-h-9 min-w-9 items-center justify-center rounded-xl border px-3 text-sm transition ${link.active ? 'border-transparent bg-gradient-to-br from-[#f0c766] to-[#cf9c33] font-semibold text-[#001a4d] shadow-md shadow-amber-500/20' : 'bg-card/70 hover:border-primary/40 hover:bg-primary/10'}`}
                         dangerouslySetInnerHTML={{ __html: link.label }}
                     />
                 ) : (

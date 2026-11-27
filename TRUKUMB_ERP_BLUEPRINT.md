@@ -643,6 +643,19 @@ Found while reviewing the code on 22 November 2026, most valuable first.
 
 ## 18. Change log
 
+- **27 Nov 2026:** New ERP look and feel, applied to every ERP page through `resources/css/erp.css` and the shared blocks in `components/hrm/ui.tsx`.
+    - **Page:** a slow aurora and grid backdrop, and sections that rise in one after another as a page opens.
+    - **Cards:** glass cards with a soft highlight. Clickable cards lift and pick up a gold edge.
+    - **Buttons:** primary buttons have a gold gradient with a shine sweep.
+    - **Forms:** inputs have a gold focus ring, and selects have a custom chevron.
+    - **Tables:** table rows get a gold accent bar on hover.
+    - **Shared blocks:**
+        - Status badges are pills with a dot.
+        - Empty states and pagination are polished.
+        - Card titles carry a gold marker.
+        - A new `Hero` navy banner component.
+    - **ERP Home and Accounting:** both use the navy hero. ERP Home's tiles and panels now fill the row.
+    - Works in dark mode and on phones, and motion is off for reduced-motion users.
 - **27 Nov 2026:** Redesigned the sign-in screens (`auth-layout.tsx`). They now have an animated aurora backdrop, a cursor spotlight, rising sparks, a headline that rotates through product areas, and floating notification cards on wide screens. The form card has a glowing animated border. The login form adds field icons, a show/hide password toggle and a shine on the button. Phones get a compact brand header, and motion is switched off for people who prefer reduced motion. Also fixed the garbled "Â©" and "â€”" characters.
 - **27 Nov 2026:** Sales finished. Cancelling an invoice raised from a sales order gives its quantities back to the order (each invoice line now records its order line; older invoices are matched by product and description). Every delivery has a branded delivery note PDF with signature lines. Returns from the customer: Record a return on the order takes goods back into a chosen store (new `customer_return` stock movement, `SALES_RETURN` numbers, `sal_deliveries.kind`), lowers the delivered quantity, reopens the order for delivery, and prints a return note; if the goods were already invoiced it says to raise a credit note.
 - **24 Nov 2026:** The app's own JSON endpoints in `routes/api.php` (media library, notifications, assistant, task dependencies and the rest) now run with the login session, cookies and CSRF checks. Since they moved out of the web routes on 11 Nov they had no session, so the server answered "User is not logged in" and pages such as the media library showed nothing.

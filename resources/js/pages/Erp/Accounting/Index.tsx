@@ -202,7 +202,7 @@ export default function AccountingIndex({
                 <div className="absolute top-20 -right-32 h-96 w-96 rounded-full bg-blue-400/10 blur-3xl" />
             </div>
 
-            <header className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#001a4d] via-[#08275c] to-[#174079] p-6 text-white shadow-xl shadow-blue-950/10 sm:p-8">
+            <header className="erp-hero p-6 text-white sm:p-8">
                 <div aria-hidden="true" className="bg-primary/20 absolute -top-24 right-10 h-64 w-64 rounded-full blur-3xl" />
                 <div aria-hidden="true" className="absolute -right-20 -bottom-40 h-80 w-80 rounded-full bg-sky-300/10 blur-3xl" />
                 <div className="relative">
