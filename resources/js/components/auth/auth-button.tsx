@@ -23,7 +23,7 @@ export default function AuthButton({
         <button 
             {...props}
             type={props.type || 'submit'} 
-            className={`w-full font-semibold py-2.5 rounded-xl transition-all duration-200 hover:opacity-90 active:scale-[0.98] disabled:opacity-50 ${className}`}
+            className={`tt-btn w-full h-12 font-semibold rounded-xl transition-all duration-200 active:scale-[0.98] disabled:opacity-50 ${className}`}
             tabIndex={tabIndex} 
             disabled={processing || disabled}
             style={{ backgroundColor: '#E3B448', color: '#001a4d' }}

@@ -1,5 +1,5 @@
 import { useForm, router, usePage } from '@inertiajs/react';
-import { Mail, Lock } from 'lucide-react';
+import { Eye, EyeOff, Lock, Mail } from 'lucide-react';
 import { FormEventHandler, useState, useEffect } from 'react';
 
 import InputError from '@/components/input-error';
@@ -35,6 +35,7 @@ export default function Login({ status, canResetPassword }: LoginProps) {
 
     const primaryColor = themeColor === 'custom' ? customColor : THEME_COLORS[themeColor as keyof typeof THEME_COLORS];
     const [isDemo, setIsDemo] = useState<boolean>(false);
+    const [showPassword, setShowPassword] = useState(false);
     const [recaptchaToken, setRecaptchaToken] = useState<string>('');
     const [recaptchaError, setRecaptchaError] = useState<string>('');
     const { flash } = usePage().props as any;
@@ -99,7 +100,8 @@ export default function Login({ status, canResetPassword }: LoginProps) {
                 <div className="space-y-4">
                     <div className="relative">
                         <Label required htmlFor="email" className="font-medium mb-2 block text-sm" style={{ color: 'rgba(0,26,77,0.75)' }}>{t("Email address")}</Label>
-                        <div className="relative">
+                        <div className="tt-field-wrap relative">
+                            <Mail aria-hidden className="tt-field-icon pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                             <Input
                                 id="email"
                                 type="email"
@@ -110,8 +112,8 @@ export default function Login({ status, canResetPassword }: LoginProps) {
                                 value={data.email}
                                 onChange={(e) => setData('email', e.target.value)}
                                 placeholder="email@example.com"
-                                className="w-full rounded-xl border-0 bg-white/60 focus:ring-2 transition-all duration-200"
-                                style={{ boxShadow: `0 0 0 1.5px rgba(0,26,77,0.12)`, '--tw-ring-color': primaryColor } as React.CSSProperties}
+                                className="tt-field h-12 w-full rounded-xl border-0 bg-slate-50 pl-10 text-[15px]"
+                                style={{ boxShadow: '0 0 0 1.5px rgba(0,26,77,0.12)' }}
                             />
                         </div>
                         <InputError message={errors.email} />
@@ -124,26 +126,36 @@ export default function Login({ status, canResetPassword }: LoginProps) {
                                 <TextLink 
                                     href={route('password.request')} 
                                     className="text-sm no-underline hover:underline hover:underline-primary" 
-                                    style={{ color: primaryColor }}
+                                    style={{ color: '#b8862a' }}
                                     tabIndex={5}
                                 >
                                     {t("Forgot password?")}
                                 </TextLink>
                             )}
                         </div>
-                        <div className="relative">
+                        <div className="tt-field-wrap relative">
+                            <Lock aria-hidden className="tt-field-icon pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                             <Input
                                 id="password"
-                                type="password"
+                                type={showPassword ? 'text' : 'password'}
                                 required
                                 tabIndex={2}
                                 autoComplete="current-password"
                                 value={data.password}
                                 onChange={(e) => setData('password', e.target.value)}
                                 placeholder="••••••••"
-                                className="w-full rounded-xl border-0 bg-white/60 focus:ring-2 transition-all duration-200"
-                                style={{ boxShadow: `0 0 0 1.5px rgba(0,26,77,0.12)`, '--tw-ring-color': primaryColor } as React.CSSProperties}
+                                className="tt-field h-12 w-full rounded-xl border-0 bg-slate-50 pl-10 pr-11 text-[15px]"
+                                style={{ boxShadow: '0 0 0 1.5px rgba(0,26,77,0.12)' }}
                             />
+                            <button
+                                type="button"
+                                onClick={() => setShowPassword((v) => !v)}
+                                className="absolute right-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700"
+                                aria-label={showPassword ? t('Hide password') : t('Show password')}
+                                aria-pressed={showPassword}
+                            >
+                                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                            </button>
                         </div>
                         <InputError message={errors.password} />
                     </div>
@@ -157,7 +169,7 @@ export default function Login({ status, canResetPassword }: LoginProps) {
                             tabIndex={3}
                             className="border border-gray-300 rounded"
                         />
-                        <Label htmlFor="remember" className="ms-2 text-gray-600 dark:text-gray-400">{t("Remember me")}</Label>
+                        <Label htmlFor="remember" className="ms-2 cursor-pointer text-slate-600">{t("Remember me")}</Label>
                     </div>
                 </div>
 
